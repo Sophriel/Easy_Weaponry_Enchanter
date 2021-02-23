@@ -1,0 +1,14 @@
+/NOLOGO
+/errorReport:prompt
+/MACHINE:x64
+/SUBSYSTEM:WINDOWS
+/DEF
+/NAME:"UE4Editor-EasyWeaponryEnchanter.dll"
+/IGNORE:4221
+/NODEFAULTLIB
+"C:\Users\Sophriel\Desktop\Projects\Unreal Projects\EWE\Intermediate\Build\Win64\EWEEditor\Development\Engine\SharedPCH.Engine.ShadowErrors.h.obj"
+"C:\Users\Sophriel\Desktop\Projects\Unreal Projects\EWE\Plugins\EasyWeaponryEnchanter\Intermediate\Build\Win64\UE4Editor\Development\EasyWeaponryEnchanter\Module.EasyWeaponryEnchanter.cpp.obj"
+"C:\Users\Sophriel\Desktop\Projects\Unreal Projects\EWE\Plugins\EasyWeaponryEnchanter\Intermediate\Build\Win64\UE4Editor\Development\EasyWeaponryEnchanter\Module.EasyWeaponryEnchanter.gen.cpp.obj"
+"C:\Users\Sophriel\Desktop\Projects\Unreal Projects\EWE\Plugins\EasyWeaponryEnchanter\Intermediate\Build\Win64\UE4Editor\Development\EasyWeaponryEnchanter\Default.rc2.res"
+/OUT:"C:\Users\Sophriel\Desktop\Projects\Unreal Projects\EWE\Plugins\EasyWeaponryEnchanter\Intermediate\Build\Win64\UE4Editor\Development\EasyWeaponryEnchanter\UE4Editor-EasyWeaponryEnchanter.lib"
+/INCLUDE:IMPLEMENT_MODULE_EasyWeaponryEnchanter

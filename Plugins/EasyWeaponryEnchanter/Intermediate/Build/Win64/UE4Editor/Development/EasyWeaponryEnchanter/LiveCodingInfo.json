@@ -1,0 +1,13 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.EasyWeaponryEnchanter.cpp.obj": [
+			"EasyWeaponryEnchanter.cpp.obj",
+			"EWE_Common.cpp.obj"
+		],
+		"Module.EasyWeaponryEnchanter.gen.cpp.obj": [
+			"EasyWeaponryEnchanter.init.gen.cpp.obj",
+			"EWE_Common.gen.cpp.obj"
+		]
+	}
+}

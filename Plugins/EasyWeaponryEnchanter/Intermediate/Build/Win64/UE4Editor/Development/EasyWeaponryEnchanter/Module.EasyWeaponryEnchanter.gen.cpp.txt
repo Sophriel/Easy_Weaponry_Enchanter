@@ -1,0 +1,7 @@
+C:\Users\Sophriel\Desktop\Projects\Unreal Projects\EWE\Plugins\EasyWeaponryEnchanter\Intermediate\Build\Win64\UE4Editor\Development\EasyWeaponryEnchanter\Definitions.EasyWeaponryEnchanter.h
+C:/Users/Sophriel/Desktop/Projects/Unreal Projects/EWE/Plugins/EasyWeaponryEnchanter/Intermediate/Build/Win64/UE4Editor/Inc/EasyWeaponryEnchanter/EasyWeaponryEnchanter.init.gen.cpp
+C:\Program Files\UE_4.25\Engine\Source\Runtime\CoreUObject\Public\UObject/GeneratedCppIncludes.h
+C:\Program Files\UE_4.25\Engine\Source\Runtime\CoreUObject\Public\UObject/MetaData.h
+C:/Users/Sophriel/Desktop/Projects/Unreal Projects/EWE/Plugins/EasyWeaponryEnchanter/Intermediate/Build/Win64/UE4Editor/Inc/EasyWeaponryEnchanter/EWE_Common.gen.cpp
+C:\Users\Sophriel\Desktop\Projects\Unreal Projects\EWE\Plugins\EasyWeaponryEnchanter\Source\EasyWeaponryEnchanter/Public/EWE_Common.h
+c:\users\sophriel\desktop\projects\unreal projects\ewe\plugins\easyweaponryenchanter\intermediate\build\win64\ue4editor\inc\easyweaponryenchanter\EWE_Common.generated.h
