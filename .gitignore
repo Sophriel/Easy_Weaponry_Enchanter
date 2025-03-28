@@ -76,6 +76,6 @@ DerivedDataCache/*
 # Added
 Content/*
 Documents/*
-Plugins/*
+Plugins/LudusAI
 
 *.pyc

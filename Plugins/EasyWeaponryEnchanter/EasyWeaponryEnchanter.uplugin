@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Easy Weaponry Enchanter",
+	"Description": "Easy Weaponry Enchanter",
+	"Category": "Other",
+	"CreatedBy": "Sophriel",
+	"CreatedByURL": "https://github.com/Sophriel/Easy_Weaponry_Enchanter",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "EasyWeaponryEnchanter",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
