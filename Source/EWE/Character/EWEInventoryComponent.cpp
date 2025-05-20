@@ -1,7 +1,8 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "EWEInventoryComponent.h"
+#include "EWECharacter.h"
+#include "EasyWeaponryEnchanter/Weapon/EWEWeaponBase.h"
 
 // Sets default values for this component's properties
 UEWEInventoryComponent::UEWEInventoryComponent()
@@ -13,22 +14,37 @@ UEWEInventoryComponent::UEWEInventoryComponent()
 	// ...
 }
 
-
 // Called when the game starts
 void UEWEInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// ...
-	
+	AEWECharacter* OwnerCharacter = Cast<AEWECharacter>(GetOwner());
+	check(OwnerCharacter);
+
+	if (StartWeapon != nullptr)
+	{
+		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.Owner = OwnerCharacter;
+
+		TObjectPtr<AEWEWeaponBase> Weapon = GetWorld()->SpawnActor<AEWEWeaponBase>(StartWeapon, SpawnInfo);
+		Weapon->DisableComponentsSimulatePhysics();
+		Weapon->GetWeaponMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		Weapon->AttachToComponent(OwnerCharacter->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("WeaponSocket"));
+
+		AcquireWeapon(Weapon);
+	}
+
+	if (Weapons.IsEmpty() == true)
+	{
+		return;
+	}
+
+	OwnerCharacter->EquipWeapon(Weapons.Top());
 }
 
-
-// Called every frame
-void UEWEInventoryComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UEWEInventoryComponent::AcquireWeapon(AEWEWeaponBase* NewWeapon)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// ...
+	check(NewWeapon);
+	Weapons.Add(NewWeapon);
 }
-

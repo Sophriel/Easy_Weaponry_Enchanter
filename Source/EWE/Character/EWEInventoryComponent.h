@@ -6,13 +6,12 @@
 #include "Components/ActorComponent.h"
 #include "EWEInventoryComponent.generated.h"
 
-
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class EWE_API UEWEInventoryComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	// Sets default values for this component's properties
 	UEWEInventoryComponent();
 
@@ -20,9 +19,13 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+public:
+	void AcquireWeapon(class AEWEWeaponBase* NewWeapon);
 
-		
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon, meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<class AEWEWeaponBase> StartWeapon;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
+	TArray<TObjectPtr<class AEWEWeaponBase>> Weapons;
 };

@@ -12,5 +12,4 @@ UEWEQuickSlot::UEWEQuickSlot(const FObjectInitializer& ObjectInitializer)
 void UEWEQuickSlot::NativeConstruct()
 {
 	Super::NativeConstruct();
-	K2_SelectSlot(0);
 }

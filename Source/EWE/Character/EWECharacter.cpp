@@ -12,11 +12,11 @@
 #include "InputActionValue.h"
 #include "EWEControlData.h"
 #include "EWEPlayerController.h"
+#include "AbilitySystemComponent.h"
+#include "EasyWeaponryEnchanter/Weapon/EWEWeaponBase.h"
+#include "EWEInventoryComponent.h"
 
 DEFINE_LOG_CATEGORY(LogEWECharacter);
-
-//////////////////////////////////////////////////////////////////////////
-// AEWECharacter
 
 AEWECharacter::AEWECharacter()
 {
@@ -56,10 +56,39 @@ AEWECharacter::AEWECharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character)
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+	InventoryComponent = CreateDefaultSubobject<UEWEInventoryComponent>(TEXT("Inventory Component"));
+
+	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
+
+	SubWeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SubWeaponMesh"));
+	SubWeaponMesh->SetupAttachment(GetMesh(), TEXT("SubWeaponSocket"));
+
+	WeaponAbilityComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("Ability System Component"));
+	WeaponAbilityComponent->SetIsReplicated(true);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
+void AEWECharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	if (WeaponAbilityComponent)
+	{
+		WeaponAbilityComponent->InitAbilityActorInfo(this, this);
+	}
+
+	SetOwner(NewController);
+}
+
+void AEWECharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	SelectItem(0);
+}
+
+#pragma region Input
 
 void AEWECharacter::NotifyControllerChanged()
 {
@@ -103,6 +132,8 @@ void AEWECharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		}
 
 		EnhancedInputComponent->BindAction(ScrollItemAction, ETriggerEvent::Triggered, this, &AEWECharacter::ScrollItem);
+
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AEWECharacter::Attack);
 	}
 	else
 	{
@@ -151,6 +182,10 @@ void AEWECharacter::Look(const FInputActionValue& Value)
 	}
 }
 
+#pragma endregion
+
+#pragma region Camera
+
 void AEWECharacter::ChangeCamera(const FInputActionValue& Value)
 {
 	if (CurrentCameraType == ECameraType::Quarter)
@@ -194,7 +229,34 @@ void AEWECharacter::SetCharacterControlData(const UEWEControlData* ControlData)
 	CameraBoom->bDoCollisionTest = ControlData->bDoCollisionTest;
 }
 
-void AEWECharacter::SelectItem(const FInputActionValue& Value, const uint8 SlotIndex)
+#pragma endregion
+
+#pragma region Weapon
+
+UAbilitySystemComponent* AEWECharacter::GetAbilitySystemComponent() const
+{
+	return WeaponAbilityComponent;
+}
+
+void AEWECharacter::EquipWeapon(AEWEWeaponBase* Weapon)
+{
+	check(Weapon);
+	CurrentWeapon = Weapon;
+
+	// ability
+	WeaponAbilityComponent->RemoveAllSpawnedAttributes();
+	WeaponAbilityComponent->ClearAllAbilities();
+
+	int32 AbilityIndex = 0;
+	for (const auto& Ability : CurrentWeapon->Abilities)
+	{
+		FGameplayAbilitySpec AbilitySpec(Ability, 0, AbilityIndex);
+		WeaponAbilityComponent->GiveAbility(AbilitySpec);
+		++AbilityIndex;
+	}
+}
+
+void AEWECharacter::SelectItem(const uint8 SlotIndex)
 {
 	AEWEPlayerController* PlayerController = Cast<AEWEPlayerController>(Controller);
 	ensure(PlayerController);
@@ -210,3 +272,28 @@ void AEWECharacter::ScrollItem(const FInputActionValue& Value)
 	float ScrollDirection = Value.Get<float>();
 	PlayerController->ScrollSlot(ScrollDirection);
 }
+
+void AEWECharacter::Attack(const FInputActionValue& Value)
+{
+	K2_Attack();
+}
+
+void AEWECharacter::AttackHitCheck()
+{
+	int32 AbilityCount = WeaponAbilityComponent->GetActivatableAbilities().Num();
+	for (int32 AbilityIndex = 0; AbilityIndex < AbilityCount; ++AbilityIndex)
+	{
+		WeaponAbilityComponent->AbilityLocalInputPressed(AbilityIndex);
+	}
+}
+
+void AEWECharacter::AttackReleaseCheck()
+{
+	int32 AbilityCount = WeaponAbilityComponent->GetActivatableAbilities().Num();
+	for (int32 AbilityIndex = 0; AbilityIndex < AbilityCount; ++AbilityIndex)
+	{
+		WeaponAbilityComponent->AbilityLocalInputReleased(AbilityIndex);
+	}
+}
+
+#pragma endregion
