@@ -2,6 +2,7 @@
 
 #include "EasyWeaponryEnchanter.h"
 
+DEFINE_LOG_CATEGORY(LogEWE);
 #define LOCTEXT_NAMESPACE "FEasyWeaponryEnchanterModule"
 
 void FEasyWeaponryEnchanterModule::StartupModule()
