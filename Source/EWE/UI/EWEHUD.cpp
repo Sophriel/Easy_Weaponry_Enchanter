@@ -8,6 +8,18 @@ AEWEHUD::AEWEHUD()
 {
 }
 
+void AEWEHUD::AddWeapon(UEWEWeaponData* Weapon)
+{
+	ensure(QuickSlotWidget);
+	QuickSlotWidget->AddWeapon(Weapon);
+}
+
+void AEWEHUD::SetSlot(int32 SlotIndex, UEWEWeaponData* Weapon)
+{
+	ensure(QuickSlotWidget);
+	QuickSlotWidget->SetWeaponSlot(SlotIndex, Weapon);
+}
+
 void AEWEHUD::SelectSlot(int32 SlotIndex)
 {
 	ensure(QuickSlotWidget);

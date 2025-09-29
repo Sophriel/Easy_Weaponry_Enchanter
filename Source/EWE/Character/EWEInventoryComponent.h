@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/StreamableManager.h"
 #include "EWEInventoryComponent.generated.h"
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -12,20 +13,26 @@ class EWE_API UEWEInventoryComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this component's properties
 	UEWEInventoryComponent();
 
+	class UEWEWeaponData* GetWeapon(uint32 TargetWeapon);
+	void				  AcquireWeapon(class UEWEWeaponData* NewWeapon); // Acquire Loaded Asset
+
 protected:
-	// Called when the game starts
+	virtual void InitializeComponent() override;
 	virtual void BeginPlay() override;
 
-public:
-	void AcquireWeapon(class AEWEWeaponBase* NewWeapon);
+	void		 LoadInitialWeaponsAsync();
+	void		 OnInitialWeaponsLoaded();
 
 protected:
+	TScriptInterface<class IEWECharacterInterface> OwnerCharacter;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon, meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<class AEWEWeaponBase> StartWeapon;
+	TArray<TSoftObjectPtr<class UEWEWeaponData>> InitialWeapons;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
-	TArray<TObjectPtr<class AEWEWeaponBase>> Weapons;
+	TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
+
+	TSharedPtr<FStreamableHandle> LoadHandle;
 };

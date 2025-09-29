@@ -119,11 +119,13 @@ protected:
 public:
 	virtual class UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	void EquipWeapon(class AEWEWeaponBase* Weapon);
+	virtual void AcquireWeapon(class UEWEWeaponData* NewWeapon) override;
+	UFUNCTION(BlueprintCallable, Category = QuickSlot, Meta = (DisplayName = "EquipWeapon"))
+	virtual void EquipWeapon(class UEWEWeaponData* Weapon) override;
 
 protected:
-	void SelectItem(const uint8 SlotIndex);
-	void ScrollItem(const FInputActionValue& Value);
+	void SelectWeapon(const uint8 SlotIndex);
+	void ScrollWeapon(const FInputActionValue& Value);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Weapon, Meta = (DisplayName = "OnAttack"))
 	void K2_Attack();
@@ -132,9 +134,7 @@ protected:
 	virtual void AttackHitCheck() override;
 	virtual void AttackReleaseCheck() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<class UEWEInventoryComponent> InventoryComponent;
-
+protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
 
@@ -142,7 +142,10 @@ protected:
 	TObjectPtr<USkeletalMeshComponent> SubWeaponMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<const class AEWEWeaponBase> CurrentWeapon;
+	TObjectPtr<class UEWEWeaponData> CurrentWeapon;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class UEWEInventoryComponent> InventoryComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UAbilitySystemComponent> WeaponAbilityComponent;

@@ -13,7 +13,8 @@
 #include "EWEControlData.h"
 #include "EWEPlayerController.h"
 #include "AbilitySystemComponent.h"
-#include "EasyWeaponryEnchanter/Weapon/EWEWeaponBase.h"
+// #include "EasyWeaponryEnchanter/Weapon/EWEWeaponBase.h"
+#include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
 #include "EWEInventoryComponent.h"
 
 DEFINE_LOG_CATEGORY(LogEWECharacter);
@@ -85,7 +86,7 @@ void AEWECharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SelectItem(0);
+	SelectWeapon(0);
 }
 
 #pragma region Input
@@ -127,11 +128,11 @@ void AEWECharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		uint8 ItemIndex = 0;
 		for (TObjectPtr<UInputAction> Action : SelectItemActions)
 		{
-			EnhancedInputComponent->BindAction(Action, ETriggerEvent::Triggered, this, &AEWECharacter::SelectItem, ItemIndex);
+			EnhancedInputComponent->BindAction(Action, ETriggerEvent::Triggered, this, &AEWECharacter::SelectWeapon, ItemIndex);
 			++ItemIndex;
 		}
 
-		EnhancedInputComponent->BindAction(ScrollItemAction, ETriggerEvent::Triggered, this, &AEWECharacter::ScrollItem);
+		EnhancedInputComponent->BindAction(ScrollItemAction, ETriggerEvent::Triggered, this, &AEWECharacter::ScrollWeapon);
 
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AEWECharacter::Attack);
 	}
@@ -238,15 +239,37 @@ UAbilitySystemComponent* AEWECharacter::GetAbilitySystemComponent() const
 	return WeaponAbilityComponent;
 }
 
-void AEWECharacter::EquipWeapon(AEWEWeaponBase* Weapon)
+void AEWECharacter::AcquireWeapon(UEWEWeaponData* NewWeapon)
 {
-	check(Weapon);
-	CurrentWeapon = Weapon;
+	AEWEPlayerController* PlayerController = Cast<AEWEPlayerController>(Controller);
+	check(PlayerController);
 
-	// ability
+	PlayerController->AddWeapon(NewWeapon);
+}
+
+void AEWECharacter::EquipWeapon(UEWEWeaponData* Weapon)
+{
 	WeaponAbilityComponent->RemoveAllSpawnedAttributes();
 	WeaponAbilityComponent->ClearAllAbilities();
 
+	if (Weapon == nullptr)
+	{
+		WeaponMesh->SetSkeletalMesh(nullptr);
+		return;
+	}
+
+	check(Weapon);
+	CurrentWeapon = Weapon;
+
+	// Mesh
+	if (Weapon->WeaponMesh.IsPending())
+	{
+		// Weapon->WeaponMesh.LoadSynchronous();
+	}
+
+	WeaponMesh->SetSkeletalMesh(Weapon->WeaponMesh.Get());
+
+	// Ability
 	int32 AbilityIndex = 0;
 	for (const auto& Ability : CurrentWeapon->Abilities)
 	{
@@ -256,7 +279,7 @@ void AEWECharacter::EquipWeapon(AEWEWeaponBase* Weapon)
 	}
 }
 
-void AEWECharacter::SelectItem(const uint8 SlotIndex)
+void AEWECharacter::SelectWeapon(const uint8 SlotIndex)
 {
 	AEWEPlayerController* PlayerController = Cast<AEWEPlayerController>(Controller);
 	ensure(PlayerController);
@@ -264,12 +287,12 @@ void AEWECharacter::SelectItem(const uint8 SlotIndex)
 	PlayerController->SelectSlot(SlotIndex);
 }
 
-void AEWECharacter::ScrollItem(const FInputActionValue& Value)
+void AEWECharacter::ScrollWeapon(const FInputActionValue& Value)
 {
 	AEWEPlayerController* PlayerController = Cast<AEWEPlayerController>(Controller);
 	ensure(PlayerController);
 
-	float ScrollDirection = Value.Get<float>();
+	float ScrollDirection = -Value.Get<float>();
 	PlayerController->ScrollSlot(ScrollDirection);
 }
 
