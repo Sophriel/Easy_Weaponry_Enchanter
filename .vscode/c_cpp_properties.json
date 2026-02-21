@@ -1,0 +1,33 @@
+{
+    "configurations": [
+        {
+            "name": "EWEEditor Editor Win64 Development (EWE)",
+            "compilerPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.38.33130\\bin\\Hostx64\\x64\\cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "msvc-x64",
+            "includePath": [
+                "${workspaceFolder}\\Intermediate\\**",
+                "${workspaceFolder}\\Source\\**",
+                "${workspaceFolder}\\Plugins\\**",
+                "${workspaceFolder:UE5}\\Engine\\Source\\Runtime\\Engine\\Classes\\**",
+                "${workspaceFolder:UE5}\\Engine\\Source\\Runtime\\Engine\\Public\\**",
+                "${workspaceFolder:UE5}\\Engine\\Source\\Runtime\\Core\\Public\\**"
+            ],
+            "compileCommands": [
+                "C:\\Users\\nsa24\\Desktop\\Projects\\Unreal Projects\\EWE\\.vscode\\compileCommands_EWE.json"
+            ]
+        },
+        {
+            "name": "Win32",
+            "compilerPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.38.33130\\bin\\Hostx64\\x64\\cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "msvc-x64",
+            "compileCommands": [
+                "C:\\Users\\nsa24\\Desktop\\Projects\\Unreal Projects\\EWE\\.vscode\\compileCommands_Default.json"
+            ]
+        }
+    ],
+    "version": 4
+}

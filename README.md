@@ -3,3 +3,4 @@
 
 This project requires
 - 'GameplayAbilities' plugin
+- 'Continue' extension for VSCode

@@ -1,0 +1,37 @@
+{
+    "unreal-clangd.creation.overwrite": "full",
+    "unreal-clangd.utility.createProjectOnStartup": false,
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.formatting": "clangFormat",
+    "C_Cpp.intelliSenseEngine": "Tag Parser",
+    "unreal-clangd.creation.compilerPath": "c:\\Program Files\\LLVM\\bin\\clang-cl.exe",
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+
+    "continue": {
+        "models": [
+            {
+                "title": "qwen3",
+                "provider": "ollama",
+                "model": "qwen3-coder:30b",
+                "apiBase": "http://localhost:11434"
+            }
+        ],
+        "embeddingsProvider": {
+            "provider": "ollama",
+            "model": "mxbai-embed-large:latest",
+            "apiBase": "http://localhost:11434"
+        },
+        "codebase": {
+            "enabled": true,
+            "exclude": [
+                "Binaries",
+                "Content",
+                "Intermediate",
+                "DerivedDataCache",
+                "node_modules",
+                "Documents"
+            ]
+        }
+    }
+}

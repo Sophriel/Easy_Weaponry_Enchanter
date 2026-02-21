@@ -1,6 +1,10 @@
 # Visual Studio user specific files
 .vs/
-.vscode/
+.vscode/compileCommands_Default/
+.vscode/compileCommands_EWE/
+.vscode/unreal-clangd/
+.vscode/compileCommands_Default.json
+.vscode/compileCommands_EWE.json
 
 # Compiled Object files
 *.slo
