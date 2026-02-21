@@ -28,5 +28,8 @@ public:
 	TSoftObjectPtr<class USkeletalMesh> WeaponMesh;
 
 	UPROPERTY(EditAnywhere, Category = Weapon)
-	TArray<TSubclassOf<class UGameplayAbility>> Abilities;
+	TArray<TSubclassOf<class UGameplayAbility>> HoldAbilities;
+
+	UPROPERTY(EditAnywhere, Category = Weapon)
+	TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
 };

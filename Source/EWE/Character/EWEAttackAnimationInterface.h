@@ -21,6 +21,7 @@ class EWE_API IEWEAttackAnimationInterface
 	GENERATED_BODY()
 
 public:
+	virtual void AttackHold() = 0;
 	virtual void AttackHitCheck() = 0;
 	virtual void AttackReleaseCheck() = 0;
 };

@@ -270,12 +270,20 @@ void AEWECharacter::EquipWeapon(UEWEWeaponData* Weapon)
 	WeaponMesh->SetSkeletalMesh(Weapon->WeaponMesh.Get());
 
 	// Ability
-	int32 AbilityIndex = 0;
-	for (const auto& Ability : CurrentWeapon->Abilities)
+	int32 HoldAbilityIndex = CHoldAbilityIndex;
+	for (const auto& Ability : CurrentWeapon->HoldAbilities)
 	{
-		FGameplayAbilitySpec AbilitySpec(Ability, 0, AbilityIndex);
+		FGameplayAbilitySpec AbilitySpec(Ability, 0, HoldAbilityIndex);
 		WeaponAbilityComponent->GiveAbility(AbilitySpec);
-		++AbilityIndex;
+		++HoldAbilityIndex;
+	}
+
+	int32 HitAbilityIndex = CHitAbilityIndex;
+	for (const auto& Ability : CurrentWeapon->HitAbilities)
+	{
+		FGameplayAbilitySpec AbilitySpec(Ability, 0, HitAbilityIndex);
+		WeaponAbilityComponent->GiveAbility(AbilitySpec);
+		++HitAbilityIndex;
 	}
 }
 
@@ -301,8 +309,31 @@ void AEWECharacter::Attack(const FInputActionValue& Value)
 	K2_Attack();
 }
 
+void AEWECharacter::AttackHold()
+{
+	// Activate Hold Ability
+	if (!WeaponAbilityComponent || !CurrentWeapon)
+	{
+		return;
+	}
+
+	// CHoldAbilityIndex부터 CHitAbilityIndex 전까지의 어빌리티 활성화
+	TArray<FGameplayAbilitySpec> ActivatableAbilities = WeaponAbilityComponent->GetActivatableAbilities();
+	for (const FGameplayAbilitySpec& AbilitySpec : ActivatableAbilities)
+	{
+		if (AbilitySpec.InputID >= CHoldAbilityIndex && AbilitySpec.InputID < CHitAbilityIndex)
+		{
+			WeaponAbilityComponent->AbilityLocalInputPressed(AbilitySpec.InputID);
+		}
+	}
+}
+
 void AEWECharacter::AttackHitCheck()
 {
+	// Release Hold Ability
+
+
+	// Active Hit Ability
 	int32 AbilityCount = WeaponAbilityComponent->GetActivatableAbilities().Num();
 	for (int32 AbilityIndex = 0; AbilityIndex < AbilityCount; ++AbilityIndex)
 	{

@@ -17,7 +17,10 @@ public:
 	FORCEINLINE class USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon)
-	TArray<TSubclassOf<class UGameplayAbility>> Abilities;
+	TArray<TSubclassOf<class UGameplayAbility>> HoldAbilities;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon)
+	TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
 
 protected:
 	// Called when the game starts or when spawned

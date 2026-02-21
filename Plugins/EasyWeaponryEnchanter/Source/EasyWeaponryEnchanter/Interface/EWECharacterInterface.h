@@ -6,6 +6,9 @@
 #include "UObject/Interface.h"
 #include "EWECharacterInterface.generated.h"
 
+const int32 CHoldAbilityIndex = 1000;
+const int32 CHitAbilityIndex = 2000;
+
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI)
 class UEWECharacterInterface : public UInterface

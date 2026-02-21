@@ -1,5 +1,6 @@
 # Visual Studio user specific files
 .vs/
+.vscode/
 
 # Compiled Object files
 *.slo
@@ -76,6 +77,11 @@ DerivedDataCache/*
 # Added
 Documents/*
 Plugins/LudusAI
+Content/Characters
+Content/__ExternalActors__/ThirdPerson
+Content/__ExternalActors__/VehicleTemplate
+Content/__ExternalObjects__/ThirdPerson
+Content/__ExternalObjects__/VehicleTemplate
+Content/Weapons/InfinityBladeWeapons
 
 *.pyc
-*.uasset

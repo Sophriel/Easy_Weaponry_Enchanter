@@ -20,6 +20,12 @@ public:
 protected:
 	virtual void Activate() override;
 
+	//UFUNCTION(BlueprintCallable, meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility", BlueprintInternalUseOnly = "true"), Category = "Abilities")
+	bool BeginSpawningActor(UGameplayAbility* OwningAbility, TSubclassOf<AActor> Class, AActor*& SpawnedActor);
+
+	//UFUNCTION(BlueprintCallable, meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility", BlueprintInternalUseOnly = "true"), Category = "Abilities")
+	void FinishSpawningActor(UGameplayAbility* OwningAbility, AActor* SpawnedActor);
+
 private:
 	UGameplayAbility*	CachedOwnerAbility;
 	TSubclassOf<AActor> CachedClassToSpawn;

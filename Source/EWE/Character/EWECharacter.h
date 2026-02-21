@@ -14,7 +14,7 @@ struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEWECharacter, Log, All);
 
-UENUM()
+UENUM(BlueprintType)
 enum class ECameraType : uint8
 {
 	Shoulder,
@@ -131,10 +131,14 @@ protected:
 	void K2_Attack();
 
 	void		 Attack(const FInputActionValue& Value);
+	virtual void AttackHold() override;
 	virtual void AttackHitCheck() override;
 	virtual void AttackReleaseCheck() override;
 
 protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Weapon, meta = (AllowPrivateAccess = "true"))
+	bool IsAttack;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USkeletalMeshComponent> WeaponMesh;
 
@@ -152,3 +156,4 @@ protected:
 
 #pragma endregion
 };
+
