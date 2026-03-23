@@ -43,6 +43,13 @@ void UEWELocalUIManageSubsystem::OnPlayerControllerReady()
     CreateQuickSlotWidget();
 }
 
+const UEWEUIAsset* UEWELocalUIManageSubsystem::GetUIConfigAsset() const
+{
+    return UIConfigAsset.Get();
+}
+
+#pragma region Inventory
+
 void UEWELocalUIManageSubsystem::ToggleInventory()
 {
     if (!InventoryWidget)
@@ -103,15 +110,6 @@ void UEWELocalUIManageSubsystem::SyncInventoryWeapons(const TArray<class UEWEWea
     InventoryWidget->SetWeapons(Weapons);
 }
 
-// ────────────────────────────────────────────────────────────────────────────────
-// Internal Helpers
-// ────────────────────────────────────────────────────────────────────────────────
-
-const UEWEUIAsset* UEWELocalUIManageSubsystem::GetUIConfigAsset() const
-{
-    return UIConfigAsset.Get();
-}
-
 void UEWELocalUIManageSubsystem::CreateInventoryWidget()
 {
     const UEWEUIAsset* UIConfig = GetUIConfigAsset();
@@ -135,10 +133,9 @@ void UEWELocalUIManageSubsystem::CreateInventoryWidget()
     }
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// QuickSlot
-// ────────────────────────────────────────────────────────────────────────
+#pragma endregion
 
+#pragma region QuickSlot
 void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
 {
     const UEWEUIAsset* UIConfig = GetUIConfigAsset();
@@ -212,3 +209,5 @@ void UEWELocalUIManageSubsystem::ScrollQuickSlot(float ScrollDirection)
 
     QuickSlotWidget->K2_ScrollSlot(ScrollDirection);
 }
+
+#pragma endregion

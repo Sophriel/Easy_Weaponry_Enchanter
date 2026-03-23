@@ -23,11 +23,24 @@ void AEWEPlayerController::BeginPlay()
     }
 }
 
-void AEWEPlayerController::AddWeapon(UEWEWeaponData *Weapon)
+void AEWEPlayerController::AcknowledgePossession(APawn *P)
+{
+    Super::AcknowledgePossession(P);
+    AEWECharacter *CharacterBase = Cast<AEWECharacter>(P);
+
+    if (CharacterBase)
+    {
+        CharacterBase->GetAbilitySystemComponent()->InitAbilityActorInfo(CharacterBase, CharacterBase);
+    }
+}
+
+#pragma region Inventory
+
+void AEWEPlayerController::ToggleInventory()
 {
     if (CachedUIManager)
     {
-        CachedUIManager->AddWeaponToQuickSlot(Weapon);
+        CachedUIManager->ToggleInventory();
     }
 }
 
@@ -36,6 +49,39 @@ void AEWEPlayerController::SyncInventoryWeapons(const TArray<class UEWEWeaponDat
     if (CachedUIManager)
     {
         CachedUIManager->SyncInventoryWeapons(Weapons);
+    }
+}
+
+UEWEWeaponData *AEWEPlayerController::GetSelectedWeaponDataFromInventory()
+{
+    if (CachedUIManager)
+    {
+        UEWEInventory *InventoryWidget = CachedUIManager->GetInventoryWidget();
+        if (InventoryWidget)
+        {
+            TArray<UEWEWeaponData *> Weapons = InventoryWidget->GetWeapons();
+            int32 SelectedIndex = InventoryWidget->GetSelectedItemIndex();
+
+            if (SelectedIndex >= 0 && SelectedIndex < Weapons.Num())
+            {
+                return Weapons[SelectedIndex];
+            }
+        }
+    }
+
+    EWE_LOG(LogEWE, Warning, TEXT("No weapon selected in inventory"));
+    return nullptr;
+}
+
+#pragma endregion
+
+#pragma region QuickSlot
+
+void AEWEPlayerController::AddWeapon(UEWEWeaponData *Weapon)
+{
+    if (CachedUIManager)
+    {
+        CachedUIManager->AddWeaponToQuickSlot(Weapon);
     }
 }
 
@@ -63,35 +109,6 @@ void AEWEPlayerController::ScrollSlot(const float ScrollDirection)
     }
 }
 
-void AEWEPlayerController::ToggleInventory()
-{
-    if (CachedUIManager)
-    {
-        CachedUIManager->ToggleInventory();
-    }
-}
-
-UEWEWeaponData *AEWEPlayerController::GetSelectedWeaponDataFromInventory()
-{
-    if (CachedUIManager)
-    {
-        UEWEInventory *InventoryWidget = CachedUIManager->GetInventoryWidget();
-        if (InventoryWidget)
-        {
-            TArray<UEWEWeaponData *> Weapons = InventoryWidget->GetWeapons();
-            int32 SelectedIndex = InventoryWidget->GetSelectedItemIndex();
-
-            if (SelectedIndex >= 0 && SelectedIndex < Weapons.Num())
-            {
-                return Weapons[SelectedIndex];
-            }
-        }
-    }
-
-    EWE_LOG(LogEWE, Warning, TEXT("No weapon selected in inventory"));
-    return nullptr;
-}
-
 void AEWEPlayerController::AssignSelectedInventoryItemToSlot(int32 SlotIndex)
 {
     UEWEWeaponData *SelectedWeapon = GetSelectedWeaponDataFromInventory();
@@ -106,13 +123,4 @@ void AEWEPlayerController::AssignSelectedInventoryItemToSlot(int32 SlotIndex)
     }
 }
 
-void AEWEPlayerController::AcknowledgePossession(APawn *P)
-{
-    Super::AcknowledgePossession(P);
-    AEWECharacter *CharacterBase = Cast<AEWECharacter>(P);
-
-    if (CharacterBase)
-    {
-        CharacterBase->GetAbilitySystemComponent()->InitAbilityActorInfo(CharacterBase, CharacterBase);
-    }
-}
+#pragma endregion
