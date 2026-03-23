@@ -3,4 +3,7 @@
 
 This project requires
 - 'GameplayAbilities' plugin
+
+## AI Cooperation
 - 'Continue' extension for VSCode
+- 'Claude Code' MD Files included

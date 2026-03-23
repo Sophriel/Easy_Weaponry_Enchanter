@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(git diff:*)",
+      "Bash(grep -E '\\\\.\\(cpp|h\\)$')",
+      "Bash(grep -r GetSubsystem 'C:\\\\Users\\\\nsa24\\\\Desktop\\\\Projects\\\\Unreal Projects\\\\EWE' --include=*.cpp --include=*.h)",
+      "Bash(grep -r AEWEPlayerController 'C:\\\\Users\\\\nsa24\\\\Desktop\\\\Projects\\\\Unreal Projects\\\\EWE\\\\Source' --include=*.cpp)"
+    ]
+  }
+}
