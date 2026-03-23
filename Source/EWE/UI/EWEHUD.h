@@ -7,7 +7,8 @@
 #include "EWEHUD.generated.h"
 
 /**
- *
+ * HUD class for EWE.
+ * Currently a minimal shell - QuickSlot UI is managed by UEWELocalUIManageSubsystem.
  */
 UCLASS()
 class EWE_API AEWEHUD : public AHUD
@@ -16,17 +17,4 @@ class EWE_API AEWEHUD : public AHUD
 
 public:
 	AEWEHUD();
-
-	void AddWeapon(class UEWEWeaponData* Weapon);
-	void SetSlot(int32 SlotIndex, class UEWEWeaponData* Weapon);
-
-	UFUNCTION(BlueprintCallable, Category = QuickSlot, Meta = (DisplayName = "SelectSlot"))
-	void SelectSlot(int32 SlotIndex);
-
-	UFUNCTION(BlueprintCallable, Category = QuickSlot, Meta = (DisplayName = "ScrollSlot"))
-	void ScrollSlot(float ScrollDirection);
-
-protected:
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = QuickSlot, Meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<class UEWEQuickSlot> QuickSlotWidget;
 };

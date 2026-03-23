@@ -1,0 +1,5 @@
+#include "EWELog.h"
+
+DEFINE_LOG_CATEGORY(LogEWE);
+DEFINE_LOG_CATEGORY(LogEWEInventory);
+DEFINE_LOG_CATEGORY(LogEWECharacter);

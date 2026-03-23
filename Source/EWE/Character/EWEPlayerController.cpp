@@ -1,50 +1,118 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "EWEPlayerController.h"
-#include "EWE/UI/EWEHUD.h"
 #include "EWECharacter.h"
+#include "EWE/UI/EWEInventory.h"
+#include "EWE/UI/EWELocalUIManageSubsystem.h"
+#include "EasyWeaponryEnchanter/Public/EasyWeaponryEnchanter.h"
 #include "AbilitySystemComponent.h"
 
-void AEWEPlayerController::AddWeapon(UEWEWeaponData* Weapon)
+void AEWEPlayerController::BeginPlay()
 {
-	AEWEHUD* EWEHUD = GetHUD<AEWEHUD>();
-	ensure(EWEHUD);
+    Super::BeginPlay();
 
-	EWEHUD->AddWeapon(Weapon);
+    if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
+    {
+        // Cache UIManager reference for performance
+        CachedUIManager = LocalPlayer->GetSubsystem<UEWELocalUIManageSubsystem>();
+
+        if (CachedUIManager)
+        {
+            CachedUIManager->OnPlayerControllerReady();
+        }
+    }
 }
 
-void AEWEPlayerController::SetSlot(const uint8 SlotIndex, UEWEWeaponData* Weapon)
+void AEWEPlayerController::AddWeapon(UEWEWeaponData *Weapon)
 {
-	AEWEHUD* EWEHUD = GetHUD<AEWEHUD>();
-	ensure(EWEHUD);
+    if (CachedUIManager)
+    {
+        CachedUIManager->AddWeaponToQuickSlot(Weapon);
+    }
+}
 
-	EWEHUD->SetSlot(SlotIndex, Weapon);
+void AEWEPlayerController::SyncInventoryWeapons(const TArray<class UEWEWeaponData *> &Weapons)
+{
+    if (CachedUIManager)
+    {
+        CachedUIManager->SyncInventoryWeapons(Weapons);
+    }
+}
+
+void AEWEPlayerController::SetSlot(const uint8 SlotIndex, UEWEWeaponData *Weapon)
+{
+    if (CachedUIManager)
+    {
+        CachedUIManager->SetQuickSlot(SlotIndex, Weapon);
+    }
 }
 
 void AEWEPlayerController::SelectSlot(const uint8 SlotIndex)
 {
-	 AEWEHUD* EWEHUD = GetHUD<AEWEHUD>();
-	 ensure(EWEHUD);
-
-	 EWEHUD->SelectSlot(SlotIndex);
+    if (CachedUIManager)
+    {
+        CachedUIManager->SelectQuickSlot(SlotIndex);
+    }
 }
 
 void AEWEPlayerController::ScrollSlot(const float ScrollDirection)
 {
-	AEWEHUD* EWEHUD = GetHUD<AEWEHUD>();
-	ensure(EWEHUD);
-
-	EWEHUD->ScrollSlot(ScrollDirection);
+    if (CachedUIManager)
+    {
+        CachedUIManager->ScrollQuickSlot(ScrollDirection);
+    }
 }
 
-void AEWEPlayerController::AcknowledgePossession(APawn* P)
+void AEWEPlayerController::ToggleInventory()
 {
-	Super::AcknowledgePossession(P);
-	//AEWECharacter* CharacterBase = Cast<AEWECharacter>(P);
+    if (CachedUIManager)
+    {
+        CachedUIManager->ToggleInventory();
+    }
+}
 
-	//if (CharacterBase)
-	//{
-	//	CharacterBase->GetAbilitySystemComponent()->InitAbilityActorInfo(CharacterBase, CharacterBase);
-	//}
+UEWEWeaponData *AEWEPlayerController::GetSelectedWeaponDataFromInventory()
+{
+    if (CachedUIManager)
+    {
+        UEWEInventory *InventoryWidget = CachedUIManager->GetInventoryWidget();
+        if (InventoryWidget)
+        {
+            TArray<UEWEWeaponData *> Weapons = InventoryWidget->GetWeapons();
+            int32 SelectedIndex = InventoryWidget->GetSelectedItemIndex();
+
+            if (SelectedIndex >= 0 && SelectedIndex < Weapons.Num())
+            {
+                return Weapons[SelectedIndex];
+            }
+        }
+    }
+
+    EWE_LOG(LogEWE, Warning, TEXT("No weapon selected in inventory"));
+    return nullptr;
+}
+
+void AEWEPlayerController::AssignSelectedInventoryItemToSlot(int32 SlotIndex)
+{
+    UEWEWeaponData *SelectedWeapon = GetSelectedWeaponDataFromInventory();
+    if (!SelectedWeapon)
+    {
+        return;
+    }
+
+    if (CachedUIManager)
+    {
+        CachedUIManager->SetQuickSlot(SlotIndex, SelectedWeapon);
+    }
+}
+
+void AEWEPlayerController::AcknowledgePossession(APawn *P)
+{
+    Super::AcknowledgePossession(P);
+    AEWECharacter *CharacterBase = Cast<AEWECharacter>(P);
+
+    if (CharacterBase)
+    {
+        CharacterBase->GetAbilitySystemComponent()->InitAbilityActorInfo(CharacterBase, CharacterBase);
+    }
 }

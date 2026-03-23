@@ -13,11 +13,9 @@
 #include "EWEControlData.h"
 #include "EWEPlayerController.h"
 #include "AbilitySystemComponent.h"
-// #include "EasyWeaponryEnchanter/Weapon/EWEWeaponBase.h"
+#include "EWE/EWELog.h"
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
 #include "EWEInventoryComponent.h"
-
-DEFINE_LOG_CATEGORY(LogEWECharacter);
 
 AEWECharacter::AEWECharacter()
 {
@@ -86,7 +84,8 @@ void AEWECharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SelectWeapon(0);
+	// Setup inventory event subscriptions
+	SetupInventorySubscriptions();
 }
 
 #pragma region Input
@@ -135,6 +134,9 @@ void AEWECharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(ScrollItemAction, ETriggerEvent::Triggered, this, &AEWECharacter::ScrollWeapon);
 
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AEWECharacter::Attack);
+
+		// Toggle Inventory
+		EnhancedInputComponent->BindAction(ToggleInventoryAction, ETriggerEvent::Triggered, this, &AEWECharacter::ToggleInventory);
 	}
 	else
 	{
@@ -239,12 +241,72 @@ UAbilitySystemComponent* AEWECharacter::GetAbilitySystemComponent() const
 	return WeaponAbilityComponent;
 }
 
-void AEWECharacter::AcquireWeapon(UEWEWeaponData* NewWeapon)
+void AEWECharacter::SetupInventorySubscriptions()
+{
+	if (!InventoryComponent)
+	{
+		EWE_LOG(LogEWECharacter, Warning, TEXT("InventoryComponent not found"));
+		return;
+	}
+
+	InventoryComponent->OnWeaponAcquired.AddDynamic(this, &AEWECharacter::HandleWeaponAcquired);
+	InventoryComponent->OnWeaponsSynced.AddDynamic(this, &AEWECharacter::HandleWeaponsSynced);
+	InventoryComponent->OnWeaponRemoved.AddDynamic(this, &AEWECharacter::HandleWeaponRemoved);
+
+	EWE_LOG(LogEWECharacter, Log, TEXT("Inventory subscriptions setup complete"));
+}
+
+void AEWECharacter::ClearInventorySubscriptions()
+{
+	if (InventoryComponent)
+	{
+		InventoryComponent->OnWeaponAcquired.RemoveAll(this);
+		InventoryComponent->OnWeaponsSynced.RemoveAll(this);
+		InventoryComponent->OnWeaponRemoved.RemoveAll(this);
+
+		EWE_LOG(LogEWECharacter, Log, TEXT("Inventory subscriptions cleared"));
+	}
+}
+
+void AEWECharacter::HandleWeaponAcquired(UEWEWeaponData* Weapon)
 {
 	AEWEPlayerController* PlayerController = Cast<AEWEPlayerController>(Controller);
-	check(PlayerController);
+	if (PlayerController)
+	{
+		PlayerController->AddWeapon(Weapon);
+	}
+}
 
-	PlayerController->AddWeapon(NewWeapon);
+void AEWECharacter::HandleWeaponsSynced(const TArray<UEWEWeaponData*>& Weapons, int32 Count)
+{
+	AEWEPlayerController* PlayerController = Cast<AEWEPlayerController>(Controller);
+	if (PlayerController)
+	{
+		PlayerController->SyncInventoryWeapons(Weapons);
+	}
+}
+
+void AEWECharacter::HandleWeaponRemoved(UEWEWeaponData* Weapon, int32 Index)
+{
+	EWE_LOG(LogEWECharacter, Log, TEXT("Weapon removed: %s at index %d"), *Weapon->GetName(), Index);
+}
+
+void AEWECharacter::ToggleInventory()
+{
+	AEWEPlayerController* PlayerController = Cast<AEWEPlayerController>(Controller);
+	if (!PlayerController)
+	{
+		EWE_LOG(LogEWECharacter, Warning, TEXT("PlayerController not found"));
+		return;
+	}
+
+	PlayerController->ToggleInventory();
+}
+
+void AEWECharacter::AcquireWeapon(UEWEWeaponData* NewWeapon)
+{
+	// Deprecated: Event-based system now handles this via InventoryComponent
+	// This function is kept for interface compatibility
 }
 
 void AEWECharacter::EquipWeapon(UEWEWeaponData* Weapon)
@@ -317,7 +379,7 @@ void AEWECharacter::AttackHold()
 		return;
 	}
 
-	// CHoldAbilityIndex부터 CHitAbilityIndex 전까지의 어빌리티 활성화
+	// Activate Abilities from CHoldAbilityIndex to CHitAbilityIndex
 	TArray<FGameplayAbilitySpec> ActivatableAbilities = WeaponAbilityComponent->GetActivatableAbilities();
 	for (const FGameplayAbilitySpec& AbilitySpec : ActivatableAbilities)
 	{
@@ -332,10 +394,9 @@ void AEWECharacter::AttackHitCheck()
 {
 	// Release Hold Ability
 
-
-	// Active Hit Ability
-	int32 AbilityCount = WeaponAbilityComponent->GetActivatableAbilities().Num();
-	for (int32 AbilityIndex = 0; AbilityIndex < AbilityCount; ++AbilityIndex)
+	// Activate Hit Ability
+    int32 AbilityCount = WeaponAbilityComponent->GetActivatableAbilities().Num(); 
+	for (int32 AbilityIndex = CHitAbilityIndex; AbilityIndex < CHitAbilityIndex + AbilityCount; ++AbilityIndex)
 	{
 		WeaponAbilityComponent->AbilityLocalInputPressed(AbilityIndex);
 	}

@@ -9,7 +9,6 @@
 #define EWE_LOG(LogCat, Verbosity, Format, ...) UE_LOG(LogCat, Verbosity, TEXT("%s %s"), LOG_CALLINFO, *FString::Printf(Format, ##__VA_ARGS__))
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEWE, Log, All);
-
 class FEasyWeaponryEnchanterModule : public IModuleInterface
 {
 public:

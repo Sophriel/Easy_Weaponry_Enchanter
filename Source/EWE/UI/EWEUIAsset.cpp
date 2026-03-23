@@ -1,8 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "EWEHUD.h"
+#include "EWEUIAsset.h"
 
-AEWEHUD::AEWEHUD()
-{
-}

@@ -10,7 +10,8 @@
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
 				"Engine",
-				"UMG"
+				"UMG",
+				"DeveloperSettings"
 			]
 		}
 	],
@@ -25,10 +26,6 @@
 		{
 			"Name": "GameplayAbilities",
 			"Enabled": true
-		},
-		{
-			"Name": "LudusAI",
-			"Enabled": false
 		}
 	]
 }

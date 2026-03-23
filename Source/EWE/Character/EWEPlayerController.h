@@ -7,19 +7,48 @@
 #include "EWEPlayerController.generated.h"
 
 /**
- *
+ * Player controller for EWE.
+ * Delegates UI management to UEWELocalUIManageSubsystem.
  */
 UCLASS()
 class EWE_API AEWEPlayerController : public APlayerController
 {
-	GENERATED_BODY()
-
-public:
-	void AddWeapon(class UEWEWeaponData* Weapon);
-	void SetSlot(const uint8 SlotIndex, class UEWEWeaponData* Weapon);
-	void SelectSlot(const uint8 SlotIndex);
-	void ScrollSlot(const float ScrollDirection);
+    GENERATED_BODY()
 
 protected:
-	virtual void AcknowledgePossession(APawn* P) override;
+    virtual void BeginPlay() override;
+
+    /** Cached reference to the UI management subsystem */
+    TObjectPtr<class UEWELocalUIManageSubsystem> CachedUIManager;
+
+public:
+    /** Delegates to AEWEHUD::AddWeapon */
+    void AddWeapon(class UEWEWeaponData *Weapon);
+
+    /** Delegates to AEWEHUD::SetSlot */
+    void SetSlot(const uint8 SlotIndex, class UEWEWeaponData *Weapon);
+
+    /** Delegates to AEWEHUD::SelectSlot */
+    void SelectSlot(const uint8 SlotIndex);
+
+    /** Delegates to AEWEHUD::ScrollSlot */
+    void ScrollSlot(const float ScrollDirection);
+
+    /** Delegates to UEWELocalUIManageSubsystem::ToggleInventory */
+    UFUNCTION(BlueprintCallable, Category = Inventory)
+    void ToggleInventory();
+
+    /** Delegates to UEWELocalUIManageSubsystem::SyncInventoryWeapons */
+    void SyncInventoryWeapons(const TArray<class UEWEWeaponData *> &Weapons);
+
+    /** Returns the selected weapon data from inventory widget */
+    UFUNCTION(BlueprintCallable, Category = Inventory)
+    class UEWEWeaponData *GetSelectedWeaponDataFromInventory();
+
+    /** Assigns the selected inventory item to the specified quick slot */
+    UFUNCTION(BlueprintCallable, Category = Inventory)
+    void AssignSelectedInventoryItemToSlot(int32 SlotIndex);
+
+protected:
+    virtual void AcknowledgePossession(APawn *P) override;
 };

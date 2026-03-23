@@ -2,6 +2,9 @@
 .vs/
 .vscode/
 
+# Engine user specific files
+Config/DefaultEditor.ini
+
 # Compiled Object files
 *.slo
 *.lo
@@ -77,6 +80,7 @@ DerivedDataCache/*
 
 # Added
 Content/Characters
+Content/Effects
 Content/__ExternalActors__/ThirdPerson
 Content/__ExternalActors__/VehicleTemplate
 Content/__ExternalObjects__/ThirdPerson

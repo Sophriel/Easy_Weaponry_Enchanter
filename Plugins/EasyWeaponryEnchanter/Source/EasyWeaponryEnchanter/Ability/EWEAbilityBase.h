@@ -6,9 +6,6 @@
 #include "Abilities/GameplayAbility.h"
 #include "EWEAbilityBase.generated.h"
 
-/**
- *
- */
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEAbilityBase : public UGameplayAbility
 {
