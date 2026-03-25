@@ -596,6 +596,51 @@ UPROPERTY(EditDefaultsOnly, Category = "Cost")
 TSubclassOf<UGameplayEffect> CostGameplayEffectClass;
 ```
 
+## Accessing FGameplayAbilityActorInfo Inside GA
+
+`FGameplayAbilityActorInfo*` is passed as a parameter to `ActivateAbility`, `EndAbility`, and other GA overrides.
+Access its data through **direct member access**, not through Getter functions that do not exist on this struct.
+
+```cpp
+void UMyAbility::ActivateAbility(
+    const FGameplayAbilitySpecHandle Handle,
+    const FGameplayAbilityActorInfo* ActorInfo,
+    const FGameplayAbilityActivationInfo ActivationInfo,
+    const FGameplayEventData* TriggerEventData)
+{
+    // ❌ This function does not exist on FGameplayAbilityActorInfo
+    UAbilitySystemComponent* ASC = ActorInfo->GetAbilitySystemComponent();
+
+    // ✅ Direct member access
+    UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
+
+    // ❌ This function does not exist on FGameplayAbilityActorInfo
+    AActor* Avatar = ActorInfo->GetAvatarActor();
+
+    // ✅ Direct member access (TWeakObjectPtr)
+    AActor* Avatar = ActorInfo->AvatarActor.Get();
+}
+```
+
+### FGameplayAbilityActorInfo Key Members
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `AbilitySystemComponent` | `TWeakObjectPtr<UAbilitySystemComponent>` | The ASC reference |
+| `AvatarActor` | `TWeakObjectPtr<AActor>` | The physical actor executing abilities |
+| `OwnerActor` | `TWeakObjectPtr<AActor>` | The actor that owns the ASC (e.g. PlayerState) |
+| `PlayerController` | `TWeakObjectPtr<APlayerController>` | The player controller |
+| `SkeletalMeshComponent` | `TWeakObjectPtr<USkeletalMeshComponent>` | The skeletal mesh component |
+| `AnimInstance` | `TWeakObjectPtr<UAnimInstance>` | The anim instance |
+
+All members are `TWeakObjectPtr` — use `.Get()` for the raw pointer or `.IsValid()` to check validity before access.
+
+> **Note**: `UGameplayAbility` itself provides wrapper functions such as
+> `GetAbilitySystemComponentFromActorInfo()` and `GetAvatarActorFromActorInfo()`.
+> Inside GA member functions, these wrappers can be used instead of `ActorInfo->` direct access.
+> However, these wrappers belong to `UGameplayAbility`, not to `FGameplayAbilityActorInfo` —
+> do not call them on the `ActorInfo` pointer.
+
 ## Debugging GAS
 
 ### Console Commands
@@ -649,10 +694,10 @@ LogAbilitySystem.SetVerbosity(ELogVerbosity::VeryVerbose);
 
 ## Custom AbilityTask
 
-AbilityTask(AT)는 GA 내부에서 비동기 작업을 수행하는 단위이다.
-엔진 내장 AT(`UAbilityTask_WaitDelay`, `UAbilityTask_PlayMontageAndWait` 등) 외에 커스텀 AT를 만들 수 있다.
+AbilityTasks (AT) are units for performing asynchronous work inside a GA.
+Beyond built-in ATs (`UAbilityTask_WaitDelay`, `UAbilityTask_PlayMontageAndWait`, etc.), you can create custom ATs.
 
-### 기본 구조
+### Basic Structure
 
 ```cpp
 UCLASS()
@@ -661,7 +706,7 @@ class UAbilityTask_SpawnProjectile : public UAbilityTask
     GENERATED_BODY()
 
 public:
-    // 팩토리 함수 — GA에서 호출하는 진입점
+    // Factory function — entry point called from GA
     UFUNCTION(BlueprintCallable, Category = "AbilityTasks",
         meta = (HidePin = "OwningAbility", DefaultToSelf = "OwningAbility",
                 BlueprintInternalUseOnly = "true"))
@@ -671,7 +716,7 @@ public:
         FVector SpawnLocation,
         FRotator SpawnRotation);
 
-    // 델리게이트 — 완료/실패를 GA에 알림
+    // Delegates — notify GA of completion/failure
     DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnProjectileSpawned, AActor*, SpawnedActor);
 
     UPROPERTY(BlueprintAssignable)
@@ -693,7 +738,7 @@ private:
 };
 ```
 
-### 구현
+### Implementation
 
 ```cpp
 UAbilityTask_SpawnProjectile* UAbilityTask_SpawnProjectile::CreateTask(
@@ -738,12 +783,12 @@ void UAbilityTask_SpawnProjectile::Activate()
 
 void UAbilityTask_SpawnProjectile::OnDestroy(bool bInOwnerFinished)
 {
-    // 리소스 정리 (타이머 해제, 델리게이트 해제 등)
+    // Resource cleanup (cancel timers, unbind delegates, etc.)
     Super::OnDestroy(bInOwnerFinished);
 }
 ```
 
-### GA에서 AbilityTask 사용
+### Using AbilityTask from GA
 
 ```cpp
 void UGA_FireWeapon::ActivateAbility(
@@ -765,44 +810,44 @@ void UGA_FireWeapon::ActivateAbility(
 
     Task->OnSpawned.AddDynamic(this, &UGA_FireWeapon::OnProjectileSpawned);
     Task->OnFailed.AddDynamic(this, &UGA_FireWeapon::OnProjectileFailed);
-    Task->ReadyForActivation();  // 반드시 호출해야 Activate() 실행됨
+    Task->ReadyForActivation();  // Must be called for Activate() to execute
 }
 ```
 
-### AbilityTask 핵심 규칙
+### AbilityTask Key Rules
 
-- `NewAbilityTask<T>()` 팩토리로만 생성 (`NewObject` 직접 사용 금지)
-- `ReadyForActivation()` 호출 전까지 Task는 대기 상태
-- GA가 End/Cancel되면 활성 AT도 자동 정리 (`OnDestroy` 호출)
-- 하나의 GA에서 여러 AT를 동시에 실행할 수 있음 (병렬 실행)
-- AT 내부에서 `EndTask()`를 호출하면 해당 AT만 종료, GA는 계속 진행
-- GA 종료 시점을 "모든 AT 완료"로 만들려면 GA에서 카운터로 추적 필요
+- Create only via `NewAbilityTask<T>()` factory (do not use `NewObject` directly)
+- Task remains pending until `ReadyForActivation()` is called
+- When GA ends/cancels, active ATs are automatically cleaned up (`OnDestroy` called)
+- A single GA can run multiple ATs simultaneously (parallel execution)
+- Calling `EndTask()` inside an AT ends only that AT; the GA continues
+- To make GA end when "all ATs complete", track with a counter in the GA
 
 ---
 
 ## Advanced GA Lifecycle
 
-### End vs Cancel 시맨틱
+### End vs Cancel Semantics
 
-| 함수 | 의미 | `OnDestroy` bInOwnerFinished | 후속 로직 |
+| Function | Meaning | `OnDestroy` bInOwnerFinished | Follow-up |
 |------|------|------------------------------|----------|
-| `EndAbility()` | 정상 종료 (지속시간 만료, 로직 완료) | `true` | 종료 이벤트로 인정 |
-| `CancelAbility()` | 강제 취소 (외부 인터럽트, 스턴, 무기 교체 등) | `false` | 종료 이벤트로 미인정될 수 있음 |
+| `EndAbility()` | Normal end (duration expired, logic complete) | `true` | Recognized as a proper end event |
+| `CancelAbility()` | Forced cancel (external interrupt, stun, weapon swap, etc.) | `false` | May not be recognized as a proper end event |
 
 ```cpp
-// 정상 종료 — bReplicateEndAbility, bWasCancelled
+// Normal end — bReplicateEndAbility, bWasCancelled
 EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 
-// 외부에서 강제 취소
+// Forced cancel from outside
 AbilitySystemComponent->CancelAbilityHandle(AbilitySpecHandle);
 
-// 태그 기반 일괄 취소
+// Cancel all by tag
 FGameplayTagContainer CancelTags;
 CancelTags.AddTag(FGameplayTag::RequestGameplayTag(FName("Ability.Attack")));
 AbilitySystemComponent->CancelAbilities(&CancelTags);
 ```
 
-### End/Cancel 콜백 구분
+### Distinguishing End/Cancel in Callbacks
 
 ```cpp
 void UMyAbility::EndAbility(
@@ -814,51 +859,51 @@ void UMyAbility::EndAbility(
 {
     if (bWasCancelled)
     {
-        // 강제 취소 시 처리 (이펙트 중단, 정리 등)
+        // Handle forced cancel (interrupt effects, cleanup, etc.)
     }
     else
     {
-        // 정상 종료 시 처리 (보상 지급, 후속 인챈트 트리거 등)
+        // Handle normal end (grant rewards, trigger follow-up enchants, etc.)
     }
 
     Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 ```
 
-### GA 동적 등록/해제
+### Dynamic GA Grant/Revoke
 
-장비 교체 등으로 GA를 런타임에 추가/제거할 때:
+When adding/removing GAs at runtime (e.g. equipment swap):
 
 ```cpp
-// GA 부여 (서버에서만)
+// Grant GA (server only)
 FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(
     FGameplayAbilitySpec(AbilityClass, Level, INDEX_NONE, SourceObject));
 
-// Handle 저장 — 나중에 제거할 때 필요
+// Store handle — needed for later removal
 GrantedAbilityHandles.Add(Handle);
 
-// GA 제거 (서버에서만)
+// Remove GA (server only)
 ASC->ClearAbility(Handle);
 ```
 
-무기 교체 시 전형적 흐름:
+Typical flow for weapon swap:
 
 ```cpp
 void AMyCharacter::SwapWeapon(UWeaponDataAsset* NewWeapon)
 {
     if (!HasAuthority()) return;
 
-    // 1. 현재 활성 GA 강제 Cancel
+    // 1. Force cancel currently active GAs
     ASC->CancelAbilities(&CurrentWeaponAbilityTags);
 
-    // 2. 이전 무기의 GA들 제거
+    // 2. Remove previous weapon's GAs
     for (const FGameplayAbilitySpecHandle& Handle : CurrentWeaponAbilityHandles)
     {
         ASC->ClearAbility(Handle);
     }
     CurrentWeaponAbilityHandles.Empty();
 
-    // 3. 새 무기의 GA들 부여
+    // 3. Grant new weapon's GAs
     for (const TSubclassOf<UGameplayAbility>& AbilityClass : NewWeapon->GrantedAbilities)
     {
         FGameplayAbilitySpecHandle Handle = ASC->GiveAbility(
@@ -870,17 +915,17 @@ void AMyCharacter::SwapWeapon(UWeaponDataAsset* NewWeapon)
 
 ### GE Stacking (Aggregate)
 
-동일 GE가 중복 적용될 때의 스태킹 정책 (블루프린트 또는 C++ GE 생성자에서 설정):
+Stacking policy when the same GE is applied multiple times (set in Blueprint or C++ GE constructor):
 
-| 속성 | 설명 |
+| Property | Description |
 |------|------|
-| `StackingType` | `AggregateBySource` (소스별 독립 스택) / `AggregateByTarget` (대상 기준 단일 스택) |
-| `StackLimitCount` | 최대 스택 수 |
-| `StackDurationRefreshPolicy` | `RefreshOnSuccessfulApplication` — 적용 시마다 지속시간 갱신 |
-| `StackExpirationPolicy` | `RemoveSingleStackAndRefreshDuration` — 스택 1개씩 소멸 / `ClearEntireStack` — 전체 소멸 |
+| `StackingType` | `AggregateBySource` (independent stacks per source) / `AggregateByTarget` (single stack on target) |
+| `StackLimitCount` | Maximum stack count |
+| `StackDurationRefreshPolicy` | `RefreshOnSuccessfulApplication` — refresh duration on each application |
+| `StackExpirationPolicy` | `RemoveSingleStackAndRefreshDuration` — remove one stack at a time / `ClearEntireStack` — remove all |
 
 ```cpp
-// C++에서 GE 스태킹 설정 예시
+// C++ GE stacking configuration example
 UGE_BurnEffect::UGE_BurnEffect()
 {
     DurationPolicy = EGameplayEffectDurationType::HasDuration;
@@ -899,14 +944,14 @@ UGE_BurnEffect::UGE_BurnEffect()
 
 ### NetExecutionPolicy
 
-GA의 네트워크 실행 정책. 생성자에서 설정:
+Network execution policy for GAs. Set in constructor:
 
-| 정책 | 서버 | 클라이언트 | 사용 시점 |
+| Policy | Server | Client | Use Case |
 |------|------|-----------|----------|
-| `LocalPredicted` | 실행 | 예측 실행 → 서버 확인 | 반응성이 중요한 액션 (대시, 점프) |
-| `LocalOnly` | - | 실행 | 클라이언트 전용 (UI 이펙트, 카메라 셰이크) |
-| `ServerOnly` | 실행 | - | 서버 권한 전용 (AI 어빌리티, 판정) |
-| `ServerInitiated` | 실행 시작 | 서버 지시 후 실행 | 서버가 타이밍 제어하되 양쪽 실행 필요 |
+| `LocalPredicted` | Executes | Predicted execution → server confirm | Responsiveness-critical actions (dash, jump) |
+| `LocalOnly` | - | Executes | Client-only (UI effects, camera shake) |
+| `ServerOnly` | Executes | - | Server-authoritative only (AI abilities, adjudication) |
+| `ServerInitiated` | Initiates | Executes after server instruction | Server controls timing, both sides need execution |
 
 ```cpp
 UCLASS()
@@ -922,25 +967,25 @@ public:
 };
 ```
 
-### Server-Authoritative 패턴 (클라이언트 예측 없음)
+### Server-Authoritative Pattern (No Client Prediction)
 
-클라이언트 예측이 필요 없는 경우 (턴제, 서버 확인 우선 게임):
+When client prediction is not needed (turn-based, server-confirm-first games):
 
 ```cpp
-// 클라이언트 → 서버에 발동 요청
+// Client → request activation from server
 UFUNCTION(Server, Reliable)
 void ServerRequestAbilityActivation(FGameplayTag AbilityTag);
 
 void AMyCharacter::ServerRequestAbilityActivation_Implementation(FGameplayTag AbilityTag)
 {
-    // 서버에서 유효성 판정
+    // Server validates the request
     if (ValidateActivation(AbilityTag))
     {
         FGameplayTagContainer TagContainer;
         TagContainer.AddTag(AbilityTag);
         ASC->TryActivateAbilitiesByTag(TagContainer);
 
-        // 클라이언트에 결과 통보
+        // Notify client of result
         ClientConfirmActivation(AbilityTag);
     }
     else
@@ -956,35 +1001,35 @@ UFUNCTION(Client, Reliable)
 void ClientRejectActivation(FGameplayTag AbilityTag);
 ```
 
-### Client Prediction 패턴
+### Client Prediction Pattern
 
-반응성이 중요한 경우 `LocalPredicted`를 사용. 클라이언트가 먼저 실행하고 서버가 확인:
+Use `LocalPredicted` when responsiveness matters. Client executes first, server confirms:
 
 ```cpp
 UGA_Dash::UGA_Dash()
 {
     NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::LocalPredicted;
 
-    // 예측 실패 시 롤백이 필요하므로 InstancingPolicy도 고려
+    // Consider InstancingPolicy since rollback is needed on misprediction
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
 }
 ```
 
-예측 시 주의사항:
-- GE 적용은 예측 가능 (`ApplyGameplayEffectSpecToSelf`가 예측 키를 자동 생성)
-- 액터 스폰은 예측 불가 — 서버에서만 스폰 후 클라이언트에 복제
-- 위치 변경은 CharacterMovementComponent의 예측 시스템과 별도로 동작
+Prediction caveats:
+- GE application is predictable (`ApplyGameplayEffectSpecToSelf` auto-generates a prediction key)
+- Actor spawning is not predictable — spawn on server only, replicate to client
+- Position changes operate separately from CharacterMovementComponent's prediction system
 
-### Replication Mode 선택
+### Replication Mode Selection
 
-| 상황 | 추천 모드 | 이유 |
+| Scenario | Recommended Mode | Reason |
 |------|----------|------|
-| 플레이어 캐릭터 (소규모 게임) | `Full` | 모든 정보 복제, 디버깅 용이 |
-| 플레이어 캐릭터 (중대형 게임) | `Mixed` | 어빌리티/이펙트 최소 복제로 대역폭 절약 |
-| AI / NPC | `Minimal` | 태그만 복제, 나머지는 서버 처리 |
-| 월드 오브젝트 (트랩, 설치물) | `Minimal` | 서버 권한으로만 동작 |
+| Player character (small games) | `Full` | Replicates everything, easy to debug |
+| Player character (mid-large games) | `Mixed` | Minimal ability/effect replication, saves bandwidth |
+| AI / NPC | `Minimal` | Tags only replicated, rest handled by server |
+| World objects (traps, installations) | `Minimal` | Server-authoritative only |
 
 ```cpp
-// ASC 생성 시 설정
+// Set when creating the ASC
 AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 ```

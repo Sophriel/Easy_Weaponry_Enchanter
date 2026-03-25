@@ -71,6 +71,15 @@ UIManager = GetLocalPlayer()->GetSubsystem<UMyLocalUISubsystem>();
 UIManager = GetUIManager();
 ```
 
+### Engine API Usage Policy
+
+**Do not guess Getter functions or utility methods on engine classes without verifying they exist.**
+
+Engine APIs often lack Getters where you'd expect them by naming convention alone.
+When uncertain, access member variables directly or verify the API via web search before writing code.
+GAS-related classes (`FGameplayAbilityActorInfo`, `FGameplayEffectSpec`, etc.) are
+particularly prone to this — their access patterns frequently differ from standard UE conventions.
+
 ---
 
 ## Pre-Flight Discovery Protocol
@@ -223,10 +232,10 @@ Key points:
 > → Full reference: `references/plugin_development.md`
 
 For creating new UE plugins (not just using existing ones). Key points:
-- Runtime/Editor 모듈 분리 (`.uplugin` Modules 배열)
-- `WITH_EDITOR` 매크로로 에디터 전용 코드 격리
-- Build.cs에서 모듈 간 의존성 설정 (Public vs Private)
-- 외부 프로젝트에서 플러그인 모듈을 의존으로 추가하는 방법
+- Runtime/Editor module split (`.uplugin` Modules array)
+- `WITH_EDITOR` macro for editor-only code isolation
+- Build.cs inter-module dependency configuration (Public vs Private)
+- How to add plugin module dependencies from external projects
 
 ---
 
@@ -235,10 +244,10 @@ For creating new UE plugins (not just using existing ones). Key points:
 > → Full reference: `references/data_driven_design.md`
 
 For DataAsset / DataTable based gameplay data architecture. Key points:
-- `UDataAsset` vs `UPrimaryDataAsset` 선택 기준
-- DataAsset으로 게임플레이 파라미터 정의 (무기, 스킬, 아이템 등)
-- DataTable + CSV/JSON import 워크플로
-- AssetManager를 통한 DataAsset 런타임 로딩
+- `UDataAsset` vs `UPrimaryDataAsset` selection criteria
+- Defining gameplay parameters with DataAssets (weapons, skills, items, etc.)
+- DataTable + CSV/JSON import workflow
+- DataAsset runtime loading via AssetManager
 
 ---
 
@@ -358,8 +367,8 @@ Load the appropriate reference file when deeper detail is needed:
 | `references/unreal_cpp_best_practice.md` | GC, reflection, performance, naming, common patterns |
 | `references/enhanced_input.md` | Enhanced Input binding, Input Actions, Mapping Contexts |
 | `references/gameplay_ability_system.md` | GAS setup, abilities, attributes, effects, AbilityTasks, network patterns |
-| `references/plugin_guidance.md` | Unknown or experimental plugins (사용 측) |
-| `references/plugin_development.md` | Plugin 생성, 모듈 분리, Build.cs, WITH_EDITOR (개발 측) |
-| `references/data_driven_design.md` | DataAsset, DataTable, AssetManager, 데이터 주도 설계 |
+| `references/plugin_guidance.md` | Unknown or experimental plugins (consumer side) |
+| `references/plugin_development.md` | Plugin creation, module split, Build.cs, WITH_EDITOR (author side) |
+| `references/data_driven_design.md` | DataAsset, DataTable, AssetManager, data-driven design |
 | `references/debugging.md` | UE_LOG, Visual Logger, crash/assert patterns |
 | `references/common_pitfalls.md` | Troubleshooting build errors, GC bugs, performance issues |

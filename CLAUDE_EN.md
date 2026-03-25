@@ -1,4 +1,4 @@
-# CLAUDE.md
+# CLAUDE_EN.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -6,53 +6,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Unreal Engine 5 C++ Plugin.
 A GAS-based enchant system that assigns **Trigger → Condition → Function** combinations to weapons.
-This is not a skill authoring tool — it is an **event compositor**.
+Not a "skill authoring tool" — it is an **event combinator**.
 
 ---
 
-## 🌐 Language Settings
+## 🛠️ Skill Usage Directive
 
-Follows the language setting from global settings (`~/.claude/settings.json`).
-Does not override language at project level.
+**Always use the `/unreal-engine` skill when writing, modifying, or reviewing C++ code.**
+
+This project is built on UE5 C++ + GAS. Follow this order for code tasks:
+
+```
+1. Load /unreal-engine skill (Pre-Flight Discovery, reference files)
+2. Check EWE-specific rules in this CLAUDE.md
+3. Read the detailed document for the task from the Document Map
+```
+
+Areas covered by the skill (not repeated in CLAUDE.md):
+- UE5 C++ best practices (GC, reflection, performance)
+- General GAS patterns (ASC init, AttributeSet creation, GE stacking, GA lifecycle, AbilityTask, networking)
+- Enhanced Input binding
+- Plugin development (Runtime/Editor module split, Build.cs)
+- Epic standard naming conventions (U/A/F/E/I prefixes)
+
+---
+
+## 🌐 Language Setting
+
+Follows the language setting in global config (`~/.claude/settings.json`).
+This project does not override the language at the project level.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-/Source/                                        ← Main project C++ code
-│   └── EWE/
-│       └── Character/
-│           └── EWECharacter.h                  ← Character owning the ASC (core)
+/Source/EWE/
+│   ├── EWE.Build.cs                    ← Main game module dependencies
+│   └── Character/
+│       └── EWECharacter.h              ← ASC-owning character (core)
 │
 /Plugins/EasyWeaponryEnchanter/
 │   └── Source/EasyWeaponryEnchanter/
-│       ├── Ability/                            ← GA implementations (UEWEGA_*)
-│       ├── AbilityTask/                        ← AT implementations (UEWEAT_*)
-│       └── Weapon/                             ← Weapon classes (UEWEWeapon*)
-│           └── EWEWeaponData.h                 ← Weapon data structure
+│       ├── Ability/                    ← GA implementations (UEWEGA_*)
+│       ├── AbilityTask/                ← AT implementations (UEWEAT_*)
+│       └── Weapon/                     ← Weapon classes (UEWEWeapon*)
 │
 /Content/
-    ├── Weapons/                                ← Weapon assets
-    └── Effects/                                ← Effect assets
+    ├── Weapons/                        ← Weapon assets
+    └── Effects/                        ← Effect assets
 ```
 
 ---
 
 ## 📚 Document Map
 
-Always read the relevant document before starting any task.
+**Read the relevant document before reading or modifying code.**
 
-| Task | Reference |
-|------|-----------|
-| Module structure, GAS components, plugin setup | `Documents/MDs/architecture.md` |
-| DataAsset classes, GA/AT class design | `Documents/MDs/enchant-system.md` |
-| Trigger / Condition implementation | `Documents/MDs/trigger-condition.md` |
-| Adding a new Function (read this first, always) | `Documents/MDs/functions/overview.md` |
+| Task | Reference Document |
+|------|--------------------|
+| Module structure, GAS components, weapon swap flow | `Documents/MDs/architecture.md` |
+| DataAsset, GA/AT classes, GA lifecycle, execution flow | `Documents/MDs/enchant-system.md` |
+| Trigger types, Condition evaluation, combination rules | `Documents/MDs/trigger-condition.md` |
+| Adding a new Function **(read first)** | `Documents/MDs/functions/overview.md` |
 | Creation / Ejection / Rotation / Attach | `Documents/MDs/functions/basic.md` |
 | TimeStop / Freeze / Teleport / Possess / Weather / StatusEffect | `Documents/MDs/functions/special.md` |
-| Cooldown GE, Recording system, Scrolls | `Documents/MDs/cooldown-recording.md` |
-| RPCs, server authority, replication policy | `Documents/MDs/network.md` |
+| Cooldown, Recording system, Scrolls, JSON Import/Export | `Documents/MDs/cooldown-recording.md` |
+| RPC, server authority, replication policies | `Documents/MDs/network.md` |
 | HUD, Inventory, Enchanter UI | `Documents/MDs/ui.md` |
 
 ---
@@ -61,252 +81,128 @@ Always read the relevant document before starting any task.
 
 | Item | Detail |
 |------|--------|
-| Engine Version | Unreal Engine 5.5 |
-| Required Plugins | `GameplayAbilities`, `EnhancedInput` |
-| Build Targets | `Win64`, `Editor`, `Development` |
+| Engine version | Unreal Engine 5.5 |
+| Required plugins | `GameplayAbilities`, `EnhancedInput` |
+| Build target | `Win64`, `Editor`, `Development` |
 
-### Build and Run
-
-```
-Editor → Play → Pi (Play in Editor)
-```
-
-### Hot Reload Workflow
-
-```
-1. Launch Editor
-2. Modify C++ code
-3. Editor → Tools → Hot Reload
-4. Verify changes (check console logs)
-```
-
-If Build.cs is modified, Hot Reload will not apply — full rebuild required.
+Hot Reload: `Editor → Tools → Hot Reload`. Changes to Build.cs require a full rebuild.
 
 ### Document Relationship
 
-- `CLAUDE.md`: Korean guide (main)
-- `CLAUDE_EN.md`: English guide (sync when needed)
+- `CLAUDE.md`: Korean guide (primary)
+- `CLAUDE_EN.md`: English guide (update together when syncing)
 
 ---
 
-## ⚙️ Core Architecture Decisions (Do Not Change)
+## ⚙️ Architecture Decisions (Do Not Change)
 
-### GAS Ownership
-- **Both ASC and AttributeSet are owned by `AEWECharacter`** (`/Source/EWE/Character/EWECharacter.h`)
-- Weapons (`UEWEWeaponData`) do not own an ASC — they hold a `TSubclassOf<UGameplayAbility>` list only
-- On weapon equip → register the weapon's GAs to the character's ASC via `ASC->GiveAbility()`
-- On weapon swap → Cancel all existing GAs, remove from ASC, then register new weapon's GAs
-
-### Network
-- **All GA activations execute only after Server Confirm** — no client-side prediction
-- No client feedback before Server Confirm
-- Spawned independent objects: Owner = Server; effect/damage calculations use the spawning player as reference
-
-### Module Separation
-```
-EWERuntime   → Core runtime (GAs, GEs, DataAssets, Functions, etc.)
-EWEEditor    → Editor-only features (strictly separated via WITH_EDITOR)
-```
+- **ASC and AttributeSet are owned by `AEWECharacter`.** Weapons only hold GA class lists. → `architecture.md`
+- **Server Confirm required. No Client Prediction.** No client feedback before confirmation. → `network.md`
+- **Module split:** `EWERuntime` / `EWEEditor` (strict `WITH_EDITOR` separation)
 
 ---
 
-## 🔒 Hard Rules — Breaking These Will Break the System
+## 🔒 EWE Project Rules
 
-### Attribute Modification
+> For general UE5/GAS code patterns, refer to the `/unreal-engine` skill references first.
+> Below are **constraints specific to this project only**. These take priority over general GAS conventions when they conflict.
+
+### Attribute Modification — GE Only
 ```
-Attributes must only be modified through GameplayEffects.
-Direct setter calls are strictly forbidden.
+Direct attribute setters are strictly forbidden in this project.
+While allowed in general GAS, EWE enforces all modifications through GE.
 
-// ❌ Never do this
-Health -= Damage;
-AttributeSet->SetHealth(100.f);
-
-// ✅ Correct approach
-ASC->ApplyGameplayEffectToSelf(DamageGE, ...);
+// ❌ AttributeSet->SetHealth(100.f);
+// ✅ ASC->ApplyGameplayEffectToSelf(DamageGE, ...);
 ```
 
-### GE Stacking
+### GE Stacking — Aggregate Only
 ```
-All GEs must use the Aggregate stacking policy.
-Override and Additive are forbidden.
-Duplicate GE applications must behave as fully independent instances.
+This project uses Aggregate stacking exclusively.
+Override / Additive forbidden. Duplicate GE applications must operate as fully independent instances.
 ```
 
 ### GA / AbilityTask Role Separation
 ```
-GameplayAbility (UEWEGA_*)  → High-level flow definition only
-AbilityTask     (UEWEAT_*)  → Actual execution steps
+UEWEGA_* (GA) → High-level flow orchestration only
+UEWEAT_* (AT) → Actual execution steps
 
-Never spawn actors directly inside a GA.
-Actor spawning must go through a dedicated AbilityTask (e.g. UEWEAT_SpawnActor).
-```
-
-### GA Termination Distinction
-```
-EndAbility(bWasCancelled=false)    → Normal completion. Recognized as ended for PrecedingEnchantEnd conditions.
-CancelAbility / bWasCancelled=true → Forced cancellation. NOT recognized as ended.
-Never conflate the two code paths.
+Direct Actor spawning in GA is forbidden.
+Always go through a dedicated AbilityTask.
 ```
 
-### Weapon Swap Processing Order
+### GA Termination — PrecedingEnchantEnd Integration
 ```
-1. Receive weapon swap Confirm from server
-2. CancelAbility on all active GAs + ASC->ClearAbility()
-3. Reset AttributeSet to new weapon's default values
-   - Retain current HP (clamp to new MaxHP if exceeded)
-   - Exclude Position and velocity from reset
-   - Retain all active GEs (including cooldowns) — do NOT reset
-4. Register new weapon's GAs via ASC->GiveAbility()
+Only EndAbility(bWasCancelled=false) is recognized as a PrecedingEnchantEnd condition trigger.
+CancelAbility is NOT recognized as a proper end.
+Mixing these two paths breaks the enchant chain.
 ```
 
-### Attribute Reference
+### Function Extension — IEnchantFunction Required
 ```
-If a referenced Attribute does not exist in the Character's AttributeSet:
-  → Print UE_LOG(LogEWE, Warning, ...) to console
-  → Silently ignore the entry — no crash
-```
-
-### Function Extension
-```
-All new Functions must implement the IEnchantFunction interface.
-Overriding ExecuteFunction() is sufficient to integrate into the existing pipeline.
-Read Documents/MDs/functions/overview.md before implementing any new Function.
+New Functions must implement the IEnchantFunction interface.
+Integration into the pipeline via ExecuteFunction() override.
+→ Read functions/overview.md first.
 ```
 
-### Unreal Reflection Macros
+### Attribute Reference Failure Handling
 ```
-Never remove or alter UCLASS, USTRUCT, UENUM, or GENERATED_BODY.
-Never remove UPROPERTY or UFUNCTION specifiers.
-Use TObjectPtr for owning pointers in UE5.
+When referencing an Attribute not present in the AttributeSet:
+  → Log UE_LOG(LogEWE, Warning, ...) and ignore. Never crash.
+```
+
+### Code Comments
+```
+All code comments must be written in English.
+// ❌ 체력을 감소시킨다
+// ✅ Reduces the character's health by the given amount
 ```
 
 ---
 
-## 📐 Key Class Map
+## 📐 Core Classes
 
 ```
-// ── Data ─────────────────────────────────────────────────────────
-UEnchantDataAsset               Defines one enchant (Trigger + Conditions + EventType + Functions + CooldownGE)
-UEWEWeaponData                  Defines a weapon (slot count, Attribute defaults, enchant slot array)
-  └─ EWEWeaponData.h            /Plugins/.../Weapon/EWEWeaponData.h
-
-// ── GAS Core ─────────────────────────────────────────────────────
-AEWECharacter                   Character owning ASC and AttributeSet
-  └─ EWECharacter.h             /Source/EWE/Character/EWECharacter.h
-UEWEGA_Base                     Base class for all GAs
-  └─ EWEAbilityBase.h           /Plugins/.../Ability/EWEAbilityBase.h
-UEWEAT_Base                     Base class for all ATs (implements IEnchantFunction)
-  └─ /Plugins/.../AbilityTask/
-
-// ── Interfaces ───────────────────────────────────────────────────
-IEWECharacterInterface          Character-weapon contract
-IEWEAttackAnimationInterface    Attack animation contract
-IEnchantFunction                Function extension interface (override ExecuteFunction)
-
-// ── Structs ──────────────────────────────────────────────────────
-FEnchantTrigger                 Trigger data struct
-FEnchantCondition               Condition data struct
-FEnchantFunction                Function parameter wrapper struct
-FEnchantContext                 Execution context (caster reference, parent weapon reference)
+UEnchantDataAsset       Defines one enchant (Trigger + Conditions + Functions + CooldownGE)
+UEWEWeaponData          Defines a weapon (slot count, default Attributes, enchant slot array)
+AEWECharacter           Character owning ASC / AttributeSet
+UEWEGA_Base             Base class for all GAs
+UEWEAT_Base             Base class for all ATs (IEnchantFunction implementor)
+IEnchantFunction        Function extension interface
+FEnchantContext         Execution context (caster, parent weapon reference)
 ```
+
+Full class map and file locations → `architecture.md`
 
 ---
 
 ## 🏷️ Naming Conventions
 
-| Category | Prefix | Example | File Name |
-|----------|--------|---------|-----------|
+> Epic standard prefixes (U/A/F/E/I) — see `/unreal-engine` skill.
+> Below are **EWE project-specific prefixes**.
+
+| Category | Prefix | Example | Filename |
+|----------|--------|---------|----------|
 | GameplayAbility | `UEWEGA_` | `UEWEGA_Creation` | `EWEGA_Creation.h` |
 | AbilityTask | `UEWEAT_` | `UEWEAT_SpawnActor` | `EWEAT_SpawnActor.h` |
-| Weapon classes | `UEWEWeapon*` | `UEWEWeaponData` | `EWEWeaponData.h` |
+| Weapon-related | `UEWEWeapon*` | `UEWEWeaponData` | `EWEWeaponData.h` |
 | General UObject | `UEWE` | `UEWEAttributeSet` | `EWEAttributeSet.h` |
 | AActor-derived | `AEWE` | `AEWECharacter` | `EWECharacter.h` |
-| Structs | `FEWE` | `FEnchantContext` | - |
+| Structs | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
 | Log category | `LogEWE` | - | - |
 
-> **File naming rule**: Drop the leading `U` or `A` from the class name.
-> Example: `UEWEGA_Creation` → `EWEGA_Creation.h`
+**Filename rule**: Drop the `U` / `A` prefix from the class name. e.g. `UEWEGA_Creation` → `EWEGA_Creation.h`
 
 ---
 
-## 🚦 Trigger Type Enum
-
-```cpp
-enum class EEnchantTriggerType : uint8
-{
-    OnSpawn,        // When the actor/object is spawned
-    OnAttack,       // When a hit is registered on another actor (not on input)
-    OnHit,          // When hit condition is met (regardless of damage)
-    OnKill,         // When a target is killed
-    OnDeath,        // When the caster dies
-    OnInput,        // On key input (Enhanced Input / IMC-based)
-    OnCombo,        // State condition AND input condition
-    OnCollision,    // When a projectile collides with an actor/object
-};
-```
-
-Default fire keys: **LMB and RMB only**. Additional keys require developer-side IMC modification.
-
----
-
-## ⚡ Enchant Execution Flow
+## ⚠️ Open Items
 
 ```
-Player input
-    │
-    ▼
-Client → Server RPC
-    │
-    ▼
-Server: Trigger evaluation
-    │
-    ├─ Condition not met  → Reject
-    ├─ CooldownGE active  → Reject (also blocked client-side, no feedback)
-    │
-    └─ Approved → Activate UEWEGA_*
-                    │
-                    └─ UEWEAT_* execute simultaneously (if no sequencing condition)
-                                │
-                                └─ All ATs complete → GA EndAbility
-```
-
----
-
-## 🔁 Concurrent / Sequential Execution Rules
-
-```
-Default: concurrent execution
-Sequential: only when a "PrecedingEnchantEnd" Condition is set
-            → fires at the EndAbility moment of the preceding enchant
-            → CancelAbility does NOT trigger sequencing
-
-The same rules apply to AbilityTasks within a single GA:
-  Default concurrent. GA calls EndAbility only after all ATs complete.
-```
-
----
-
-## 🌐 Network Handling Rules
-
-| Feature | Behavior |
-|---------|----------|
-| GA activation | Execute after Server Confirm |
-| Independent object spawn | Server spawns; effect calc uses spawning player as reference |
-| Teleport | Server validates destination → sends corrected position to client |
-| Weather Change | Server request → broadcast to all clients, Last-Write-Wins |
-| Time Stop | All same-tick requests processed; applied on next tick |
-| Cooldown block | Blocked on both client and server |
-
----
-
-## ⚠️ Pending Items (Confirm Before Implementing)
-
-```
-[ ] Editor tooling direction undecided
-    → Details panel customization only, or a dedicated Graph/Tree editor window
-    → Until decided, focus on runtime features only
+[ ] Editor tool direction undecided
+    → Details panel customization vs standalone Graph/Tree editor window
+    → Focus on runtime features until decided
 
 [ ] Object natural destruction edge cases
-    → Current policy: no auto-destroy if DestroyConditions is not set (Lifetime only)
-    → Update Documents/MDs/functions/basic.md if additional cases are defined
+    → Without DestroyConditions, no destruction other than Lifetime (current policy)
+    → Update functions/basic.md if new edge cases arise
 ```

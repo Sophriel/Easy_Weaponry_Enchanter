@@ -2,23 +2,23 @@
 
 ## Overview
 
-DataAsset과 DataTable을 활용한 데이터 주도 게임플레이 설계 패턴.
-무기, 스킬, 아이템 등 게임플레이 파라미터를 코드와 분리하여 에셋으로 관리할 때 사용한다.
+Data-driven gameplay design patterns using DataAsset and DataTable.
+Use when separating gameplay parameters (weapons, skills, items, etc.) from code into asset-based management.
 
 ---
 
 ## UDataAsset vs UPrimaryDataAsset
 
-| 클래스 | 특징 | 사용 시점 |
+| Class | Characteristics | When to Use |
 |--------|------|----------|
-| `UDataAsset` | 단순 데이터 컨테이너, 하드 레퍼런스로 로드 | 항상 메모리에 있어도 되는 소규모 데이터 |
-| `UPrimaryDataAsset` | AssetManager 통합, 번들/청크 관리 가능 | 런타임 동적 로딩이 필요한 대규모 데이터 |
+| `UDataAsset` | Simple data container, loaded via hard reference | Small-scale data that can always reside in memory |
+| `UPrimaryDataAsset` | AssetManager integration, bundle/chunk management | Large-scale data requiring runtime dynamic loading |
 
-일반적으로 소규모 프로젝트는 `UDataAsset`, 대규모 프로젝트나 DLC/패치가 있는 프로젝트는 `UPrimaryDataAsset`을 사용한다.
+Generally, small projects use `UDataAsset`, while large projects or those with DLC/patches use `UPrimaryDataAsset`.
 
 ---
 
-## UDataAsset 기본 패턴
+## UDataAsset Basic Pattern
 
 ```cpp
 UCLASS(BlueprintType)
@@ -44,29 +44,29 @@ public:
 };
 ```
 
-Content Browser에서 우클릭 → Miscellaneous → Data Asset → `UWeaponDataAsset` 선택으로 인스턴스 생성.
+Create an instance via Content Browser → Right-click → Miscellaneous → Data Asset → select `UWeaponDataAsset`.
 
-### DataAsset 참조 방식
+### DataAsset Reference Patterns
 
 ```cpp
-// 하드 레퍼런스 — 소유 액터 로드 시 함께 로드됨
+// Hard reference — loaded together with the owning actor
 UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 TObjectPtr<UWeaponDataAsset> WeaponData;
 
-// 소프트 레퍼런스 — 필요 시점에 수동 로드
+// Soft reference — manually loaded when needed
 UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 TSoftObjectPtr<UWeaponDataAsset> WeaponDataSoft;
 
-// 소프트 레퍼런스 로드
+// Load soft reference
 if (WeaponDataSoft.IsPending())
 {
     UWeaponDataAsset* Loaded = WeaponDataSoft.LoadSynchronous();
 }
 ```
 
-### 중첩 DataAsset 패턴
+### Nested DataAsset Pattern
 
-DataAsset이 다른 DataAsset을 참조하는 구조:
+A structure where DataAssets reference other DataAssets:
 
 ```cpp
 UCLASS(BlueprintType)
@@ -85,7 +85,7 @@ public:
     TArray<TSubclassOf<UGameplayAbility>> Functions;
 };
 
-// 무기 DataAsset이 인챈트 DataAsset 배열을 보유
+// Weapon DataAsset holds an array of Enchant DataAssets
 UCLASS(BlueprintType)
 class UWeaponDataAsset : public UDataAsset
 {
@@ -101,7 +101,7 @@ public:
 
 ## UPrimaryDataAsset + AssetManager
 
-대규모 프로젝트에서 DataAsset을 동적으로 로드/언로드해야 할 때 사용.
+Use when DataAssets need to be dynamically loaded/unloaded in large projects.
 
 ```cpp
 UCLASS(BlueprintType)
@@ -110,7 +110,7 @@ class UItemDataAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    // AssetManager가 이 에셋을 식별하는 데 사용
+    // Used by AssetManager to identify this asset
     virtual FPrimaryAssetId GetPrimaryAssetId() const override
     {
         return FPrimaryAssetId("Item", GetFName());
@@ -120,36 +120,36 @@ public:
     FText DisplayName;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Display")
-    TSoftObjectPtr<UTexture2D> Icon;  // 소프트 레퍼런스로 아이콘 참조
+    TSoftObjectPtr<UTexture2D> Icon;  // Soft reference for icon
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Gameplay")
     FGameplayTagContainer ItemTags;
 };
 ```
 
-### AssetManager 등록
+### AssetManager Registration
 
-`DefaultGame.ini`에 에셋 타입을 등록:
+Register the asset type in `DefaultGame.ini`:
 
 ```ini
 [/Script/Engine.AssetManagerSettings]
 +PrimaryAssetTypesToScan=(PrimaryAssetType="Item",AssetBaseClass="/Script/MyGame.ItemDataAsset",bHasBlueprintClasses=false,Directories=((Path="/Game/Data/Items")))
 ```
 
-### 런타임 로딩
+### Runtime Loading
 
 ```cpp
-// 에셋 목록 조회
+// Query asset list
 UAssetManager& Manager = UAssetManager::Get();
 TArray<FPrimaryAssetId> AssetIds;
 Manager.GetPrimaryAssetIdList("Item", AssetIds);
 
-// 비동기 로드
+// Async load
 FStreamableDelegate Delegate = FStreamableDelegate::CreateUObject(
     this, &AMyActor::OnAssetsLoaded);
 Manager.LoadPrimaryAssets(AssetIds, {}, Delegate);
 
-// 콜백에서 에셋 사용
+// Use assets in callback
 void AMyActor::OnAssetsLoaded()
 {
     UAssetManager& Manager = UAssetManager::Get();
@@ -158,33 +158,33 @@ void AMyActor::OnAssetsLoaded()
         UItemDataAsset* Item = Manager.GetPrimaryAssetObject<UItemDataAsset>(Id);
         if (Item)
         {
-            // 에셋 사용
+            // Use the asset
         }
     }
 }
 ```
 
-### 언로드
+### Unload
 
 ```cpp
 Manager.UnloadPrimaryAssets(AssetIds);
 ```
 
-### PrimaryDataAsset 참조 시 주의사항
+### PrimaryDataAsset Reference Considerations
 
-`UPrimaryDataAsset`은 AssetManager를 통해 비동기 로드되는 것이 전제이므로, 다른 클래스에서 이를 참조할 때 `TObjectPtr` 하드 레퍼런스 대신 `TSoftObjectPtr`를 사용해야 한다. 하드 레퍼런스로 보유하면 소유 액터 로드 시 해당 에셋까지 강제 로드되어 AssetManager의 비동기 로딩 이점이 사라진다.
+`UPrimaryDataAsset` is designed to be loaded asynchronously via AssetManager, so other classes should reference it with `TSoftObjectPtr` instead of `TObjectPtr` hard references. Hard references force-load the asset when the owning actor loads, negating the async loading benefits of AssetManager.
 
 ```cpp
-// ❌ 하드 레퍼런스 — PrimaryDataAsset의 비동기 로딩 의미가 없어짐
+// ❌ Hard reference — defeats the purpose of PrimaryDataAsset async loading
 UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 TArray<TObjectPtr<UWeaponDataAsset>> Weapons;
 
-// ✅ 소프트 레퍼런스 — 필요 시점에 로드
+// ✅ Soft reference — load when needed
 UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
 TArray<TSoftObjectPtr<UWeaponDataAsset>> Weapons;
 ```
 
-소프트 레퍼런스 컬렉션의 요소에 접근할 때는 로드 여부를 확인하고, 미로드 시 명시적으로 로드해야 한다:
+When accessing elements of a soft reference collection, check load status and explicitly load if not yet loaded:
 
 ```cpp
 UWeaponDataAsset* GetWeaponData(int32 Index)
@@ -194,28 +194,28 @@ UWeaponDataAsset* GetWeaponData(int32 Index)
         return nullptr;
     }
 
-    // 이미 로드되어 있으면 바로 반환
+    // Already loaded — return directly
     if (Weapons[Index].IsValid())
     {
         return Weapons[Index].Get();
     }
 
-    // 미로드 시 동기 로드 후 반환
+    // Not loaded — synchronous load and return
     return Weapons[Index].LoadSynchronous();
 }
 ```
 
-> **`UDataAsset` vs `UPrimaryDataAsset` 참조 방식 비교**:
-> `UDataAsset`은 항상 메모리에 상주하는 것이 전제이므로 `TObjectPtr` 하드 레퍼런스가 적합하다.
-> `UPrimaryDataAsset`은 AssetManager를 통한 동적 로딩이 전제이므로 `TSoftObjectPtr`가 적합하다.
+> **`UDataAsset` vs `UPrimaryDataAsset` reference comparison**:
+> `UDataAsset` is expected to always reside in memory, so `TObjectPtr` hard references are appropriate.
+> `UPrimaryDataAsset` is expected to be dynamically loaded via AssetManager, so `TSoftObjectPtr` is appropriate.
 
 ---
 
 ## DataTable (FTableRowBase)
 
-구조화된 대량 데이터(레벨 테이블, 드롭 테이블, 적 스탯 등)에는 DataTable을 사용.
+Use DataTable for structured bulk data (level tables, drop tables, enemy stats, etc.).
 
-### Row 구조체 정의
+### Row Struct Definition
 
 ```cpp
 USTRUCT(BlueprintType)
@@ -237,9 +237,9 @@ struct FEnemyStatsRow : public FTableRowBase
 };
 ```
 
-Content Browser에서 우클릭 → Miscellaneous → DataTable → `FEnemyStatsRow` 선택으로 테이블 생성.
+Create via Content Browser → Right-click → Miscellaneous → DataTable → select `FEnemyStatsRow`.
 
-### 런타임 조회
+### Runtime Lookup
 
 ```cpp
 UPROPERTY(EditDefaultsOnly, Category = "Data")
@@ -258,7 +258,7 @@ void AMyActor::LookupEnemyStats(FName RowName)
 }
 ```
 
-### 전체 행 순회
+### Iterating All Rows
 
 ```cpp
 TArray<FEnemyStatsRow*> AllRows;
@@ -266,17 +266,17 @@ Table->GetAllRows<FEnemyStatsRow>(TEXT(""), AllRows);
 
 for (FEnemyStatsRow* Row : AllRows)
 {
-    // 각 행 처리
+    // Process each row
 }
 ```
 
 ### CSV/JSON Import
 
-DataTable은 CSV 또는 JSON 파일에서 import할 수 있어 기획자가 에디터 외부에서 데이터를 편집하고 반영할 수 있다.
+DataTables can be imported from CSV or JSON files, allowing designers to edit data outside the editor and reimport.
 
-에디터에서 DataTable 에셋 → 우클릭 → Reimport로 외부 파일 변경사항을 반영.
+In editor: DataTable asset → Right-click → Reimport to apply external file changes.
 
-CSV 형식:
+CSV format:
 ```
 ---,Health,MoveSpeed,AttackDamage,EnemyTypeTag
 Goblin,50,400,5,"Enemy.Melee"
@@ -284,29 +284,29 @@ Dragon,1000,200,100,"Enemy.Boss"
 Archer,80,350,15,"Enemy.Ranged"
 ```
 
-첫 번째 열(`---`)은 RowName으로 사용된다.
+The first column (`---`) is used as the RowName.
 
 ---
 
-## DataAsset vs DataTable 선택 기준
+## DataAsset vs DataTable Selection Criteria
 
-| 기준 | DataAsset | DataTable |
+| Criteria | DataAsset | DataTable |
 |------|-----------|-----------|
-| 데이터 형태 | 개별 에셋 (무기 1개 = DataAsset 1개) | 테이블 행 (적 100종 = 테이블 1개) |
-| 레퍼런스 방식 | 직접 참조 또는 AssetManager | RowName 문자열 조회 |
-| 에디터 UX | 개별 에셋 더블클릭으로 편집 | 스프레드시트 형태로 일괄 편집 |
-| 외부 import | 불가 (에디터 전용) | CSV/JSON import 가능 |
-| 복잡한 중첩 구조 | 적합 (다른 DataAsset 참조 가능) | 부적합 (flat row 구조) |
-| 블루프린트 참조 | 에셋 직접 선택 가능 | RowName 문자열 입력 필요 |
-| GAS 연동 | GA, GE 클래스를 직접 참조 | TSubclassOf를 열에 포함 가능하나 불편 |
+| Data shape | Individual assets (1 weapon = 1 DataAsset) | Table rows (100 enemies = 1 table) |
+| Reference method | Direct reference or AssetManager | RowName string lookup |
+| Editor UX | Double-click individual assets to edit | Spreadsheet-style bulk editing |
+| External import | Not supported (editor only) | CSV/JSON import supported |
+| Complex nested structures | Suitable (can reference other DataAssets) | Not suitable (flat row structure) |
+| Blueprint reference | Direct asset selection | RowName string input required |
+| GAS integration | Direct reference to GA/GE classes | TSubclassOf can be in columns but cumbersome |
 
-**경험적 가이드라인**: 개별 에셋이 고유한 구조(중첩 배열, 다른 에셋 참조 등)를 가지면 DataAsset, 동일 스키마의 데이터가 수십~수백 개면 DataTable.
+**Rule of thumb**: If individual assets have unique structures (nested arrays, references to other assets), use DataAsset. If dozens to hundreds of entries share the same schema, use DataTable.
 
 ---
 
-## 에디터 유효성 검증
+## Editor Validation
 
-DataAsset에 에디터에서 입력 오류를 잡는 검증 로직을 추가:
+Add validation logic to catch input errors in the editor for DataAssets:
 
 ```cpp
 #if WITH_EDITOR

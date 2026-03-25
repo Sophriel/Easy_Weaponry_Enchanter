@@ -356,25 +356,25 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponsSyncedEvent,
 
 ### ⚠️ Misconception: Delegate Macros Always Require Full #include
 
-AI 도구(Claude Code 포함)가 종종 잘못 진단하는 케이스.
+A case frequently misdiagnosed by AI tools (including Claude Code).
 
-**잘못된 진단 예시**:
-> "DECLARE_DYNAMIC_MULTICAST_DELEGATE_* 매크로는 리플렉션 정보를 필요로 하므로
-> forward declaration만으로는 컴파일 에러가 발생한다. #include가 필요하다."
+**Incorrect diagnosis example**:
+> "DECLARE_DYNAMIC_MULTICAST_DELEGATE_* macros require reflection information,
+> so forward declarations alone will cause compile errors. #include is required."
 
-**실제 동작**:
-- 매개변수 타입이 **`UObject` 기반 포인터(`UMyClass*`)** 라면 forward declaration만으로 충분하다
-- UHT는 포인터 타입 + 이름 정보만으로 처리 가능하며, 전체 클래스 정의를 요구하지 않는다
+**Actual behavior**:
+- If the parameter type is a **`UObject`-derived pointer (`UMyClass*`)**, a forward declaration is sufficient
+- UHT can process with pointer type + name information only; it does not require the full class definition
 
 ```cpp
-// ✅ 이것은 정상 동작한다 — #include 불필요
+// ✅ This works correctly — #include not required
 class UEWEWeaponData;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponAcquiredEvent, UEWEWeaponData*, Weapon);
 ```
 
-`#include`가 실제로 필요한 경우:
-- 포인터가 아닌 **값 타입** 매개변수 (e.g. `FMyStruct`)
-- 같은 번역 단위에서 해당 타입의 **멤버에 접근**하는 경우
+Cases where `#include` is actually required:
+- **Value type** parameters (not pointers), e.g. `FMyStruct`
+- When **accessing members** of the type in the same translation unit
 
 ---
 

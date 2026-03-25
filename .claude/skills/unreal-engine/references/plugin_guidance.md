@@ -1,7 +1,7 @@
 # Plugin-Specific Guidance
 
-> **이 문서는 "외부/서드파티 플러그인을 프로젝트에 도입하여 사용할 때"의 가이드입니다.**
-> 플러그인을 직접 개발하는 경우 → `references/plugin_development.md`를 참조하세요.
+> **This document covers using external/third-party plugins in your project.**
+> For developing your own plugins, see `references/plugin_development.md`.
 
 ## Checking Enabled Plugins
 

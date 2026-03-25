@@ -48,31 +48,31 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponsSynced,
     const TArray<UWeaponData*>&, Weapons, int32, NewCount);
 ```
 
-- **`TSoftObjectPtr` 컬렉션을 함수 파라미터로 넘길 때는 raw pointer 컬렉션으로 변환하여 전달한다.** `TSoftObjectPtr`는 저장/참조 용도이고, 함수 인터페이스에서는 이미 로드된 에셋을 다루는 것이 일반적이므로 호출 측에서 로드를 보장한 뒤 raw pointer로 넘기는 것이 바람직하다.
+- **When passing `TSoftObjectPtr` collections as function parameters, convert to raw pointer collections.** `TSoftObjectPtr` is for storage/reference purposes. Function interfaces typically deal with already-loaded assets, so the caller should guarantee loading and pass raw pointers.
 
 ```cpp
-// 멤버 변수: 소프트 레퍼런스로 보유
+// Member variable: stored as soft reference
 UPROPERTY()
 TArray<TSoftObjectPtr<UWeaponData>> Weapons;
 
-// ❌ 함수 파라미터에 TSoftObjectPtr 컬렉션을 그대로 전달
+// ❌ Passing TSoftObjectPtr collection directly as function parameter
 void SetWeapons(const TArray<TSoftObjectPtr<UWeaponData>>& InWeapons);
 
-// ✅ raw pointer 컬렉션으로 전달 — 호출 측에서 로드를 보장
+// ✅ Pass as raw pointer collection — caller guarantees loading
 void SetWeapons(const TArray<UWeaponData*>& InWeapons);
 ```
 
-이렇게 하면 함수 내부에서 로드 여부를 신경 쓸 필요 없이 유효한 포인터만 다루면 되고, 호출 측의 저장 방식(하드/소프트)에 함수가 의존하지 않게 된다.
+This way the function only deals with valid pointers without worrying about load state, and the function does not depend on the caller's storage strategy (hard/soft).
 
 - **Never create UCLASS or USTRUCT files autonomously.** Engine-generated files include `GENERATED_BODY()`, module API macros (`PROJECTNAME_API`), UHT-managed include order, and `.generated.h` placement — boilerplate that is difficult to replicate correctly by hand. Always instruct the user to create the class from the editor (Tools → New C++ Class), then work on the generated files.
 
-### Header Include 최소화 — 전방선언 우선 원칙
+### Minimize Header Includes — Prefer Forward Declarations
 
-헤더 파일에서 다른 클래스를 포인터나 레퍼런스로만 참조하는 경우, `#include` 대신 전방선언을 사용한다.
-`#include`는 해당 클래스의 멤버에 실제로 접근하는 cpp 파일에서만 추가한다.
+When a header file only references another class by pointer or reference, use a forward declaration instead of `#include`.
+Add `#include` only in the cpp file where you actually access that class's members.
 
 ```cpp
-// ❌ MyWeaponComponent.h — 불필요한 #include
+// ❌ MyWeaponComponent.h — unnecessary #include
 #include "EWEWeaponData.h"
 #include "EWEPlayerController.h"
 
@@ -83,7 +83,7 @@ void EquipWeapon(AEWEPlayerController* PC);
 ```
 
 ```cpp
-// ✅ MyWeaponComponent.h — 전방선언으로 의존 최소화
+// ✅ MyWeaponComponent.h — minimize dependencies with forward declarations
 class UEWEWeaponData;
 class AEWEPlayerController;
 
@@ -94,17 +94,37 @@ void EquipWeapon(AEWEPlayerController* PC);
 ```
 
 ```cpp
-// ✅ MyWeaponComponent.cpp — 실제 사용처에서 #include
+// ✅ MyWeaponComponent.cpp — #include at actual usage site
 #include "MyWeaponComponent.h"
-#include "EWEWeaponData.h"        // WeaponData->GetDamage() 접근
-#include "EWEPlayerController.h"  // PC->SetSlot() 호출
+#include "EWEWeaponData.h"        // Access WeaponData->GetDamage()
+#include "EWEPlayerController.h"  // Call PC->SetSlot()
 ```
 
-**`#include`가 헤더에 필요한 경우** (전방선언 불가):
-- 해당 클래스를 **상속**할 때 (`class AMyChar : public ACharacter`)
-- 해당 타입을 **값으로 보유**할 때 (`FGameplayTagContainer Tags;` — 포인터가 아닌 인라인 멤버)
-- **인라인 함수**에서 해당 클래스의 멤버에 접근할 때
-- **`GENERATED_BODY()`가 있는 `.generated.h`** — 항상 헤더에 include 필수
+**Cases where `#include` is required in headers** (forward declaration not possible):
+- **Inheriting** from the class (`class AMyChar : public ACharacter`)
+- **Holding the type by value** (`FGameplayTagContainer Tags;` — inline member, not a pointer)
+- Accessing the class's members in **inline functions**
+- **`.generated.h` with `GENERATED_BODY()`** — must always be included in headers
+
+### #include Paths — Use Full Path Relative to Module Root
+
+When writing `#include`, do not use the filename alone — always specify the **full relative path from the module's `Public/` or `Private/` directory**. UE's build system only registers the module root in the include path, so omitting subdirectory structure causes a compile error as the file cannot be found.
+
+```cpp
+// ❌ Filename only — compile error (file not found)
+#include "EWEAttributeBase.h"
+
+// ✅ Full path relative to module root
+#include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
+```
+
+To verify the path, search for the header location in the `Source/` directory:
+
+```bash
+find Source -name "EWEAttributeBase.h"
+# → Source/EasyWeaponryEnchanter/Public/EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h
+#    Path after module root (Public/): EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h
+```
 
 ### UHT and Forward Declarations in Delegate Macros
 
@@ -204,13 +224,13 @@ UIManager = GetUIManager(); // assumed, not confirmed
 > `ULocalPlayerSubsystem` is tied to a specific local player instance.
 > Always retrieve it through `GetLocalPlayer()`, not through global or world subsystem accessors.
 
-### Early Return으로 Cast 연쇄 평탄화
+### Flatten Cast Chains with Early Return
 
-UE 코드에서 Controller 캐스팅, ASC 접근, 컴포넌트 조회가 연쇄되면 중첩 if가 3~4단으로 깊어지기 쉽다.
-실패 조건을 먼저 걸러내는 early return 패턴으로 핵심 로직의 뎁스를 최소화한다.
+In UE code, chained Controller casts, ASC access, and component lookups easily lead to 3-4 levels of nested ifs.
+Use the early return pattern to filter out failure conditions first, minimizing the depth of core logic.
 
 ```cpp
-// ❌ 중첩 if — 뎁스가 깊어질수록 가독성 저하
+// ❌ Nested ifs — readability degrades with increasing depth
 APlayerController* PC = GetOwningPlayer();
 if (PC)
 {
@@ -225,7 +245,7 @@ if (PC)
     }
 }
 
-// ✅ Early return — 실패를 먼저 걸러내고 핵심 로직은 최소 뎁스
+// ✅ Early return — filter failures first, core logic at minimal depth
 AMyPlayerController* MyPC = Cast<AMyPlayerController>(GetOwningPlayer());
 if (!MyPC)
 {
@@ -241,10 +261,10 @@ if (!ASC)
 ASC->TryActivateAbilitiesByTag(TagContainer);
 ```
 
-반환값이 필요한 함수에서도 동일하게 적용:
+Apply the same pattern for functions with return values:
 
 ```cpp
-// ✅ 반환값이 있는 경우
+// ✅ When a return value is needed
 UMyComponent* GetMyComponent(AActor* TargetActor)
 {
     if (!TargetActor)

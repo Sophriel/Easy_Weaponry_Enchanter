@@ -2,6 +2,9 @@
 
 > 모듈 구조, GAS 컴포넌트 배치, 플러그인 설정을 다룬다.
 > 새 클래스를 만들거나 모듈 의존성을 건드리기 전에 반드시 읽을 것.
+>
+> **일반 UE 플러그인 개발 패턴** (Runtime/Editor 분리, Build.cs, WITH_EDITOR 등)은
+> `/unreal-engine` 스킬 → `references/plugin_development.md` 참조.
 
 ---
 
@@ -23,21 +26,16 @@ EWE/
 ### 모듈 의존성
 
 ```
-EWERuntime:
+메인 게임 모듈 (EWE):
+  PublicDependencyModuleNames:  Core, CoreUObject, Engine, InputCore, EnhancedInput,
+                                EasyWeaponryEnchanter, GameplayAbilities, GameplayTasks, GameplayTags
+
+플러그인 런타임 (EWERuntime):
   PublicDependencyModuleNames:  GameplayAbilities, EnhancedInput, CoreUObject, Engine
   PrivateDependencyModuleNames: NetCore
 
-EWEEditor:
+플러그인 에디터 (EWEEditor):
   PublicDependencyModuleNames:  EWERuntime, UnrealEd, PropertyEditor
-```
-
-### 에디터 코드 분리 규칙
-
-```cpp
-// 런타임 클래스 내 에디터 전용 코드는 반드시 이 매크로로 감쌀 것
-#if WITH_EDITOR
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& e) override;
-#endif
 ```
 
 에디터 전용 로직을 EWERuntime에 두면 쿠킹 시 오류 발생. 반드시 EWEEditor로 분리.
@@ -45,6 +43,9 @@ EWEEditor:
 ---
 
 ## GAS 컴포넌트 배치
+
+> **ASC 초기화 일반 패턴** (PossessedBy / OnRep_PlayerState / PlayerState 배치)은
+> `/unreal-engine` 스킬 → `references/gameplay_ability_system.md` → "Initialize the ASC" 참조.
 
 ### 소유 구조 (변경 금지)
 
@@ -54,33 +55,16 @@ ACharacter (플레이어 캐릭터)
 └── UEWEAttributeSet                     ← 캐릭터 소유
 ```
 
+EWE에서는 ASC를 **캐릭터에 직접 배치**한다 (PlayerState 아님).
 무기(`AEWEWeaponActor`)는 ASC를 소유하지 않는다.
 무기가 교체될 때마다 캐릭터 ASC에 GA가 등록/해제된다.
-
-### ASC 초기화 위치
-
-```cpp
-// ACharacter::BeginPlay 또는 PossessedBy 에서 초기화
-void AEWECharacterBase::PossessedBy(AController* NewController)
-{
-    Super::PossessedBy(NewController);
-    if (AbilitySystemComponent)
-    {
-        AbilitySystemComponent->InitAbilityActorInfo(this, this);
-    }
-}
-
-// 클라이언트는 OnRep_PlayerState 또는 AcknowledgePossession 에서
-void AEWECharacterBase::OnRep_PlayerState()
-{
-    Super::OnRep_PlayerState();
-    AbilitySystemComponent->InitAbilityActorInfo(this, this);
-}
-```
 
 ---
 
 ## AttributeSet 설계
+
+> **AttributeSet 생성, ATTRIBUTE_ACCESSORS 매크로, Replication 일반 패턴**은
+> `/unreal-engine` 스킬 → `references/gameplay_ability_system.md` → "Creating Attributes" 참조.
 
 ### UEWEAttributeSet 필수 Attribute 목록
 
@@ -93,16 +77,6 @@ void AEWECharacterBase::OnRep_PlayerState()
 
 무기가 사용하는 모든 Attribute는 이 AttributeSet에 반드시 존재해야 한다.
 존재하지 않는 Attribute를 DataAsset에서 참조하면 Warning 출력 후 무시.
-
-### Attribute 접근 패턴
-
-```cpp
-// 읽기
-float CurrentHP = AttributeSet->GetHealth();
-
-// 쓰기는 반드시 GE를 통해 (직접 세터 사용 금지)
-// AttributeSet->SetHealth(100.f);  ← 금지
-```
 
 ### 무기 교체 시 AttributeSet 재설정
 
@@ -129,6 +103,9 @@ void AEWECharacterBase::ResetAttributesForWeapon(const UWeaponDataAsset* WeaponD
 ---
 
 ## 무기 장착/교체 흐름
+
+> **GA 동적 Grant/Revoke 일반 패턴**은
+> `/unreal-engine` 스킬 → `references/gameplay_ability_system.md` → "Dynamic GA Grant/Revoke" 참조.
 
 ```
 클라이언트: 무기 교체 요청 RPC → 서버

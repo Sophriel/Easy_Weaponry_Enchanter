@@ -2,6 +2,9 @@
 
 > RPC 구조, 서버 권한 정책, 기능별 복제 방식을 다룬다.
 > 네트워크 관련 코드를 작성하기 전에 반드시 읽을 것.
+>
+> **GAS 네트워크 일반 패턴** (NetExecutionPolicy, Server-Authoritative, Client Prediction, Replication Mode)은
+> `/unreal-engine` 스킬 → `references/gameplay_ability_system.md` → "Network Patterns for GAS" 참조.
 
 ---
 
@@ -114,7 +117,7 @@ Client → 붉은 테두리 효과 표시 (이미 표시 중이면 무시)
 
 ---
 
-## RPC 작성 규칙
+## EWE RPC 작성 규칙
 
 ### 명명 규칙
 
@@ -138,18 +141,6 @@ void Multicast_ApplyFreeze(AActor* TargetActor);
 |------|------------|
 | `Reliable` | GA 발동, 위치 변경, 상태 변화 등 게임플레이에 영향 |
 | `Unreliable` | 파티클, 사운드, 피격 알림 등 시각/청각 효과 |
-
-### HasAuthority() 패턴
-
-```cpp
-// 서버 전용 로직은 반드시 이 검사로 감쌀 것
-void AEWEProjectile::OnHit(...)
-{
-    if (!HasAuthority()) return;
-
-    // 데미지 처리, GE 적용 등
-}
-```
 
 ---
 
@@ -187,22 +178,4 @@ if (bReplicates)
 {
     Spawned->SetReplicates(true);
 }
-```
-
----
-
-## 주의사항
-
-```
-1. 클라이언트에서 직접 GA를 활성화하는 코드 작성 금지
-   → 반드시 Server RPC 경유
-
-2. 클라이언트에서 직접 AttributeSet 값을 수정하는 코드 작성 금지
-   → 반드시 GE 경유
-
-3. 서버 전용 로직에서 클라이언트 시각 효과를 직접 재생하는 코드 작성 금지
-   → Multicast RPC 또는 RepNotify 경유
-
-4. 위치 보정 없이 SetActorLocation을 클라이언트에서 직접 호출하는 코드 작성 금지
-   → 서버 Confirm 후 처리 (Teleport 참고)
 ```

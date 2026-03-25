@@ -2,6 +2,9 @@
 
 > DataAsset 구조, GA/AT 클래스 설계, 슬롯 정책, GA 생명주기를 다룬다.
 > 인챈트 관련 클래스를 작성하기 전에 반드시 읽을 것.
+>
+> **GA/AT 일반 패턴** (ActivateAbility 시그니처, AbilityTask 생성, ReadyForActivation 등)은
+> `/unreal-engine` 스킬 → `references/gameplay_ability_system.md` 참조.
 
 ---
 
@@ -95,6 +98,7 @@ void UWeaponDataAsset::ValidateAttributes(const UEWEAttributeSet* AttributeSet) 
 ## UEWEGameplayAbility 설계
 
 인챈트 1개가 런타임에 생성되는 GA 클래스.
+EWE 고유 멤버만 기술한다.
 
 ```cpp
 UCLASS()
@@ -107,19 +111,6 @@ public:
     UPROPERTY()
     TObjectPtr<UEnchantDataAsset> SourceEnchant;
 
-    virtual void ActivateAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        const FGameplayEventData* TriggerEventData) override;
-
-    virtual void EndAbility(
-        const FGameplayAbilitySpecHandle Handle,
-        const FGameplayAbilityActorInfo* ActorInfo,
-        const FGameplayAbilityActivationInfo ActivationInfo,
-        bool bReplicateEndAbility,
-        bool bWasCancelled) override;
-
 protected:
     // 활성화된 AbilityTask 목록
     TArray<TObjectPtr<UEWEAbilityTask_Base>> ActiveTasks;
@@ -131,7 +122,7 @@ protected:
 };
 ```
 
-### ActivateAbility 구현 패턴
+### ActivateAbility 구현 패턴 (EWE 고유 흐름)
 
 ```cpp
 void UEWEGameplayAbility::ActivateAbility(...)
@@ -171,6 +162,7 @@ void UEWEGameplayAbility::ActivateAbility(...)
 ## UEWEAbilityTask_Base 설계
 
 Function 1개 = AbilityTask 1개.
+EWE 고유 멤버만 기술한다.
 
 ```cpp
 UCLASS(Abstract)
@@ -188,18 +180,16 @@ public:
 
     // IEnchantFunction 인터페이스 구현
     virtual void ExecuteFunction() PURE_VIRTUAL(UEWEAbilityTask_Base::ExecuteFunction, );
-
-protected:
-    virtual void Activate() override
-    {
-        ExecuteFunction();
-    }
 };
 ```
 
 ---
 
 ## GA 생명주기 규칙 (변경 금지)
+
+> **GA End vs Cancel 일반 의미**는
+> `/unreal-engine` 스킬 → `references/gameplay_ability_system.md` → "Advanced GA Lifecycle" 참조.
+> 아래는 **EWE 인챈트 체인에서의 추가 규칙**이다.
 
 ```
 EndAbility(bWasCancelled = false)
