@@ -1,5 +1,6 @@
+/.claude
+/.continue
 /.git
-/.github
 /.vs
 /.vscode
 /Content
@@ -9,5 +10,3 @@
 /Saved
 /Plugins/EasyWeaponryEnchanter/Content
 /Plugins/EasyWeaponryEnchanter/Intermediate
-/Plugins/LudusAI/Content
-/Plugins/LudusAI/Intermediate

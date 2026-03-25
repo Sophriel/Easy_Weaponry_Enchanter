@@ -1,9 +1,14 @@
 # Visual Studio user specific files
 .vs/
 .vscode/
+*.clangd
+*.clang-format
+*.sln
+*.code-workspace
 
-# Engine user specific files
+# User specific files
 Config/DefaultEditor.ini
+.claude/*.json
 
 # Compiled Object files
 *.slo
