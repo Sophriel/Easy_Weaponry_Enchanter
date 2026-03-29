@@ -15,9 +15,21 @@ class EWE_API UEWEUIAsset : public UDataAsset
     GENERATED_BODY()
 
 public:
+    void AsyncLoadWidgetClass(class UEWELocalUIManageSubsystem* UIManageSubsystem);
+
+protected:
+    void OnWidgetLoaded();
+
+    TObjectPtr<class UEWELocalUIManageSubsystem> CachedUIManager;
+
+public:
+    // Hardcoded for Essential Widgets
     UPROPERTY(EditDefaultsOnly, Category = "Inventory")
-    TSubclassOf<class UEWEInventory> InventoryWidgetClass;
+    TSoftClassPtr<class UUserWidget> InventoryWidgetClass;
 
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
-    TSubclassOf<class UEWEQuickSlot> QuickSlotWidgetClass;
+    TSoftClassPtr<class UUserWidget> QuickSlotWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "HUD")
+    TSoftClassPtr<class UUserWidget> StatusWidgetClass;
 };

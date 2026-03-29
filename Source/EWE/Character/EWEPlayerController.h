@@ -15,6 +15,9 @@ class EWE_API AEWEPlayerController : public APlayerController
 {
     GENERATED_BODY()
 
+public:
+    class UEWELocalUIManageSubsystem *GetUIManager() { return CachedUIManager; }
+
 protected:
     virtual void BeginPlay() override;
     virtual void AcknowledgePossession(APawn *P) override;

@@ -15,11 +15,6 @@ void AEWEPlayerController::BeginPlay()
     {
         // Cache UIManager reference for performance
         CachedUIManager = LocalPlayer->GetSubsystem<UEWELocalUIManageSubsystem>();
-
-        if (CachedUIManager)
-        {
-            CachedUIManager->OnPlayerControllerReady();
-        }
     }
 }
 

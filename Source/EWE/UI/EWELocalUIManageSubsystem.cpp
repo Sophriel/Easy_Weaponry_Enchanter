@@ -3,18 +3,21 @@
 #include "EWELocalUIManageSubsystem.h"
 #include "EWEInventory.h"
 #include "EWEQuickSlot.h"
+#include "EWEStatus.h"
 #include "EWEUIAsset.h"
 #include "EWE/EWESettings.h"
 #include "EWE/EWELog.h"
+#include "EWE/Character/EWECharacter.h"
 #include "EasyWeaponryEnchanter/Public/EasyWeaponryEnchanter.h"
+#include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
 
 // Initialize subsystem
-void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
     Super::Initialize(Collection);
 
-    // Pre-load UIConfigAsset during initialization
-    const UEWESettings* Settings = GetDefault<UEWESettings>();
+    // Pre-load UIAssets during initialization
+    const UEWESettings *Settings = GetDefault<UEWESettings>();
     if (Settings && !Settings->UIConfigAsset.IsNull())
     {
         UIConfigAsset = Settings->UIConfigAsset.LoadSynchronous();
@@ -24,28 +27,53 @@ void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase& Collection
 // Cleanup on shutdown
 void UEWELocalUIManageSubsystem::Deinitialize()
 {
-    CloseInventory();
-    InventoryWidget = nullptr;
+    // Destroy widgets
+    if (InventoryWidget)
+    {
+        CloseInventory();
+        InventoryWidget->RemoveFromParent();
+        InventoryWidget = nullptr;
+    }
 
-    // Destroy QuickSlot widget
     if (QuickSlotWidget)
     {
         QuickSlotWidget->RemoveFromParent();
         QuickSlotWidget = nullptr;
     }
 
+    if (StatusWidget)
+    {
+        StatusWidget->RemoveFromParent();
+        StatusWidget = nullptr;
+    }
+
     Super::Deinitialize();
 }
 
-void UEWELocalUIManageSubsystem::OnPlayerControllerReady()
+void UEWELocalUIManageSubsystem::PlayerControllerChanged(APlayerController *NewPlayerController)
 {
-    // Create QuickSlot widget when PlayerController is ready (always visible)
-    CreateQuickSlotWidget();
+    CurrentPlayerController = NewPlayerController;
+
+    UIConfigAsset->AsyncLoadWidgetClass(this);
 }
 
-const UEWEUIAsset* UEWELocalUIManageSubsystem::GetUIConfigAsset() const
+const UEWEUIAsset *UEWELocalUIManageSubsystem::GetUIConfigAsset() const
 {
-    return UIConfigAsset.Get();
+    const UEWEUIAsset *UIConfig = UIConfigAsset.Get();
+    if (!UIConfig)
+    {
+        EWE_LOG(LogEWE, Error, TEXT("UIConfigAsset not set in UEWESettings"));
+        return nullptr;
+    }
+
+    return UIConfig;
+}
+
+void UEWELocalUIManageSubsystem::CreateUIWidgets()
+{
+    // Create widgets when ASyncLoad is ready (always visible)
+    CreateQuickSlotWidget();
+    CreateStatusWidget();
 }
 
 #pragma region Inventory
@@ -112,52 +140,50 @@ void UEWELocalUIManageSubsystem::SyncInventoryWeapons(const TArray<class UEWEWea
 
 void UEWELocalUIManageSubsystem::CreateInventoryWidget()
 {
-    const UEWEUIAsset* UIConfig = GetUIConfigAsset();
-    if (!UIConfig)
-    {
-        EWE_LOG(LogEWE, Error, TEXT("UIConfigAsset not set in UEWESettings"));
+    if (InventoryWidget)
         return;
-    }
 
-    TSubclassOf<UEWEInventory> WidgetClass = UIConfig->InventoryWidgetClass;
+    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->InventoryWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("InventoryWidgetClass not set in UEWEUIAsset"));
         return;
     }
 
-    InventoryWidget = CreateWidget<UEWEInventory>(GetWorld(), WidgetClass);
-    if (InventoryWidget)
+    InventoryWidget = CreateWidget<UEWEInventory>(GetWorld(), WidgetClass.Get());
+    if (!InventoryWidget)
     {
-        InventoryWidget->AddToViewport();
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create Inventory widget"));
+        return;
     }
+
+    InventoryWidget->AddToViewport();
 }
 
 #pragma endregion
 
 #pragma region QuickSlot
+
 void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
 {
-    const UEWEUIAsset* UIConfig = GetUIConfigAsset();
-    if (!UIConfig)
-    {
-        EWE_LOG(LogEWE, Error, TEXT("UIConfigAsset not set in UEWESettings"));
+    if (QuickSlotWidget)
         return;
-    }
 
-    TSubclassOf<UEWEQuickSlot> WidgetClass = UIConfig->QuickSlotWidgetClass;
+    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->QuickSlotWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("QuickSlotWidgetClass not set in UEWEUIAsset"));
         return;
     }
 
-    QuickSlotWidget = CreateWidget<UEWEQuickSlot>(GetWorld(), WidgetClass);
-    if (QuickSlotWidget)
+    QuickSlotWidget = CreateWidget<UEWEQuickSlot>(GetWorld(), WidgetClass.Get());
+    if (!QuickSlotWidget)
     {
-        QuickSlotWidget->AddToViewport();
-        EWE_LOG(LogEWE, Log, TEXT("QuickSlot widget created and added to viewport"));
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create QuickSlot widget"));
+        return;
     }
+
+    QuickSlotWidget->AddToViewport();
 }
 
 void UEWELocalUIManageSubsystem::AddWeaponToQuickSlot(UEWEWeaponData *Weapon)
@@ -208,6 +234,49 @@ void UEWELocalUIManageSubsystem::ScrollQuickSlot(float ScrollDirection)
     }
 
     QuickSlotWidget->K2_ScrollSlot(ScrollDirection);
+}
+
+#pragma endregion
+
+#pragma region Status
+
+void UEWELocalUIManageSubsystem::CreateStatusWidget()
+{
+    if (StatusWidget)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->StatusWidgetClass;
+    if (!WidgetClass)
+    {
+        EWE_LOG(LogEWE, Error, TEXT("StatusWidgetClass not set in UEWEUIAsset"));
+        return;
+    }
+
+    StatusWidget = CreateWidget<UEWEStatus>(GetWorld(), WidgetClass.Get());
+    if (!StatusWidget)
+    {
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create Status widget"));
+        return;
+    }
+
+    StatusWidget->AddToViewport();
+
+    // Bind AttributeSet to the widget
+    if (!CurrentPlayerController)
+    {
+        return;
+    }
+
+    if (APawn *Pawn = CurrentPlayerController->GetPawn<APawn>())
+    {
+        if (AEWECharacter *EWEChar = Cast<AEWECharacter>(Pawn))
+        {
+            if (UEWEAttributeBase *AttributeSet = EWEChar->GetCharacterAttribute())
+            {
+                StatusWidget->BindAttributeSet(AttributeSet);
+            }
+        }
+    }
 }
 
 #pragma endregion

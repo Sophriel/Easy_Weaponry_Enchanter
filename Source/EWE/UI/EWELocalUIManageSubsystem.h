@@ -6,9 +6,6 @@
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "EWELocalUIManageSubsystem.generated.h"
 
-class UEWEInventory;
-class UEWEQuickSlot;
-
 /**
  * Manages all UI widgets for local player.
  * - Inventory widget creation/open/close
@@ -23,14 +20,17 @@ class EWE_API UEWELocalUIManageSubsystem : public ULocalPlayerSubsystem
 public:
     virtual void Initialize(FSubsystemCollectionBase &Collection) override;
     virtual void Deinitialize() override;
+    virtual void PlayerControllerChanged(APlayerController *NewPlayerController) override;
 
-    void OnPlayerControllerReady();
+    void CreateUIWidgets();
 
 protected:
     TSoftObjectPtr<class UEWEUIAsset> UIConfigAsset;
 
     /** Loads and returns the UIConfigAsset if available */
     const class UEWEUIAsset *GetUIConfigAsset() const;
+
+    TObjectPtr<APlayerController> CurrentPlayerController;
 
 #pragma region Inventory
 public:
@@ -63,7 +63,7 @@ protected:
     void CreateInventoryWidget();
 
     /** Currently active inventory widget instance */
-    TObjectPtr<UEWEInventory> InventoryWidget;
+    TObjectPtr<class UEWEInventory> InventoryWidget;
 
 #pragma endregion
 
@@ -94,7 +94,18 @@ protected:
     void CreateQuickSlotWidget();
 
     /** Currently active quick slot widget instance */
-    TObjectPtr<UEWEQuickSlot> QuickSlotWidget;
+    TObjectPtr<class UEWEQuickSlot> QuickSlotWidget;
+
+#pragma endregion
+
+#pragma region Status
+
+protected:
+    /** Creates the Status Widget */
+    void CreateStatusWidget();
+
+    /** Cached Status Widget instance */
+    TObjectPtr<class UEWEStatus> StatusWidget;
 
 #pragma endregion
 };
