@@ -12,7 +12,8 @@ public class EWE : ModuleRules
         PublicDependencyModuleNames.AddRange(new string[] {
             "EasyWeaponryEnchanter",
             "GameplayAbilities",
-            "GameplayTasks"
+            "GameplayTasks",
+            "GameplayTags"
         });
     }
 }
