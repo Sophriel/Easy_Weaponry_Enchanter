@@ -33,7 +33,9 @@ public:
 
 protected:
     virtual void PossessedBy(AController *NewController) override;
+    virtual void OnRep_PlayerState() override;
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 #pragma region Input
 
@@ -112,7 +114,7 @@ protected:
     ECameraType CurrentCameraType;
 
     UPROPERTY(EditAnywhere, Category = Camera, Meta = (AllowPrivateAccess = "true"))
-    TMap<ECameraType, class UEWEControlData *> CameraControl;
+    TMap<ECameraType, TObjectPtr<class UEWEControlData>> CameraControl;
 
 #pragma endregion
 
@@ -122,6 +124,7 @@ public:
     virtual class UAbilitySystemComponent *GetAbilitySystemComponent() const override;
 
     virtual void AcquireWeapon(class UEWEWeaponData *NewWeapon) override;
+
     UFUNCTION(BlueprintCallable, Category = QuickSlot, Meta = (DisplayName = "EquipWeapon"))
     virtual void EquipWeapon(class UEWEWeaponData *Weapon) override;
 
@@ -140,6 +143,17 @@ protected:
     /** Toggle Inventory UI */
     UFUNCTION(BlueprintCallable, Category = Inventory)
     void ToggleInventory();
+
+    // Inventory Event Handlers
+    UFUNCTION()
+    void HandleWeaponAcquired(class UEWEWeaponData *Weapon);
+    UFUNCTION()
+    void HandleWeaponsSynced(const TArray<class UEWEWeaponData *> &Weapons, int32 Count);
+    UFUNCTION()
+    void HandleWeaponRemoved(class UEWEWeaponData *Weapon, int32 Index);
+
+    void SetupInventorySubscriptions();
+    void ClearInventorySubscriptions();
 
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Weapon, meta = (AllowPrivateAccess = "true"))
@@ -160,16 +174,19 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UAbilitySystemComponent> WeaponAbilityComponent;
 
-    // Inventory Event Handlers
-    UFUNCTION()
-    void HandleWeaponAcquired(class UEWEWeaponData *Weapon);
-    UFUNCTION()
-    void HandleWeaponsSynced(const TArray<class UEWEWeaponData *> &Weapons, int32 Count);
-    UFUNCTION()
-    void HandleWeaponRemoved(class UEWEWeaponData *Weapon, int32 Index);
+#pragma endregion
 
-    void SetupInventorySubscriptions();
-    void ClearInventorySubscriptions();
+#pragma region Attribute
+
+public:
+    class UEWEAttributeBase *GetCharacterAttribute();
+
+protected:
+    UPROPERTY(EditDefaultsOnly, Category = Attribute, meta = (AllowPrivateAccess = "true"))
+    TSubclassOf<class UGameplayEffect> DefaultAttributeGE;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Attribute, meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<class UEWEAttributeBase> AttributeSet;
 
 #pragma endregion
 };

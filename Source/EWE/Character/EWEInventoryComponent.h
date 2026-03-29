@@ -11,56 +11,60 @@
 class UEWEWeaponData;
 
 // Delegate Declarations
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponAcquiredEvent, UEWEWeaponData*, Weapon);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponsSyncedEvent, const TArray<UEWEWeaponData*>&, Weapons, int32, NewCount);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponRemovedEvent,UEWEWeaponData*, Weapon, int32, Index);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponAcquiredEvent, UEWEWeaponData *, Weapon);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponsSyncedEvent, const TArray<UEWEWeaponData *> &, Weapons, int32,
+                                             NewCount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponRemovedEvent, UEWEWeaponData *, Weapon, int32, Index);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class EWE_API UEWEInventoryComponent : public UActorComponent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	UEWEInventoryComponent();
+    UEWEInventoryComponent();
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
-	class UEWEWeaponData* GetWeapon(int32 TargetWeapon);
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
+    class UEWEWeaponData *GetWeapon(int32 TargetWeapon);
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
-	void AcquireWeapon(class UEWEWeaponData* NewWeapon);
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
+    void AcquireWeapon(class UEWEWeaponData *NewWeapon);
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
-	void RemoveWeapon(int32 Index);
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
+    void RemoveWeapon(int32 Index);
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
-	TArray<class UEWEWeaponData*> GetAllWeapons() const { return Weapons; }
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
+    TArray<class UEWEWeaponData *> GetAllWeapons() const { return Weapons; }
 
-	// Event Delegates (BlueprintAssignable for Blueprint connection)
-	UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-	FOnWeaponAcquiredEvent OnWeaponAcquired;
+    // Event Delegates (BlueprintAssignable for Blueprint connection)
+    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
+    FOnWeaponAcquiredEvent OnWeaponAcquired;
 
-	UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-	FOnWeaponsSyncedEvent OnWeaponsSynced;
+    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
+    FOnWeaponsSyncedEvent OnWeaponsSynced;
 
-	UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-	FOnWeaponRemovedEvent OnWeaponRemoved;
-
-protected:
-	virtual void InitializeComponent() override;
-	virtual void BeginPlay() override;
-
-	void LoadInitialWeaponsAsync();
-	void OnInitialWeaponsLoaded();
-	void SyncInventoryUI();
+    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
+    FOnWeaponRemovedEvent OnWeaponRemoved;
 
 protected:
-	TScriptInterface<class IEWECharacterInterface> OwnerCharacter;
+    virtual void InitializeComponent() override;
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
-	TArray<TSoftObjectPtr<class UEWEWeaponData>> InitialWeapons;
+    void LoadInitialWeaponsAsync();
+    void LoadWeaponAsync(TSoftObjectPtr<class UEWEWeaponData> WeaponAsset);
+    void OnWeaponLoaded(TSoftObjectPtr<class UEWEWeaponData> WeaponAsset);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
-	TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
+    void SyncInventoryUI();
 
-	TSharedPtr<FStreamableHandle> LoadHandle;
+protected:
+    TScriptInterface<class IEWECharacterInterface> OwnerCharacter;
+
+    // Added from Savedata or Editor
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
+    TArray<TSoftObjectPtr<class UEWEWeaponData>> InitialWeapons;
+
+    // Loaded Weapon Data
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
+    TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
 };

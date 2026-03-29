@@ -2,26 +2,38 @@
 
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
 #include "Engine/AssetManager.h"
-#include "Engine/StreamableManager.h"
 
-UEWEWeaponData::UEWEWeaponData()
-{
-}
+UEWEWeaponData::UEWEWeaponData() {}
 
 void UEWEWeaponData::PostLoad()
 {
-	Super::PostLoad();
+    Super::PostLoad();
 
-	if (WeaponMesh.IsPending() == false)
-		return;
+    LoadWeaponAssets();
+}
 
-	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+void UEWEWeaponData::LoadWeaponAssets()
+{
+    if (!WeaponMeshAsset.IsPending())
+    {
+        if (WeaponMeshAsset.IsValid())
+        {
+            WeaponMesh = WeaponMeshAsset.Get();
+        }
+        return;
+    }
 
-	StreamableManager.RequestAsyncLoad(
-		WeaponMesh.ToSoftObjectPath(),
-		FStreamableDelegate::CreateUObject(this, &UEWEWeaponData::OnWeaponMeshLoaded));
+    FStreamableManager &StreamableManager = UAssetManager::GetStreamableManager();
+    StreamableManager.RequestAsyncLoad(WeaponMeshAsset.ToSoftObjectPath(),
+                                       FStreamableDelegate::CreateUObject(this, &UEWEWeaponData::OnWeaponMeshLoaded));
 }
 
 void UEWEWeaponData::OnWeaponMeshLoaded()
 {
+    if (!WeaponMeshAsset.IsValid())
+    {
+        return;
+    }
+
+    WeaponMesh = WeaponMeshAsset.Get();
 }

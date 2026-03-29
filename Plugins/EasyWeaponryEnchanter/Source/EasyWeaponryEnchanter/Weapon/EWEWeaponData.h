@@ -12,24 +12,32 @@
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEWeaponData : public UPrimaryDataAsset
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	UEWEWeaponData();
+    UEWEWeaponData();
 
-	FPrimaryAssetId GetPrimaryAssetId() const override { return FPrimaryAssetId("EWEWeaponData", GetFName()); }
+    FPrimaryAssetId GetPrimaryAssetId() const override { return FPrimaryAssetId("EWEWeaponData", GetFName()); }
+
+    virtual void PostLoad() override;
+    void LoadWeaponAssets();
 
 protected:
-	virtual void PostLoad() override;
-	void		 OnWeaponMeshLoaded();
+    void OnWeaponMeshLoaded();
 
 public:
-	UPROPERTY(EditAnywhere, Category = Weapon)
-	TSoftObjectPtr<class USkeletalMesh> WeaponMesh;
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TObjectPtr<class UTexture2D> WeaponIcon;
 
-	UPROPERTY(EditAnywhere, Category = Weapon)
-	TArray<TSubclassOf<class UGameplayAbility>> HoldAbilities;
+    TObjectPtr<class USkeletalMesh> WeaponMesh;
 
-	UPROPERTY(EditAnywhere, Category = Weapon)
-	TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
+    UPROPERTY(EditAnywhere, Category = Weapon)
+    TArray<TSubclassOf<class UGameplayAbility>> HoldAbilities;
+
+    UPROPERTY(EditAnywhere, Category = Weapon)
+    TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
+
+protected:
+    UPROPERTY(EditAnywhere, Category = Weapon, meta = (AllowPrivateAccess = "true"))
+    TSoftObjectPtr<class USkeletalMesh> WeaponMeshAsset;
 };

@@ -104,6 +104,18 @@ void UEWEInventoryComponent::BeginPlay()
     SyncInventoryUI();
 
     OwnerCharacter->EquipWeapon(Weapons[0]);
+    EWEPC->SelectSlot(0);
+}
+
+void UEWEInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    for (TObjectPtr<UEWEWeaponData> &Weapon : Weapons)
+    {
+        Weapon = nullptr;
+    }
+    Weapons.Empty();
+
+    Super::EndPlay(EndPlayReason);
 }
 
 void UEWEInventoryComponent::SyncInventoryUI()
@@ -116,17 +128,37 @@ void UEWEInventoryComponent::SyncInventoryUI()
 
 void UEWEInventoryComponent::LoadInitialWeaponsAsync()
 {
-    FStreamableManager &StreamableManager = UAssetManager::Get().GetStreamableManager();
-
-    TArray<FSoftObjectPath> WeaponAssets;
-    for (const TSoftObjectPtr<UEWEWeaponData> &WeaponData : InitialWeapons)
+    for (TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
     {
-        if (WeaponData.IsPending() == true)
-            WeaponAssets.AddUnique(WeaponData.ToSoftObjectPath());
+        LoadWeaponAsync(WeaponAsset);
     }
-
-    LoadHandle = StreamableManager.RequestAsyncLoad(
-        WeaponAssets, FStreamableDelegate::CreateUObject(this, &UEWEInventoryComponent::OnInitialWeaponsLoaded));
 }
 
-void UEWEInventoryComponent::OnInitialWeaponsLoaded() {}
+void UEWEInventoryComponent::LoadWeaponAsync(TSoftObjectPtr<UEWEWeaponData> WeaponAsset)
+{
+    if (!WeaponAsset.IsPending())
+    {
+        if (WeaponAsset.IsValid())
+        {
+            WeaponAsset->LoadWeaponAssets();
+        }
+        return;
+    }
+
+    FStreamableManager &StreamableManager = UAssetManager::Get().GetStreamableManager();
+    StreamableManager.RequestAsyncLoad(
+        WeaponAsset.ToSoftObjectPath(),
+        FStreamableDelegate::CreateUObject(this, &UEWEInventoryComponent::OnWeaponLoaded, WeaponAsset));
+}
+
+void UEWEInventoryComponent::OnWeaponLoaded(TSoftObjectPtr<UEWEWeaponData> WeaponAsset)
+{
+    if (!WeaponAsset.IsValid())
+    {
+        EWE_LOG(LogEWEInventory, Error, TEXT("Asset %s AsyncLoad Failed"), *WeaponAsset.GetAssetName());
+        return;
+    }
+
+    WeaponAsset->LoadWeaponAssets();
+    Weapons.Add(WeaponAsset.Get());
+}
