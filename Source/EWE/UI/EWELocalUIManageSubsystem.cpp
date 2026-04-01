@@ -4,6 +4,7 @@
 #include "EWEInventory.h"
 #include "EWEQuickSlot.h"
 #include "EWEStatus.h"
+#include "EWETargetInfo.h"
 #include "EWEUIAsset.h"
 #include "EWE/EWESettings.h"
 #include "EWE/EWELog.h"
@@ -47,6 +48,13 @@ void UEWELocalUIManageSubsystem::Deinitialize()
         StatusWidget = nullptr;
     }
 
+    if (TargetInfoWidget)
+    {
+        TargetInfoWidget->UnbindTargetAttributeSet();
+        TargetInfoWidget->RemoveFromParent();
+        TargetInfoWidget = nullptr;
+    }
+
     Super::Deinitialize();
 }
 
@@ -74,6 +82,9 @@ void UEWELocalUIManageSubsystem::CreateUIWidgets()
     // Create widgets when ASyncLoad is ready (always visible)
     CreateQuickSlotWidget();
     CreateStatusWidget();
+
+    // TargetInfo starts hidden until a target is acquired
+    CreateTargetInfoWidget();
 }
 
 #pragma region Inventory
@@ -277,6 +288,76 @@ void UEWELocalUIManageSubsystem::CreateStatusWidget()
             }
         }
     }
+}
+
+#pragma endregion
+
+#pragma region TargetInfo
+
+void UEWELocalUIManageSubsystem::CreateTargetInfoWidget()
+{
+    if (TargetInfoWidget)
+        return;
+
+    const UEWEUIAsset* UIConfig = GetUIConfigAsset();
+    if (!UIConfig)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = UIConfig->TargetInfoWidgetClass;
+    if (!WidgetClass)
+    {
+        EWE_LOG(LogEWE, Warning, TEXT("TargetInfoWidgetClass not set in UEWEUIAsset — skipping"));
+        return;
+    }
+
+    TargetInfoWidget = CreateWidget<UEWETargetInfo>(GetWorld(), WidgetClass.Get());
+    if (!TargetInfoWidget)
+    {
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create TargetInfo widget"));
+        return;
+    }
+
+    TargetInfoWidget->AddToViewport();
+    TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
+}
+
+void UEWELocalUIManageSubsystem::ShowTargetInfo()
+{
+    if (TargetInfoWidget)
+    {
+        TargetInfoWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+    }
+}
+
+void UEWELocalUIManageSubsystem::HideTargetInfo()
+{
+    if (TargetInfoWidget)
+    {
+        TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
+    }
+}
+
+void UEWELocalUIManageSubsystem::UpdateTargetInfo(const FText& TargetName, UEWEAttributeBase* TargetAttributeSet)
+{
+    if (!TargetInfoWidget)
+    {
+        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetInfo: TargetInfoWidget not created"));
+        return;
+    }
+
+    TargetInfoWidget->BindTargetAttributeSet(TargetAttributeSet, TargetName);
+    ShowTargetInfo();
+}
+
+void UEWELocalUIManageSubsystem::ClearTargetInfo()
+{
+    if (!TargetInfoWidget)
+    {
+        return;
+    }
+
+    TargetInfoWidget->UnbindTargetAttributeSet();
+    HideTargetInfo();
 }
 
 #pragma endregion

@@ -21,6 +21,9 @@ void UEWEUIAsset::AsyncLoadWidgetClass(UEWELocalUIManageSubsystem *UIManageSubsy
     if (StatusWidgetClass.IsPending())
         WidgetPaths.Add(StatusWidgetClass.ToSoftObjectPath());
 
+    if (TargetInfoWidgetClass.IsPending())
+        WidgetPaths.Add(TargetInfoWidgetClass.ToSoftObjectPath());
+
     if (WidgetPaths.IsEmpty())
     {
         OnWidgetLoaded();

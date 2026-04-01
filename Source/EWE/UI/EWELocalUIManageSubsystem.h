@@ -108,4 +108,35 @@ protected:
     TObjectPtr<class UEWEStatus> StatusWidget;
 
 #pragma endregion
+
+#pragma region TargetInfo
+public:
+    /** Shows the target info widget */
+    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
+    void ShowTargetInfo();
+
+    /** Hides the target info widget */
+    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
+    void HideTargetInfo();
+
+    /** Updates target info with a new target's AttributeSet */
+    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
+    void UpdateTargetInfo(const FText& TargetName, class UEWEAttributeBase* TargetAttributeSet);
+
+    /** Clears target info and hides the widget */
+    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
+    void ClearTargetInfo();
+
+    /** Gets the target info widget instance (may be nullptr) */
+    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
+    class UEWETargetInfo* GetTargetInfoWidget() const { return TargetInfoWidget; }
+
+protected:
+    /** Creates the target info widget (initially hidden) */
+    void CreateTargetInfoWidget();
+
+    /** Cached target info widget instance */
+    TObjectPtr<class UEWETargetInfo> TargetInfoWidget;
+
+#pragma endregion
 };

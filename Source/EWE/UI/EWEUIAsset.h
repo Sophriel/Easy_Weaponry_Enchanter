@@ -32,4 +32,7 @@ public:
 
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSoftClassPtr<class UUserWidget> StatusWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "HUD")
+    TSoftClassPtr<class UUserWidget> TargetInfoWidgetClass;
 };
