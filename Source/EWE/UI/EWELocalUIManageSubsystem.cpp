@@ -337,6 +337,18 @@ void UEWELocalUIManageSubsystem::HideTargetInfo()
     }
 }
 
+void UEWELocalUIManageSubsystem::UpdateTargetName(const FText& TargetName)
+{
+    if (!TargetInfoWidget)
+    {
+        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetInfo: TargetInfoWidget not created"));
+        return;
+    }
+
+    TargetInfoWidget->BindTarget(TargetName);
+    ShowTargetInfo();
+}
+
 void UEWELocalUIManageSubsystem::UpdateTargetInfo(const FText& TargetName, UEWEAttributeBase* TargetAttributeSet)
 {
     if (!TargetInfoWidget)
@@ -345,7 +357,7 @@ void UEWELocalUIManageSubsystem::UpdateTargetInfo(const FText& TargetName, UEWEA
         return;
     }
 
-    TargetInfoWidget->BindTargetAttributeSet(TargetAttributeSet, TargetName);
+    TargetInfoWidget->BindTargetAttributeSet(TargetName, TargetAttributeSet);
     ShowTargetInfo();
 }
 

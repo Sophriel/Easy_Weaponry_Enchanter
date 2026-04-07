@@ -3,7 +3,7 @@
 #include "EWEUIAsset.h"
 #include "EWE/UI/EWELocalUIManageSubsystem.h"
 #include "Engine/AssetManager.h"
-#include "EngineLogs.h"
+#include "EWE/EWELog.h"
 
 void UEWEUIAsset::AsyncLoadWidgetClass(UEWELocalUIManageSubsystem *UIManageSubsystem)
 {
@@ -38,7 +38,7 @@ void UEWEUIAsset::OnWidgetLoaded()
 {
     if (!CachedUIManager)
     {
-        UE_LOG(LogPlayerManagement, Error, TEXT("Missing UIManager!"));
+        UE_LOG(LogEWE, Error, TEXT("Missing UIManager!"));
         return;
     }
 

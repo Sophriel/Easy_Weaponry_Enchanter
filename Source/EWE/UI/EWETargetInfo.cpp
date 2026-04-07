@@ -4,7 +4,15 @@
 #include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
 #include "EWE/EWELog.h"
 
-void UEWETargetInfo::BindTargetAttributeSet(UEWEAttributeBase* AttributeSet, const FText& TargetName)
+void UEWETargetInfo::BindTarget(const FText &TargetName)
+{
+    CachedTargetName = TargetName;
+    TargetHealthDelegateHandle.Reset();
+    
+    EWE_LOG(LogEWE, Log, TEXT("UEWETargetInfo bound to target: %s"), *TargetName.ToString());
+}
+
+void UEWETargetInfo::BindTargetAttributeSet(const FText &TargetName, UEWEAttributeBase *AttributeSet)
 {
     if (!AttributeSet)
     {
@@ -12,40 +20,42 @@ void UEWETargetInfo::BindTargetAttributeSet(UEWEAttributeBase* AttributeSet, con
         return;
     }
 
-    // Unbind previous target
+    // Skip if already bound to the same target
+    if (CachedTargetAttributeSet == AttributeSet)
+    {
+        return;
+    }
+
     UnbindTargetAttributeSet();
 
     CachedTargetAttributeSet = AttributeSet;
     CachedTargetName = TargetName;
 
     // Subscribe to health delegate
-    TargetHealthDelegateHandle = AttributeSet->OnHealthChangedDelegate.AddUObject(
-        this, &UEWETargetInfo::HandleTargetHealthChange);
+    TargetHealthDelegateHandle =
+        AttributeSet->OnHealthChangedDelegate.AddUObject(this, &UEWETargetInfo::HandleTargetHealthChange);
 
     // Initial sync
-    HandleTargetHealthChange(
-        static_cast<int32>(AttributeSet->GetHealth()),
-        static_cast<int32>(AttributeSet->GetMaxHealth()));
+    HandleTargetHealthChange(static_cast<int32>(AttributeSet->GetHealth()),
+                             static_cast<int32>(AttributeSet->GetMaxHealth()));
 
     EWE_LOG(LogEWE, Log, TEXT("UEWETargetInfo bound to target: %s"), *TargetName.ToString());
 }
 
 void UEWETargetInfo::UnbindTargetAttributeSet()
 {
-    if (CachedTargetAttributeSet)
+    if (!CachedTargetAttributeSet)
     {
-        if (TargetHealthDelegateHandle.IsValid())
-        {
-            CachedTargetAttributeSet->OnHealthChangedDelegate.Remove(TargetHealthDelegateHandle);
-        }
-
-        CachedTargetAttributeSet = nullptr;
-        TargetHealthDelegateHandle.Reset();
-        CachedTargetName = FText::GetEmpty();
-
-        EWE_LOG(LogEWE, Log, TEXT("UEWETargetInfo unbound from target"));
+        return;
     }
 
+    CachedTargetAttributeSet->OnHealthChangedDelegate.Remove(TargetHealthDelegateHandle);
+
+    CachedTargetAttributeSet = nullptr;
+    TargetHealthDelegateHandle.Reset();
+    CachedTargetName = FText::GetEmpty();
+
+    EWE_LOG(LogEWE, Log, TEXT("UEWETargetInfo unbound from target"));
     K2_OnTargetCleared();
 }
 

@@ -121,7 +121,10 @@ public:
 
     /** Updates target info with a new target's AttributeSet */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
-    void UpdateTargetInfo(const FText& TargetName, class UEWEAttributeBase* TargetAttributeSet);
+    void UpdateTargetName(const FText &TargetName);
+
+    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
+    void UpdateTargetInfo(const FText &TargetName, class UEWEAttributeBase *TargetAttributeSet);
 
     /** Clears target info and hides the widget */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
@@ -129,7 +132,7 @@ public:
 
     /** Gets the target info widget instance (may be nullptr) */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
-    class UEWETargetInfo* GetTargetInfoWidget() const { return TargetInfoWidget; }
+    class UEWETargetInfo *GetTargetInfoWidget() const { return TargetInfoWidget; }
 
 protected:
     /** Creates the target info widget (initially hidden) */

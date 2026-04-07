@@ -36,6 +36,7 @@ protected:
     virtual void OnRep_PlayerState() override;
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void Tick(float DeltaTime) override;
 
 #pragma region Input
 
@@ -187,6 +188,36 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Attribute, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UEWEAttributeBase> AttributeSet;
+
+#pragma endregion
+
+#pragma region TargetAcquisition
+
+public:
+    /** Returns the currently focused target actor, if any */
+    AActor *GetFocusedTarget() const { return FocusedTarget; }
+
+    /** Trace range for target acquisition */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Target Acquisition")
+    float TargetTraceRange = 5000.f;
+
+    /** Trace frequency in seconds (how often to perform target trace) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Target Acquisition")
+    float TargetTraceInterval = 0.1f;
+
+protected:
+    /** Performs a camera trace and updates focused target */
+    void UpdateTargetAcquisition(float DeltaTime);
+
+    /** Notifies the player controller about target change */
+    void NotifyTargetChanged(AActor *NewTarget);
+
+    /** Currently focused target actor */
+    UPROPERTY()
+    TObjectPtr<AActor> FocusedTarget;
+
+    /** Accumulator for trace interval */
+    float TargetTraceAccumulator = 0.f;
 
 #pragma endregion
 };

@@ -19,8 +19,10 @@ class EWE_API UEWETargetInfo : public UUserWidget
     GENERATED_BODY()
 
 public:
+    void BindTarget(const FText &TargetName);
+
     /** Binds to a target's AttributeSet for automatic health updates */
-    void BindTargetAttributeSet(UEWEAttributeBase* AttributeSet, const FText& TargetName);
+    void BindTargetAttributeSet(const FText &TargetName, UEWEAttributeBase* AttributeSet);
 
     /** Unbinds from the current target's AttributeSet and clears display */
     void UnbindTargetAttributeSet();
@@ -34,14 +36,13 @@ protected:
 
     /** BlueprintImplementableEvent: Called when target data updates */
     UFUNCTION(BlueprintImplementableEvent, Category = TargetInfo, Meta = (DisplayName = "OnTargetUpdated"))
-    void K2_OnTargetUpdated(const FText& TargetName, int32 CurrentHP, int32 MaxHP);
+    void K2_OnTargetUpdated(const FText &TargetName, int32 CurrentHP, int32 MaxHP);
 
     /** BlueprintImplementableEvent: Called when target is cleared */
     UFUNCTION(BlueprintImplementableEvent, Category = TargetInfo, Meta = (DisplayName = "OnTargetCleared"))
     void K2_OnTargetCleared();
 
     /** Cached target AttributeSet reference */
-    UPROPERTY()
     TObjectPtr<UEWEAttributeBase> CachedTargetAttributeSet;
 
     /** Delegate handle for unsubscribing */

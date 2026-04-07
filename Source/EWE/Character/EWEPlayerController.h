@@ -59,4 +59,15 @@ public:
     void AssignSelectedInventoryItemToSlot(int32 SlotIndex);
 
 #pragma endregion
+
+#pragma region TargetInfo
+public:
+    /** Updates the target info UI with a new target's data */
+    void UpdateTargetName(const FText &TargetName);
+    void UpdateTargetInfo(const FText &TargetName, class UEWEAttributeBase *TargetAttributeSet);
+
+    /** Clears the target info UI */
+    void ClearTargetInfo();
+
+#pragma endregion
 };

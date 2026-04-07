@@ -110,6 +110,9 @@ void AEWECharacter::BeginPlay()
 
     // Setup inventory event subscriptions
     SetupInventorySubscriptions();
+
+    // Enable ticking for target acquisition
+    PrimaryActorTick.bCanEverTick = true;
 }
 
 void AEWECharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -120,6 +123,19 @@ void AEWECharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
     CurrentWeapon = nullptr;
 
     Super::EndPlay(EndPlayReason);
+}
+
+void AEWECharacter::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    // Only perform target acquisition on the local player's character
+    if (!IsLocallyControlled())
+    {
+        return;
+    }
+
+    UpdateTargetAcquisition(DeltaTime);
 }
 
 #pragma region Input
@@ -453,5 +469,95 @@ void AEWECharacter::AttackReleaseCheck()
 #pragma region Status
 
 UEWEAttributeBase *AEWECharacter::GetCharacterAttribute() { return AttributeSet; }
+
+#pragma endregion
+
+#pragma region TargetAcquisition
+
+void AEWECharacter::UpdateTargetAcquisition(float DeltaTime)
+{
+    TargetTraceAccumulator += DeltaTime;
+    if (TargetTraceAccumulator < TargetTraceInterval)
+    {
+        return;
+    }
+    TargetTraceAccumulator = 0.f;
+
+    if (!FollowCamera)
+    {
+        return;
+    }
+
+    const FVector CharacterLocation = GetActorLocation();
+    const FVector CameraLocation = FollowCamera->GetComponentLocation();
+    const FRotator CameraRotation = FollowCamera->GetComponentRotation();
+    const FVector TraceEnd = CharacterLocation + (CameraRotation.Vector() * TargetTraceRange);
+
+    FHitResult HitResult;
+    FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(TargetTrace), true, this);
+    QueryParams.bReturnPhysicalMaterial = false;
+
+    const bool bHit =
+        GetWorld()->LineTraceSingleByChannel(HitResult, CameraLocation, TraceEnd, ECC_Visibility, QueryParams);
+
+#if ENABLE_DRAW_DEBUG
+
+    FColor DrawColor = bHit ? FColor::Green : FColor::Red;
+
+    DrawDebugLine(GetWorld(), CameraLocation, TraceEnd, DrawColor, false, 0.05f);
+
+#endif
+
+    AActor *NewTarget = nullptr;
+
+    if (bHit && HitResult.GetActor())
+    {
+        AActor *HitActor = HitResult.GetActor();
+
+        // Don't target yourself
+        if (HitActor != this)
+        {
+            NewTarget = HitActor;
+        }
+    }
+
+    // Only notify if the target has actually changed
+    if (NewTarget != FocusedTarget)
+    {
+        FocusedTarget = NewTarget;
+        NotifyTargetChanged(NewTarget);
+    }
+}
+
+void AEWECharacter::NotifyTargetChanged(AActor *NewTarget)
+{
+    AEWEPlayerController *PC = Cast<AEWEPlayerController>(GetController());
+    if (!PC)
+    {
+        return;
+    }
+
+    if (NewTarget)
+    {
+        AEWECharacter *TargetChar = Cast<AEWECharacter>(NewTarget);
+        if (TargetChar)
+        {
+            UEWEAttributeBase *TargetAttr = TargetChar->GetCharacterAttribute();
+            FText TargetName = FText::FromString(NewTarget->GetActorLabel());
+
+            PC->UpdateTargetInfo(TargetName, TargetAttr);
+        }
+        else
+        {
+            FText TargetName = FText::FromString(NewTarget->GetActorLabel());
+
+            PC->UpdateTargetName(TargetName);
+        }
+    }
+    else
+    {
+        PC->ClearTargetInfo();
+    }
+}
 
 #pragma endregion

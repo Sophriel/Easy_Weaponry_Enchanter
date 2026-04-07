@@ -11,7 +11,7 @@ void AEWEPlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
+    if (ULocalPlayer *LocalPlayer = GetLocalPlayer())
     {
         // Cache UIManager reference for performance
         CachedUIManager = LocalPlayer->GetSubsystem<UEWELocalUIManageSubsystem>();
@@ -115,6 +115,34 @@ void AEWEPlayerController::AssignSelectedInventoryItemToSlot(int32 SlotIndex)
     if (CachedUIManager)
     {
         CachedUIManager->SetQuickSlot(SlotIndex, SelectedWeapon);
+    }
+}
+
+#pragma endregion
+
+#pragma region TargetInfo
+
+void AEWEPlayerController::UpdateTargetName(const FText &TargetName)
+{
+    if (CachedUIManager)
+    {
+        CachedUIManager->UpdateTargetName(TargetName);
+    }
+}
+
+void AEWEPlayerController::UpdateTargetInfo(const FText &TargetName, UEWEAttributeBase *TargetAttributeSet)
+{
+    if (CachedUIManager)
+    {
+        CachedUIManager->UpdateTargetInfo(TargetName, TargetAttributeSet);
+    }
+}
+
+void AEWEPlayerController::ClearTargetInfo()
+{
+    if (CachedUIManager)
+    {
+        CachedUIManager->ClearTargetInfo();
     }
 }
 
