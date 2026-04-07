@@ -9,6 +9,8 @@
 # User specific files
 Config/DefaultEditor.ini
 .claude/*.json
+AGENTS.md
+.agents
 
 # Compiled Object files
 *.slo
@@ -61,6 +63,7 @@ Plugins/*/Binaries/*
 
 # Builds
 Build/*
+bundle/*
 
 # Whitelist PakBlacklist-<BuildConfiguration>.txt files
 !Build/*/
