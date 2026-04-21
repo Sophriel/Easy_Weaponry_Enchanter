@@ -26,9 +26,12 @@ protected:
     void OnWeaponMeshLoaded();
 
 public:
+    // Editor assign asset
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TObjectPtr<class UTexture2D> WeaponIcon;
 
+    // Runtime caching asset
+    UPROPERTY(Transient, Category = Weapon)
     TObjectPtr<class USkeletalMesh> WeaponMesh;
 
     UPROPERTY(EditAnywhere, Category = Weapon)

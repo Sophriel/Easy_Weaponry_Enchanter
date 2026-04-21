@@ -39,6 +39,7 @@ protected:
     void K2_SetMP(int32 CurrentMP, int32 MaxMP = 100);
 
     /** Cached AttributeSet reference */
+    UPROPERTY(Transient)
     TObjectPtr<UEWEAttributeBase> CachedAttributeSet;
 
     /** Delegate handles for unsubscribing */

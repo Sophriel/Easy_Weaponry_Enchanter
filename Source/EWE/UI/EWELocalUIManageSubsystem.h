@@ -30,6 +30,7 @@ protected:
     /** Loads and returns the UIConfigAsset if available */
     const class UEWEUIAsset *GetUIConfigAsset() const;
 
+    UPROPERTY(Transient)
     TObjectPtr<APlayerController> CurrentPlayerController;
 
 #pragma region Inventory
@@ -63,6 +64,7 @@ protected:
     void CreateInventoryWidget();
 
     /** Currently active inventory widget instance */
+    UPROPERTY(Transient)
     TObjectPtr<class UEWEInventory> InventoryWidget;
 
 #pragma endregion
@@ -94,6 +96,7 @@ protected:
     void CreateQuickSlotWidget();
 
     /** Currently active quick slot widget instance */
+    UPROPERTY(Transient)
     TObjectPtr<class UEWEQuickSlot> QuickSlotWidget;
 
 #pragma endregion
@@ -105,6 +108,7 @@ protected:
     void CreateStatusWidget();
 
     /** Cached Status Widget instance */
+    UPROPERTY(Transient)
     TObjectPtr<class UEWEStatus> StatusWidget;
 
 #pragma endregion
@@ -139,6 +143,7 @@ protected:
     void CreateTargetInfoWidget();
 
     /** Cached target info widget instance */
+    UPROPERTY(Transient)
     TObjectPtr<class UEWETargetInfo> TargetInfoWidget;
 
 #pragma endregion

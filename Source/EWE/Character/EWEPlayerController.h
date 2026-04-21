@@ -23,6 +23,7 @@ protected:
     virtual void AcknowledgePossession(APawn *P) override;
 
     /** Cached reference to the UI management subsystem */
+    UPROPERTY(Transient)
     TObjectPtr<class UEWELocalUIManageSubsystem> CachedUIManager;
 
 #pragma region Inventory

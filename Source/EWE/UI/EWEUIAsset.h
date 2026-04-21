@@ -20,6 +20,7 @@ public:
 protected:
     void OnWidgetLoaded();
 
+    UPROPERTY(Transient)
     TObjectPtr<class UEWELocalUIManageSubsystem> CachedUIManager;
 
 public:
