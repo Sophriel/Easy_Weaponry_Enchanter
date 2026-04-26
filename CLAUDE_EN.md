@@ -33,8 +33,18 @@ Areas covered by the skill (not repeated in CLAUDE.md):
 
 ## 🌐 Language Setting
 
-Follows the language setting in global config (`~/.claude/settings.json`).
+Response and document language follow the global config (`~/.claude/settings.json`).
 This project does not override the language at the project level.
+
+| Item | Language |
+|------|----------|
+| Chat responses | Global setting (Korean) |
+| Documents (.md) | Korean |
+| Code (all areas) | **English only — Korean strictly forbidden** |
+| Commit messages | **English only — Korean strictly forbidden** |
+| Log strings | **English only** |
+
+> See "🔒 EWE Project Rules → No Korean in Code / Commit Messages" below for details.
 
 ---
 
@@ -151,11 +161,26 @@ When referencing an Attribute not present in the AttributeSet:
   → Log UE_LOG(LogEWE, Warning, ...) and ignore. Never crash.
 ```
 
-### Code Comments
+### No Korean in Code
 ```
-All code comments must be written in English.
+Code files (.cpp / .h / .cs / .ini, etc.) must NEVER contain Korean characters.
+All code areas — comments, log strings, identifiers, macros — must be written in English.
+
 // ❌ 체력을 감소시킨다
 // ✅ Reduces the character's health by the given amount
+
+// ❌ UE_LOG(LogEWE, Warning, TEXT("어트리뷰트를 찾을 수 없음"));
+// ✅ UE_LOG(LogEWE, Warning, TEXT("Attribute not found"));
+
+Korean is allowed in explanations and documentation (.md). Forbidden only inside code.
+```
+
+### Commit Messages — English Only
+```
+Commit messages must be written in English. Korean is strictly forbidden.
+
+// ❌ "체력 회복 GE 추가"
+// ✅ "Add health recovery GE"
 ```
 
 ---
