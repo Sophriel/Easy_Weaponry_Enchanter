@@ -1,6 +1,8 @@
-# Unreal Engine Skill for Claude
+# Claude Code Skill for Unreal Engine
 
 A comprehensive Claude skill for Unreal Engine C++ development with deep project structure understanding, GAS integration, plugin development guidance, and data-driven design patterns.
+
+Originated from https://github.com/DSTN2000/claude-unreal-engine-skill
 
 ## Features
 
@@ -88,6 +90,14 @@ This skill is designed for projects using:
 - **Unreal Engine 5.x**
 - **GameplayAbilities** plugin (for GAS-related guidance)
 - **EnhancedInput** plugin (for input system guidance)
+
+## Contributing
+
+Contributions are welcome! If you have improvements or find issues:
+
+1. Fork this repository
+2. Make your changes
+3. Submit a pull request
 
 ## License
 

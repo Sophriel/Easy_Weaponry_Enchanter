@@ -80,6 +80,12 @@ When uncertain, access member variables directly or verify the API via web searc
 GAS-related classes (`FGameplayAbilityActorInfo`, `FGameplayEffectSpec`, etc.) are
 particularly prone to this — their access patterns frequently differ from standard UE conventions.
 
+### Build Verification Policy
+
+**After modifying any C++ file, run the project build and verify it succeeds before proceeding.**
+
+Check CLAUDE.md for the project-specific build command.
+
 ---
 
 ## Pre-Flight Discovery Protocol
@@ -161,7 +167,7 @@ find Source -name "*Character.h" -o -name "*Character.cpp"
 > Always verify these principles before finalizing any generated code.
 > → Full reference: `references/unreal_cpp_best_practice.md`
 
-- **GC Safety**: All `UObject*` members must be wrapped in `UPROPERTY()`. Use `TStrongObjectPtr<>` for non-UObject owners; avoid `AddToRoot()` as it bypasses GC.
+- **GC Safety**: All `UObject*` and `TObjectPtr<>` members must be wrapped in `UPROPERTY()`. Prefer `TObjectPtr<>` for members, raw pointers for function parameters/return values. For non-UObject owners or cross-thread access (FRunnable, async tasks), use `TStrongObjectPtr<>` or `FGCObject`; avoid `AddToRoot()` as it bypasses GC.
 - **Reflection**: Use `BlueprintReadOnly` by default. Only use `BlueprintReadWrite` when BP truly needs write access.
 - **Tick**: Disabled (`bCanEverTick = false`) by default. Prefer timers or events.
 - **Casting**: Never `Cast<T>()` in hot loops. Cache in `BeginPlay` or `PostInitializeComponents`.
@@ -350,11 +356,12 @@ Before providing ANY code suggestion:
 Before finalizing any C++ code:
 
 - [ ] Does this Actor need to Tick? Can it be replaced with a Timer or event?
-- [ ] Are all `UObject*` members wrapped in `UPROPERTY`?
+- [ ] Are all `UObject*` and `TObjectPtr<>` members wrapped in `UPROPERTY`?
 - [ ] Are hard references (`TSubclassOf`) causing load chains? Can they be `TSoftClassPtr`?
 - [ ] Are `Cast<T>()` calls cached in `BeginPlay`, not repeated in `Tick`?
 - [ ] Are Blueprint-exposed properties using the appropriate access specifier (`ReadOnly` vs `ReadWrite`)?
 - [ ] Did you clean up delegates in `EndPlay`?
+- [ ] Did you run the build and verify it succeeds? (check CLAUDE.md)
 
 ---
 

@@ -2,17 +2,81 @@
 
 ## 1. UObject & Garbage Collection
 
-- **Always** use `UPROPERTY()` for `UObject*` member variables to ensure they are tracked by the Garbage Collector (GC).
-- Use `TStrongObjectPtr<>` for non-UObject owners instead of manually calling `AddToRoot()`. `AddToRoot()` should be used sparingly because it bypasses Unreal's garbage collection.
+- **Always** use `UPROPERTY()` for both `UObject*` and `TObjectPtr<>` member variables to ensure they are tracked by the Garbage Collector (GC). `TObjectPtr` does not provide automatic GC tracking on its own — the `UPROPERTY()` macro is what exposes the member to the reflection system and GC.
 - Understand the `IsValid()` check vs `nullptr`. `IsValid()` handles pending kill state safely.
 
 ```cpp
-// ✅ GC-safe member variable
+// ✅ GC-safe — raw pointer with UPROPERTY
 UPROPERTY()
 UHealthComponent* HealthComp;
 
-// ❌ NOT GC-safe — can be silently collected
+// ✅ GC-safe — TObjectPtr with UPROPERTY
+UPROPERTY()
+TObjectPtr<UHealthComponent> HealthComp;
+
+// ❌ NOT GC-safe — raw pointer without UPROPERTY (silently collected)
 UHealthComponent* HealthComp;
+
+// ❌ NOT GC-safe — TObjectPtr without UPROPERTY
+// TObjectPtr alone does NOT register with the GC
+TObjectPtr<UHealthComponent> HealthComp;
+```
+
+- **Prefer `TObjectPtr<>` for UCLASS/USTRUCT member variables. Use raw pointers for function parameters and return values.** `TObjectPtr` provides access tracking and editor-time integrity checks for members (the UE5-recommended direction). Function signatures should use raw pointers — `TObjectPtr` is not supported in reflection-exposed signatures (`UFUNCTION` parameters, return values, delegate parameters). Local variables can use either; raw pointers are typical, but `TObjectPtr` is acceptable.
+
+```cpp
+class AMyCharacter : public ACharacter
+{
+    // ✅ Member variable — use TObjectPtr
+    UPROPERTY()
+    TObjectPtr<UInventoryComponent> Inventory;
+
+    // ✅ Function parameter — use raw pointer
+    void EquipWeapon(UWeaponData* WeaponData);
+
+    // ✅ Function return value — use raw pointer
+    UWeaponData* GetEquippedWeapon() const;
+};
+
+void AMyCharacter::EquipWeapon(UWeaponData* WeaponData)
+{
+    // ✅ Local variable — raw pointer is typical
+    UInventoryComponent* InvComp = Inventory.Get();
+}
+```
+
+- **Use `TStrongObjectPtr<>` or `FGCObject` for cross-thread access and non-UObject owners.** `UPROPERTY()` only protects members of UCLASS/USTRUCT types on the game thread. Outside these contexts, both raw pointers and `TObjectPtr` can dangle when GC runs. Avoid `AddToRoot()` for this purpose — it bypasses Unreal's garbage collection entirely and should be used sparingly.
+
+  Two scenarios that require special handling:
+
+  **Non-UObject native C++ classes holding UObject references** — `UPROPERTY()` has no effect because the class has no reflection. Use `TStrongObjectPtr<>` for simple ownership, or implement `FGCObject` with `AddReferencedObjects()` for more control.
+
+  **Cross-thread access (FRunnable, async tasks, etc.)** — `TObjectPtr` access trackers assume the game thread and may assert in debug builds. Raw pointers can dangle if GC runs on the game thread while a worker thread holds the pointer. Use `TStrongObjectPtr<>` to maintain a strong reference safely across threads.
+
+```cpp
+// ❌ Native class holding raw pointer — GC will collect WeaponData
+class FWeaponInventory  // not a UCLASS
+{
+    UWeaponData* WeaponData;  // dangles after GC
+};
+
+// ✅ TStrongObjectPtr keeps WeaponData alive
+class FWeaponInventory
+{
+    TStrongObjectPtr<UWeaponData> WeaponData;
+};
+
+// ❌ FRunnable holding raw pointer — race with GC
+class FAnalysisTask : public FRunnable
+{
+    UWeaponData* WeaponData;  // unsafe across threads
+};
+
+// ✅ TStrongObjectPtr is thread-safe for keeping the reference alive
+class FAnalysisTask : public FRunnable
+{
+    TStrongObjectPtr<UWeaponData> WeaponData;
+};
 ```
 
 ---

@@ -98,3 +98,6 @@ Content/Weapons/InfinityBladeWeapons
 *.pyc
 *.docx
 *.txt
+
+# Cowork temporary outputs
+Documents/scratch/
