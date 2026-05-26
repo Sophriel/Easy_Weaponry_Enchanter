@@ -6,6 +6,8 @@
 #include "Engine/DataAsset.h"
 #include "EWEUIAsset.generated.h"
 
+DECLARE_MULTICAST_DELEGATE(FOnUIAssetsLoaded);
+
 /**
  *
  */
@@ -15,13 +17,13 @@ class EWE_API UEWEUIAsset : public UDataAsset
     GENERATED_BODY()
 
 public:
-    void AsyncLoadWidgetClass(class UEWELocalUIManageSubsystem* UIManageSubsystem);
+    virtual void PostLoad() override;
+    void AsyncLoadWidgetClass();
+
+    bool IsWidgetsLoaded() const { return bIsLoaded; }
 
 protected:
     void OnWidgetLoaded();
-
-    UPROPERTY(Transient)
-    TObjectPtr<class UEWELocalUIManageSubsystem> CachedUIManager;
 
 public:
     // Hardcoded for Essential Widgets
@@ -36,4 +38,11 @@ public:
 
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSoftClassPtr<class UUserWidget> TargetInfoWidgetClass;
+
+    FOnUIAssetsLoaded OnUILoaded;
+    
+protected:
+    TSharedPtr<struct FStreamableHandle> ASyncLoadHandle;
+
+    bool bIsLoaded = false;
 };

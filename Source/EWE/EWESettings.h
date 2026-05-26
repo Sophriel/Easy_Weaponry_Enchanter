@@ -9,11 +9,15 @@
 /**
  *
  */
-UCLASS(Config=Game, DefaultConfig, meta=(DisplayName="EWE Settings"))
+UCLASS(Config = Game, DefaultConfig, meta = (DisplayName = "EWE Settings"))
 class EWE_API UEWESettings : public UDeveloperSettings
 {
     GENERATED_BODY()
 public:
+    // Preload config DataAsset
+    UPROPERTY(Config, EditAnywhere, Category = "Preload")
+    TSoftObjectPtr<class UEWEPreloadAsset> PreloadConfigAsset;
+
     // UI config DataAsset
     UPROPERTY(Config, EditAnywhere, Category = "UI")
     TSoftObjectPtr<class UEWEUIAsset> UIConfigAsset;

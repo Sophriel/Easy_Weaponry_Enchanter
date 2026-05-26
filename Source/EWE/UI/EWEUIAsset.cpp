@@ -1,13 +1,23 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "EWEUIAsset.h"
-#include "EWE/UI/EWELocalUIManageSubsystem.h"
 #include "Engine/AssetManager.h"
 #include "EWE/EWELog.h"
 
-void UEWEUIAsset::AsyncLoadWidgetClass(UEWELocalUIManageSubsystem *UIManageSubsystem)
+void UEWEUIAsset::PostLoad()
 {
-    CachedUIManager = UIManageSubsystem;
+    Super::PostLoad();
+
+    if (bIsLoaded)
+        return;
+
+    AsyncLoadWidgetClass();
+}
+
+void UEWEUIAsset::AsyncLoadWidgetClass()
+{
+    if (ASyncLoadHandle.IsValid() && !ASyncLoadHandle->HasLoadCompleted())
+        return;  // Load already in flight.
 
     FStreamableManager &StreamableManager = UAssetManager::GetStreamableManager();
     TArray<FSoftObjectPath> WidgetPaths;
@@ -26,21 +36,16 @@ void UEWEUIAsset::AsyncLoadWidgetClass(UEWELocalUIManageSubsystem *UIManageSubsy
 
     if (WidgetPaths.IsEmpty())
     {
-        OnWidgetLoaded();
         return;
     }
 
-    StreamableManager.RequestAsyncLoad(WidgetPaths,
-                                       FStreamableDelegate::CreateUObject(this, &UEWEUIAsset::OnWidgetLoaded));
+    ASyncLoadHandle = StreamableManager.RequestAsyncLoad(
+        WidgetPaths, FStreamableDelegate::CreateUObject(this, &UEWEUIAsset::OnWidgetLoaded));
 }
 
 void UEWEUIAsset::OnWidgetLoaded()
 {
-    if (!CachedUIManager)
-    {
-        UE_LOG(LogEWE, Error, TEXT("Missing UIManager!"));
-        return;
-    }
-
-    CachedUIManager->CreateUIWidgets();
+    EWE_LOG(LogEWE, Log, TEXT("UIAssets loaded"));
+    bIsLoaded = true;
+    OnUILoaded.Broadcast();
 }
