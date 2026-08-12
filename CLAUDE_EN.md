@@ -84,6 +84,7 @@ This project does not override the language at the project level.
 | Cooldown, Recording system, Scrolls, JSON Import/Export | `Documents/MDs/cooldown-recording.md` |
 | RPC, server authority, replication policies | `Documents/MDs/network.md` |
 | HUD, Inventory, Enchanter UI | `Documents/MDs/ui.md` |
+| Committing **(read before any commit attempt)** | `Documents/MDs/commit-guide.md` |
 
 ---
 
@@ -95,7 +96,22 @@ This project does not override the language at the project level.
 | Required plugins | `GameplayAbilities`, `EnhancedInput` |
 | Build target | `Win64`, `Editor`, `Development` |
 
-Hot Reload: `Editor → Tools → Hot Reload`. Changes to Build.cs require a full rebuild.
+### Build Verification
+
+After modifying a C++ file (.h or .cpp), run the build command below and
+confirm it succeeds before moving on to the next task.
+
+```
+"`"C:\Program Files\Epic Games\UE_5.5\Engine\Build\BatchFiles\Build.bat`" EWEEditor Win64 Development `"c:\Users\nsa24\Desktop\Projects\Unreal Projects\EWE\EWE.uproject`" -WaitMutex"
+```
+
+On build failure:
+1. Read the error output
+2. Fix the problem in the affected file
+3. Rebuild until it succeeds
+4. Only proceed to the next task after a successful build
+
+Do not modify many files at once — build once per logical unit of change.
 
 ### Document Relationship
 
@@ -175,12 +191,22 @@ All code areas — comments, log strings, identifiers, macros — must be writte
 Korean is allowed in explanations and documentation (.md). Forbidden only inside code.
 ```
 
-### Commit Messages — English Only
+### Committing — `commit-guide.md` Is Required Reading
 ```
+When asked to commit, read this before doing any work:
+  → Documents/MDs/commit-guide.md
+
 Commit messages must be written in English. Korean is strictly forbidden.
 
 // ❌ "체력 회복 GE 추가"
 // ✅ "Add health recovery GE"
+
+Key rules (see commit-guide.md for details):
+  - author/committer = Claude Opus 5 <noreply@anthropic.com>
+  - Co-Authored-By: Lee Jae Hyeong <nsa24604@naver.com>
+  - One logical change = one commit. Never mix normalization with features
+  - Never run git push — the user does it manually
+  - In Cowork, clear stale .git/*.lock files by rename before committing
 ```
 
 ---

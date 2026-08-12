@@ -83,6 +83,7 @@ Unreal Engine 5 C++ Plugin.
 | 쿨타임, 레코딩, 두루마리, JSON Import/Export | `Documents/MDs/cooldown-recording.md` |
 | RPC, 서버 권한, 복제 정책 | `Documents/MDs/network.md` |
 | HUD, 인벤토리, 인챈터 UI | `Documents/MDs/ui.md` |
+| 커밋 **(커밋 시도 전 반드시)** | `Documents/MDs/commit-guide.md` |
 
 ---
 
@@ -94,7 +95,21 @@ Unreal Engine 5 C++ Plugin.
 | 필수 플러그인 | `GameplayAbilities`, `EnhancedInput` |
 | 빌드 타겟 | `Win64`, `Editor`, `Development` |
 
-Hot Reload: `Editor → Tools → Hot Reload`. Build.cs 수정 시 완전 재빌드 필요.
+### 빌드 검증
+
+C++ 파일(.h 또는 .cpp)을 수정한 후, 다음 작업으로 넘어가기 전에 아래 빌드 명령어를 실행하고 성공 여부를 확인할 것.
+
+```
+"`"C:\Program Files\Epic Games\UE_5.5\Engine\Build\BatchFiles\Build.bat`" EWEEditor Win64 Development `"c:\Users\nsa24\Desktop\Projects\Unreal Projects\EWE\EWE.uproject`" -WaitMutex"
+```
+
+빌드 실패 시:
+1. 에러 출력을 읽는다
+2. 해당 파일의 문제를 수정한다
+3. 성공할 때까지 재빌드한다
+4. 성공 후에만 다음 작업으로 진행한다
+
+여러 파일을 한꺼번에 수정하지 말고, 논리적 변경 단위마다 빌드를 수행할 것.
 
 ### 문서 간 관계
 
@@ -174,12 +189,22 @@ AttributeSet에 없는 Attribute 참조 시:
 설명·문서(.md)에는 한국어 사용 가능. 코드 안에서만 금지.
 ```
 
-### 커밋 메시지 — 영어 전용
+### 커밋 — `commit-guide.md` 필수 참조
 ```
+커밋을 요청받으면 작업 전에 반드시 읽을 것:
+  → Documents/MDs/commit-guide.md
+
 커밋 메시지는 반드시 영어로 작성. 한글 절대 금지.
 
 // ❌ "체력 회복 GE 추가"
 // ✅ "Add health recovery GE"
+
+핵심 규칙 (상세는 commit-guide.md):
+  - author/committer = Claude Opus 5 <noreply@anthropic.com>
+  - Co-Authored-By: Lee Jae Hyeong <nsa24604@naver.com>
+  - 논리적 변경 1개 = 커밋 1개. 정규화와 기능 변경 혼합 금지
+  - git push 금지 — 사용자가 직접 수행
+  - Cowork 환경에서는 커밋 전 .git/*.lock 을 rename 으로 정리
 ```
 
 ---
