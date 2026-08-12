@@ -1,0 +1,34 @@
+root = true
+
+[*]
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+indent_style = tab
+indent_size = 4
+
+[*.{cpp,h,hpp,inl}]
+indent_style = tab
+indent_size = 4
+
+[*.cs]
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.sh]
+end_of_line = lf
+
+# Unreal binary assets - leave untouched
+[*.{uasset,umap,ubulk,uexp}]
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+charset = unset

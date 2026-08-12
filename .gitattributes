@@ -1,0 +1,65 @@
+# =============================================================================
+# EWE - Easy Weaponry Enchanter
+# Line ending policy: repository stores LF, working tree checks out CRLF.
+# Restores the "* text=auto" rule dropped in commit faaa011 (Remove 4.25).
+# =============================================================================
+
+# Default: auto-detect text, normalize to LF in repo, CRLF in working tree.
+* text=auto eol=crlf
+
+# --- Source code ---------------------------------------------------------
+*.cpp       text eol=crlf
+*.h         text eol=crlf
+*.hpp       text eol=crlf
+*.inl       text eol=crlf
+*.cs        text eol=crlf
+*.usf       text eol=crlf
+*.ush       text eol=crlf
+
+# --- Project / config ----------------------------------------------------
+*.uproject  text eol=crlf
+*.uplugin   text eol=crlf
+*.ini       text eol=crlf
+*.json      text eol=crlf
+*.xml       text eol=crlf
+*.vsconfig  text eol=crlf
+
+# --- Docs / scripts ------------------------------------------------------
+*.md        text eol=crlf
+*.txt       text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+*.sh        text eol=lf
+
+# --- Unreal binary assets: never convert, never diff ---------------------
+*.uasset    binary
+*.umap      binary
+*.ubulk     binary
+*.uexp      binary
+*.uptnl     binary
+*.upk       binary
+*.udk       binary
+
+# --- Other binaries ------------------------------------------------------
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.tga       binary
+*.bmp       binary
+*.psd       binary
+*.ico       binary
+*.pdf       binary
+*.ttf       binary
+*.otf       binary
+*.fbx       binary
+*.wav       binary
+*.mp3       binary
+*.ogg       binary
+*.dll       binary
+*.lib       binary
+*.pdb       binary
+*.exe       binary
+*.zip       binary
+*.skill     binary
