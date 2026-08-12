@@ -8,9 +8,19 @@
 
 # User specific files
 Config/DefaultEditor.ini
-.claude/*.json
 AGENTS.md
 .agents
+
+# Claude Code — config is tracked and shared.
+# See .claude/README.md before your first session: some rules contain
+# machine-specific absolute paths that you need to adjust.
+# Only runtime/cache artifacts are ignored.
+.claude/projects/
+.claude/todos/
+.claude/shell-snapshots/
+.claude/statsig/
+.claude/debug/
+.claude/*.log
 
 # Compiled Object files
 *.slo

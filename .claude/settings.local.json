@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:dev.epicgames.com)",
+      "WebFetch(domain:forums.unrealengine.com)",
+      "WebFetch(domain:code.claude.com)",
+      "mcp__ide__getDiagnostics",
+      "Read(//c/Program Files/Epic Games/UE_5.5/**)",
+      "Read(/Source/**)",
+      "Read(/Plugins/**)",
+      "Read(/Config/**)",
+      "Read(/Documents/**)",
+      "Edit(/Source/**)",
+      "Edit(/Plugins/**)",
+      "Edit(/Documents/**)",
+      "Bash(git diff:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(\"C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Build\\BatchFiles\\Build.bat\" EWEEditor *)",
+      "Bash(\"C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Build\\BatchFiles\\Build.bat\" EWE *)",
+      "PowerShell(& \"C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Build\\BatchFiles\\Build.bat\" *)"
+    ],
+    "deny": [
+      "Read(//**/.env)",
+      "Read(~/.ssh/**)",
+      "Bash(git push:*)",
+      "Edit(/Binaries/**)",
+      "Edit(/Intermediate/**)",
+      "Edit(/DerivedDataCache/**)",
+      "Edit(/Saved/**)"
+    ]
+  },
+  "outputStyle": "Explanatory",
+  "prefersReducedMotion": false
+}
