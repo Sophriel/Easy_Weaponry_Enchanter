@@ -22,13 +22,26 @@ public:
     virtual void Deinitialize() override;
     virtual void PlayerControllerChanged(APlayerController *NewPlayerController) override;
 
-    void CreateUIWidgets();
+    void AddUIWidgets();
+
+protected:
+    /** Loads and returns the UIConfigAsset if available */
+    const class UEWEUIAsset *GetUIConfigAsset() const;
+
+    /**
+     * True when every always-on HUD widget already exists and sits in the viewport.
+     * The inventory widget is created on demand and is deliberately excluded.
+     */
+    bool AreEssentialWidgetsInViewport() const;
+
+    /** Drops the pending OnUILoaded subscription, if any. */
+    void ClearUILoadedSubscription();
 
 protected:
     TSoftObjectPtr<class UEWEUIAsset> UIConfigAsset;
 
-    /** Loads and returns the UIConfigAsset if available */
-    const class UEWEUIAsset *GetUIConfigAsset() const;
+    /** Handle for the pending UEWEUIAsset::OnUILoaded subscription. */
+    FDelegateHandle UILoadedHandle;
 
     UPROPERTY(Transient)
     TObjectPtr<APlayerController> CurrentPlayerController;

@@ -48,4 +48,5 @@ void UEWEUIAsset::OnWidgetLoaded()
     EWE_LOG(LogEWE, Log, TEXT("UIAssets loaded"));
     bIsLoaded = true;
     OnUILoaded.Broadcast();
+    ASyncLoadHandle.Reset();
 }

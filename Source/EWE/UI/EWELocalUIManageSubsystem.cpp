@@ -17,17 +17,19 @@ void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection
 {
     Super::Initialize(Collection);
 
-    // Pre-load UIAssets during initialization
     const UEWESettings *Settings = GetDefault<UEWESettings>();
-    if (Settings && !Settings->UIConfigAsset.IsNull())
+    if (Settings && Settings->UIConfigAsset.IsValid())
     {
-        UIConfigAsset = Settings->UIConfigAsset.LoadSynchronous();
+        UIConfigAsset = Settings->UIConfigAsset.Get();
     }
 }
 
 // Cleanup on shutdown
 void UEWELocalUIManageSubsystem::Deinitialize()
 {
+    // UEWEUIAsset outlives this subsystem, so never leave a subscription behind.
+    ClearUILoadedSubscription();
+
     // Destroy widgets
     if (InventoryWidget)
     {
@@ -62,7 +64,54 @@ void UEWELocalUIManageSubsystem::PlayerControllerChanged(APlayerController *NewP
 {
     CurrentPlayerController = NewPlayerController;
 
-    UIConfigAsset->AsyncLoadWidgetClass(this);
+    // This fires more than once per session (possession, respawn, non-seamless travel).
+    // The essential HUD is owned by this subsystem and outlives the controller, so once
+    // it is on screen there is nothing to load and nothing to create.
+    if (AreEssentialWidgetsInViewport())
+    {
+        return;
+    }
+
+    UEWEUIAsset *UIConfig = UIConfigAsset.Get();
+    if (!UIConfig)
+    {
+        EWE_LOG(LogEWE, Error, TEXT("PlayerControllerChanged: UIConfigAsset is not loaded"));
+        return;
+    }
+
+    if (UIConfig->IsWidgetsLoaded())
+    {
+        AddUIWidgets();
+        return;
+    }
+
+    // Widget classes are still streaming. Subscribe once; re-entry before the load
+    // completes must not stack duplicate callbacks.
+    if (!UILoadedHandle.IsValid())
+    {
+        UILoadedHandle = UIConfig->OnUILoaded.AddUObject(this, &UEWELocalUIManageSubsystem::AddUIWidgets);
+    }
+}
+
+bool UEWELocalUIManageSubsystem::AreEssentialWidgetsInViewport() const
+{
+    return QuickSlotWidget && QuickSlotWidget->IsInViewport() && StatusWidget && StatusWidget->IsInViewport() &&
+           TargetInfoWidget && TargetInfoWidget->IsInViewport();
+}
+
+void UEWELocalUIManageSubsystem::ClearUILoadedSubscription()
+{
+    if (!UILoadedHandle.IsValid())
+    {
+        return;
+    }
+
+    if (UEWEUIAsset *UIConfig = UIConfigAsset.Get())
+    {
+        UIConfig->OnUILoaded.Remove(UILoadedHandle);
+    }
+
+    UILoadedHandle.Reset();
 }
 
 const UEWEUIAsset *UEWELocalUIManageSubsystem::GetUIConfigAsset() const
@@ -77,8 +126,12 @@ const UEWEUIAsset *UEWELocalUIManageSubsystem::GetUIConfigAsset() const
     return UIConfig;
 }
 
-void UEWELocalUIManageSubsystem::CreateUIWidgets()
+void UEWELocalUIManageSubsystem::AddUIWidgets()
 {
+    // OnUILoaded is a one-shot for this subsystem. Drop the subscription whether we
+    // arrived here from the callback or directly from PlayerControllerChanged.
+    ClearUILoadedSubscription();
+
     // Create widgets when ASyncLoad is ready (always visible)
     CreateQuickSlotWidget();
     CreateStatusWidget();
@@ -154,7 +207,11 @@ void UEWELocalUIManageSubsystem::CreateInventoryWidget()
     if (InventoryWidget)
         return;
 
-    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->InventoryWidgetClass;
+    const UEWEUIAsset *UIConfig = GetUIConfigAsset();
+    if (!UIConfig)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = UIConfig->InventoryWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("InventoryWidgetClass not set in UEWEUIAsset"));
@@ -180,7 +237,11 @@ void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
     if (QuickSlotWidget)
         return;
 
-    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->QuickSlotWidgetClass;
+    const UEWEUIAsset *UIConfig = GetUIConfigAsset();
+    if (!UIConfig)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = UIConfig->QuickSlotWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("QuickSlotWidgetClass not set in UEWEUIAsset"));
@@ -256,7 +317,11 @@ void UEWELocalUIManageSubsystem::CreateStatusWidget()
     if (StatusWidget)
         return;
 
-    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->StatusWidgetClass;
+    const UEWEUIAsset *UIConfig = GetUIConfigAsset();
+    if (!UIConfig)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = UIConfig->StatusWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("StatusWidgetClass not set in UEWEUIAsset"));
