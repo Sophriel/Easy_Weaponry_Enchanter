@@ -3,23 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EasyWeaponryEnchanter/Function/EnchantContext.h"
 #include "EWEAbilityBase.h"
 #include "EWEGA_Creation.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCreationComplete, AActor*, SpawnedActor);
-
-/**
- *
- */
-UENUM(BlueprintType)
-enum class ELocationType : uint8
-{
-	Character	 UMETA(DisplayName = "Character Location"),
-	View		 UMETA(DisplayName = "Character View (Forward)"),
-	Camera		 UMETA(DisplayName = "Camera Location"),
-	Target		 UMETA(DisplayName = "Target Actor/Point"),
-	AnchorObject UMETA(DisplayName = "Placed Anchor Object")
-};
 
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEGA_Creation : public UEWEAbilityBase
@@ -40,8 +28,7 @@ public:
 		bool								 bReplicateEndAbility,
 		bool								 bWasCancelled) override;
 
-	FGameplayAbilityTargetDataHandle GetTargetData() const { return TargetData; };
-	TSubclassOf<class AActor>		 GetActorToSpawn() const { return ActorToSpawn; };
+	FEnchantFunction BuildCreationFunction() const;
 
 protected:
 	UFUNCTION()
@@ -50,11 +37,7 @@ protected:
 	UFUNCTION()
 	void OnActorSpawnFailed(AActor* SpawnedActor);
 
-	void SetActorLocation();
-
 protected:
-	FGameplayAbilityTargetDataHandle TargetData;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creation", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<class AActor> ActorToSpawn;
 

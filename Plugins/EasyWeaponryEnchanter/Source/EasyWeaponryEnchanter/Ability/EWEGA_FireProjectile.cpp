@@ -5,6 +5,7 @@
 
 #include "EWEGA_Creation.h"
 #include "EasyWeaponryEnchanter/AbilityTask/EWEAT_SpawnActor.h"
+#include "EasyWeaponryEnchanter/Function/EWEFunctionFactory.h"
 
 UEWEGA_FireProjectile::UEWEGA_FireProjectile()
 	: ProjectileSpeed(1.f)
@@ -57,7 +58,8 @@ void UEWEGA_FireProjectile::SpawnActorFromCreation(const FGameplayAbilityActorIn
 	const UEWEGA_Creation* CreationSkill = CreationSkillClass.GetDefaultObject();
 	check(CreationSkill);
 
-	UEWEAT_SpawnActor* SpawnTask = UEWEAT_SpawnActor::SpawnActor(this, CreationSkill->GetTargetData(), CreationSkill->GetActorToSpawn());
+	UEWEAT_SpawnActor* SpawnTask = Cast<UEWEAT_SpawnActor>(
+		FEWEFunctionTaskFactory::CreateTask(this, CreationSkill->BuildCreationFunction(), FEnchantContext()));
 	check(SpawnTask);
 
 	SpawnTask->Success.AddDynamic(this, &UEWEGA_FireProjectile::FireProjectile);

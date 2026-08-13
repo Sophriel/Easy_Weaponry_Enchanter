@@ -7,21 +7,22 @@
 UEWEAT_SpawnActor* UEWEAT_SpawnActor::SpawnActor(UGameplayAbility* OwningAbility, FGameplayAbilityTargetDataHandle TargetData, TSubclassOf<AActor> Class)
 {
 	UEWEAT_SpawnActor* MyObj = NewAbilityTask<UEWEAT_SpawnActor>(OwningAbility);
-	MyObj->CachedOwnerAbility = OwningAbility;
-	MyObj->CachedTargetDataHandle = MoveTemp(TargetData);
 	MyObj->CachedClassToSpawn = Class;
+	MyObj->InitializeEnchantContext(MoveTemp(TargetData));
 
 	return MyObj;
 }
 
-void UEWEAT_SpawnActor::Activate()
+void UEWEAT_SpawnActor::ExecuteFunction(const FEnchantContext& InContext)
 {
-	Super::Activate();
-
 	AActor* Dummy = nullptr;
-	if (BeginSpawningActor(CachedOwnerAbility, CachedClassToSpawn, Dummy))
+	if (BeginSpawningActor(Ability, CachedClassToSpawn, Dummy))
 	{
-		FinishSpawningActor(CachedOwnerAbility, Dummy);
+		FinishSpawningActor(Ability, Dummy);
+	}
+	else
+	{
+		NotifyCompleted();
 	}
 }
 
@@ -54,7 +55,7 @@ void UEWEAT_SpawnActor::FinishSpawningActor(UGameplayAbility* OwningAbility, AAc
 	{
 		bool	   bTransformSet = false;
 		FTransform SpawnTransform;
-		if (FGameplayAbilityTargetData* LocationData = CachedTargetDataHandle.Get(0)) // Hardcode to use data 0. It's OK if data isn't useful/valid.
+		if (FGameplayAbilityTargetData* LocationData = EnchantContext.TargetData.Get(0)) // Hardcode to use data 0. It's OK if data isn't useful/valid.
 		{
 			// Set location. Rotation is unaffected.
 			if (LocationData->HasHitResult())
@@ -84,5 +85,5 @@ void UEWEAT_SpawnActor::FinishSpawningActor(UGameplayAbility* OwningAbility, AAc
 		}
 	}
 
-	EndTask();
+	NotifyCompleted();
 }
