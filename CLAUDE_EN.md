@@ -40,7 +40,7 @@ This project does not override the language at the project level.
 |------|----------|
 | Chat responses | Global setting (Korean) |
 | Documents (.md) | Korean |
-| Code (all areas) | **English only — Korean strictly forbidden** |
+| Code (all areas) | **English only — Korean strictly forbidden** (`@@@` marker comments exempt) |
 | Commit messages | **English only — Korean strictly forbidden** |
 | Log strings | **English only** |
 
@@ -189,6 +189,35 @@ All code areas — comments, log strings, identifiers, macros — must be writte
 // ✅ UE_LOG(LogEWE, Warning, TEXT("Attribute not found"));
 
 Korean is allowed in explanations and documentation (.md). Forbidden only inside code.
+
+Exception: `@@@` marker comments (see "`@@@` Marker Comments" below)
+```
+
+### `@@@` Marker Comments — Rule Exempt / Never Commit
+```
+Comments starting with `@@@` (any count: @@@, @@@@, @@@@@, ...) are personal
+markers the user intentionally left for themselves to review and resolve.
+
+  // @@@ Will be moved later
+  // @@@@@ TODO: 무기에 의한 GE 제거
+
+Properties:
+  - Korean is permitted — the sole exception to "No Korean in Code"
+  - Not required to follow sentence, tone, or formatting conventions
+  - The user is the author
+
+Claude's handling policy:
+  1. Never edit, delete, translate, or rewrite them unprompted
+  2. Never flag them for being Korean or suggest converting to English
+  3. Remove a marker only after completing the work it points to
+  4. Always check for leftovers before committing
+
+Commit block:
+  Never commit a file that still contains an `@@@` marker.
+  If a marker appears in staged changes, stop the commit and report to the user.
+
+  Check command (added lines only):
+    git diff --cached | grep -n "^+.*@@@"
 ```
 
 ### Committing — `commit-guide.md` Is Required Reading
