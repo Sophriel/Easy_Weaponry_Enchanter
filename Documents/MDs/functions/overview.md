@@ -231,5 +231,5 @@ GA.ActivateAbility()
 
 ## 각 Function 상세 문서
 
-- **Creation, Ejection, Rotation, Attach** → `docs/functions/basic.md`
-- **TimeStop, Freeze, Teleport, PossessObject, WeatherChange, StatusEffect** → `docs/functions/special.md`
+- **Creation, Ejection, Rotation, Attach** → `Documents/MDs/functions/basic.md`
+- **TimeStop, Freeze, Teleport, PossessObject, WeatherChange, StatusEffect** → `Documents/MDs/functions/special.md`

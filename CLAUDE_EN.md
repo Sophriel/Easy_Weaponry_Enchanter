@@ -63,8 +63,15 @@ This project does not override the language at the project level.
 │       └── Weapon/                     ← Weapon classes (UEWEWeapon*)
 │
 /Content/
-    ├── Weapons/                        ← Weapon assets
-    └── Effects/                        ← Effect assets
+│   ├── Weapons/                        ← Weapon assets
+│   └── Effects/                        ← Effect assets
+│
+/Documents/MDs/                         ← All project markdown documents
+    ├── core/                           ← System structure & design
+    ├── functions/                      ← Function catalog
+    ├── features/                       ← Auxiliary systems
+    ├── guides/                         ← Workflow processes
+    └── plans/                          ← Work plans (gitignored)
 ```
 
 ---
@@ -75,16 +82,65 @@ This project does not override the language at the project level.
 
 | Task | Reference Document |
 |------|--------------------|
-| Module structure, GAS components, weapon swap flow | `Documents/MDs/architecture.md` |
-| DataAsset, GA/AT classes, GA lifecycle, execution flow | `Documents/MDs/enchant-system.md` |
-| Trigger types, Condition evaluation, combination rules | `Documents/MDs/trigger-condition.md` |
+| Module structure, GAS components, weapon swap flow | `Documents/MDs/core/architecture.md` |
+| DataAsset, GA/AT classes, GA lifecycle, execution flow | `Documents/MDs/core/enchant-system.md` |
+| Trigger types, Condition evaluation, combination rules | `Documents/MDs/core/trigger-condition.md` |
+| RPC, server authority, replication policies | `Documents/MDs/core/network.md` |
 | Adding a new Function **(read first)** | `Documents/MDs/functions/overview.md` |
 | Creation / Ejection / Rotation / Attach | `Documents/MDs/functions/basic.md` |
 | TimeStop / Freeze / Teleport / Possess / Weather / StatusEffect | `Documents/MDs/functions/special.md` |
-| Cooldown, Recording system, Scrolls, JSON Import/Export | `Documents/MDs/cooldown-recording.md` |
-| RPC, server authority, replication policies | `Documents/MDs/network.md` |
-| HUD, Inventory, Enchanter UI | `Documents/MDs/ui.md` |
-| Committing **(read before any commit attempt)** | `Documents/MDs/commit-guide.md` |
+| Cooldown, Recording system, Scrolls, JSON Import/Export | `Documents/MDs/features/cooldown-recording.md` |
+| HUD, Inventory, Enchanter UI | `Documents/MDs/features/ui.md` |
+| Committing **(read before any commit attempt)** | `Documents/MDs/guides/commit-guide.md` |
+
+---
+
+## 📄 Document Placement Rules
+
+### Markdown file locations
+
+**Only the four files below belong at the repository root. Every other markdown file goes under `Documents/MDs/`.**
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Project guide for Claude (Korean, primary) |
+| `CLAUDE_EN.md` | English version of the same content |
+| `AGENTS.md` | Guide for Codex |
+| `README.md` | Repository overview |
+
+Never create a new markdown file at the repository root or directly under `Documents/`.
+The top level of `Documents/` is reserved for non-markdown deliverables (docx / pdf).
+
+### MDs subfolders
+
+| Folder | Contents |
+|--------|----------|
+| `core/` | System structure & design — architecture, enchant system, Trigger/Condition, network |
+| `functions/` | Function catalog |
+| `features/` | Auxiliary systems — cooldown/recording, UI |
+| `guides/` | Workflow processes — commit guide, etc. |
+| `plans/` | Work plans (see below) |
+
+- If nothing fits, **do not invent a new folder — ask the user first**
+- When adding or moving a document, update the **Document Map** above along with `CLAUDE.md` / `AGENTS.md`
+
+### Work plans — `plans/` only
+
+Any markdown describing **work to be done** — code application plans, refactoring plans,
+bug fix plans — goes in `Documents/MDs/plans/` without exception.
+
+```
+❌ Documents/plan.md
+❌ Documents/MDs/quickslot-plan.md
+❌ Documents/MDs/core/quickslot-viewmodel.md
+✅ Documents/MDs/plans/quickslot-viewmodel.md
+```
+
+- **Filename**: kebab-case English, naming the target of the work (`fix-inventory-load-race.md`)
+- **Revisions**: keep prior versions with `-v2`, `-v3` suffixes instead of deleting them
+- **`plans/` is gitignored — local only, never committed.**
+  To preserve a plan's content, fold it into the relevant design document (`core/`, etc.) once done
+- Plans are markdown, so write them in Korean. The "no Korean in code" rule does not apply
 
 ---
 
@@ -223,7 +279,7 @@ Commit block:
 ### Committing — `commit-guide.md` Is Required Reading
 ```
 When asked to commit, read this before doing any work:
-  → Documents/MDs/commit-guide.md
+  → Documents/MDs/guides/commit-guide.md
 
 Commit messages must be written in English. Korean is strictly forbidden.
 

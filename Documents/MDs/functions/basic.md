@@ -1,7 +1,7 @@
 # Function — Basic
 
 > Creation, Ejection, Rotation, Attach 의 파라미터와 구현 규칙을 다룬다.
-> 새 Function 추가 전 `docs/functions/overview.md` 먼저 읽을 것.
+> 새 Function 추가 전 `Documents/MDs/functions/overview.md` 먼저 읽을 것.
 
 ---
 

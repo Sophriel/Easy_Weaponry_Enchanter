@@ -62,8 +62,15 @@ Unreal Engine 5 C++ Plugin.
 │       └── Weapon/                     ← 무기 클래스 (UEWEWeapon*)
 │
 /Content/
-    ├── Weapons/                        ← 무기 에셋
-    └── Effects/                        ← 이펙트 에셋
+│   ├── Weapons/                        ← 무기 에셋
+│   └── Effects/                        ← 이펙트 에셋
+│
+/Documents/MDs/                         ← 모든 프로젝트 md 문서
+    ├── core/                           ← 시스템 구조·설계
+    ├── functions/                      ← Function 카탈로그
+    ├── features/                       ← 부가 시스템
+    ├── guides/                         ← 작업 프로세스
+    └── plans/                          ← 작업 플랜 (gitignore)
 ```
 
 ---
@@ -74,16 +81,65 @@ Unreal Engine 5 C++ Plugin.
 
 | 작업 | 참조 문서 |
 |------|-----------|
-| 모듈 구조, GAS 컴포넌트, 무기 교체 흐름 | `Documents/MDs/architecture.md` |
-| DataAsset, GA/AT 클래스, GA 생명주기, 실행 흐름 | `Documents/MDs/enchant-system.md` |
-| Trigger 타입, Condition 판별, 조합 규칙 | `Documents/MDs/trigger-condition.md` |
+| 모듈 구조, GAS 컴포넌트, 무기 교체 흐름 | `Documents/MDs/core/architecture.md` |
+| DataAsset, GA/AT 클래스, GA 생명주기, 실행 흐름 | `Documents/MDs/core/enchant-system.md` |
+| Trigger 타입, Condition 판별, 조합 규칙 | `Documents/MDs/core/trigger-condition.md` |
+| RPC, 서버 권한, 복제 정책 | `Documents/MDs/core/network.md` |
 | 새 Function 추가 **(반드시 먼저)** | `Documents/MDs/functions/overview.md` |
 | Creation / Ejection / Rotation / Attach | `Documents/MDs/functions/basic.md` |
 | TimeStop / Freeze / Teleport / Possess / Weather / StatusEffect | `Documents/MDs/functions/special.md` |
-| 쿨타임, 레코딩, 두루마리, JSON Import/Export | `Documents/MDs/cooldown-recording.md` |
-| RPC, 서버 권한, 복제 정책 | `Documents/MDs/network.md` |
-| HUD, 인벤토리, 인챈터 UI | `Documents/MDs/ui.md` |
-| 커밋 **(커밋 시도 전 반드시)** | `Documents/MDs/commit-guide.md` |
+| 쿨타임, 레코딩, 두루마리, JSON Import/Export | `Documents/MDs/features/cooldown-recording.md` |
+| HUD, 인벤토리, 인챈터 UI | `Documents/MDs/features/ui.md` |
+| 커밋 **(커밋 시도 전 반드시)** | `Documents/MDs/guides/commit-guide.md` |
+
+---
+
+## 📄 문서 배치 규칙
+
+### md 파일 위치
+
+**저장소 루트에 두는 md 는 아래 4개뿐이다. 그 외 모든 md 는 `Documents/MDs/` 하위에 만든다.**
+
+| 파일 | 용도 |
+|------|------|
+| `CLAUDE.md` | Claude 용 프로젝트 가이드 (한국어, 메인) |
+| `CLAUDE_EN.md` | 동일 내용 영문판 |
+| `AGENTS.md` | Codex 용 가이드 |
+| `README.md` | 저장소 소개 |
+
+새 md 를 저장소 루트나 `Documents/` 최상단에 만들지 않는다.
+`Documents/` 최상단은 docx / pdf 등 비-md 산출물 전용이다.
+
+### MDs 하위 폴더
+
+| 폴더 | 넣는 것 |
+|------|---------|
+| `core/` | 시스템 구조·설계 — 아키텍처, 인챈트 시스템, Trigger/Condition, 네트워크 |
+| `functions/` | Function 카탈로그 |
+| `features/` | 부가 시스템 — 쿨타임/레코딩, UI |
+| `guides/` | 작업 프로세스 — 커밋 가이드 등 |
+| `plans/` | 작업 플랜 (아래 참조) |
+
+- 어느 폴더에도 맞지 않으면 **새 폴더를 임의로 만들지 말고 먼저 사용자에게 물을 것**
+- 문서를 추가·이동하면 위 **문서 맵** 표와 `CLAUDE_EN.md` / `AGENTS.md` 를 함께 갱신한다
+
+### 작업 플랜 — `plans/` 전용
+
+코드 적용 계획, 리팩터링 계획, 버그 수정 계획 등
+**"앞으로 할 작업"을 기술하는 md 는 예외 없이 `Documents/MDs/plans/` 에 만든다.**
+
+```
+❌ Documents/plan.md
+❌ Documents/MDs/quickslot-plan.md
+❌ Documents/MDs/core/quickslot-viewmodel.md
+✅ Documents/MDs/plans/quickslot-viewmodel.md
+```
+
+- **파일명**: kebab-case 영어. 작업 대상이 드러나게 (`fix-inventory-load-race.md`)
+- **개정**: 이전 판을 지우지 않고 `-v2`, `-v3` 접미사로 남긴다 (판단 이력 보존)
+- **`plans/` 는 `.gitignore` 처리됨 — 커밋되지 않는 로컬 전용이다.**
+  플랜 내용을 영구 보존하려면 완료 후 해당 설계 문서(`core/` 등)에 반영할 것
+- 플랜은 md 이므로 한국어로 작성한다. "코드에 한글 금지" 규칙 대상이 아니다
 
 ---
 
@@ -221,7 +277,7 @@ Claude의 처리 방침:
 ### 커밋 — `commit-guide.md` 필수 참조
 ```
 커밋을 요청받으면 작업 전에 반드시 읽을 것:
-  → Documents/MDs/commit-guide.md
+  → Documents/MDs/guides/commit-guide.md
 
 커밋 메시지는 반드시 영어로 작성. 한글 절대 금지.
 
