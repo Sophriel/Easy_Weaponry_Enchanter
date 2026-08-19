@@ -2,7 +2,6 @@
 
 #include "EWEInventoryComponent.h"
 #include "EWE/EWELog.h"
-#include "EWE/Character/EWEPlayerController.h"
 #include "EasyWeaponryEnchanter/Interface/EWECharacterInterface.h"
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
 #include "Engine/AssetManager.h"
@@ -75,11 +74,6 @@ void UEWEInventoryComponent::BeginPlay()
     OwnerCharacter.SetInterface(Cast<IEWECharacterInterface>(GetOwner()));
     check(OwnerCharacter);
 
-    APawn *OwnerPawn = Cast<APawn>(GetOwner());
-    AEWEPlayerController *EWEPC = Cast<AEWEPlayerController>(OwnerPawn->GetController());
-    check(EWEPC);
-
-    uint8 WeaponIndex = 0;
     for (const TSoftObjectPtr<UEWEWeaponData> &WeaponData : InitialWeapons)
     {
         if (WeaponData.IsValid() == false)
@@ -90,21 +84,14 @@ void UEWEInventoryComponent::BeginPlay()
 
         UEWEWeaponData *LoadedWeapon = WeaponData.Get();
         AcquireWeapon(LoadedWeapon);
-
-        // @@@@@ TEMP: Init QuickSlot Data with Initial Weapons
-        EWEPC->SetSlot(WeaponIndex, LoadedWeapon);
-
-        ++WeaponIndex;
     }
 
     if (Weapons.IsEmpty() == true)
         return;
 
-    // Sync all weapons with inventory UI
+    // Broadcast the sync. Subscribers (the UI side) decide on seeding and
+    // selection — the inventory has no reason to know a slot index.
     SyncInventoryUI();
-
-    OwnerCharacter->EquipWeapon(Weapons[0]);
-    EWEPC->SelectSlot(0);
 }
 
 void UEWEInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)

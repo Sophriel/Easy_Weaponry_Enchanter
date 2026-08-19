@@ -4,74 +4,79 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Kismet/GameplayStatics.h"
-#include "EasyWeaponryEnchanter/Public/EasyWeaponryEnchanter.h"
-#include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
+#include "View/MVVMView.h"
+#include "EWE/UI/EWEQuickSlotViewModel.h"
+#include "EWE/UI/EWEQuickSlotItemViewModel.h"
+#include "EWE/EWELog.h"
 
 UEWEQuickSlot::UEWEQuickSlot(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CurrentSlotIndex = 0;
 }
 
 void UEWEQuickSlot::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-	InitWeaponSlots();
-	K2_InitSlot();
+	// Slot widgets are created in SetViewModel(), not here.
 }
 
-void UEWEQuickSlot::InitWeaponSlots()
+void UEWEQuickSlot::SetViewModel(UEWEQuickSlotViewModel *InViewModel)
 {
-	check(SlotReference);
-	
-	if (MaxSlotSize < 1)
+	if (!InViewModel)
 		return;
 
-	Weapons.Reserve(MaxSlotSize);
-	WeaponSlots.Reserve(MaxSlotSize);
+	// The widget owns the slot count and sizes the view model to match.
+	InViewModel->InitializeSlots(MaxSlotSize);
+	InitWeaponSlots(MaxSlotSize);
 
-	for (int32 i = 0; i < MaxSlotSize; ++i)
+	for (int32 i = 0; i < WeaponSlots.Num(); ++i)
+	{
+		UUserWidget *SlotWidget = WeaponSlots[i];
+		if (!SlotWidget)
+			continue;
+
+		UMVVMView *SlotView = SlotWidget->GetExtension<UMVVMView>();
+		if (!SlotView)
+		{
+			EWE_LOG(LogEWE, Warning,
+					TEXT("Quick slot entry widget has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
+			continue;
+		}
+
+		// The Blueprint-side view model name stays inside this widget. The subsystem
+		// must not need to know it.
+		SlotView->SetViewModel(FName(TEXT("EWEQuickSlotItemViewModel")), InViewModel->GetSlotItem(i));
+	}
+}
+
+void UEWEQuickSlot::InitWeaponSlots(int32 SlotCount)
+{
+	if (SlotCount < 1)
+		return;
+
+	if (!SlotReference)
+	{
+		EWE_LOG(LogEWE, Warning, TEXT("InitWeaponSlots: SlotReference is not set"));
+		return;
+	}
+
+	// Clear existing slots if reinitializing
+	Slots->ClearChildren();
+	WeaponSlots.Reset();
+
+	WeaponSlots.SetNum(SlotCount);
+
+	for (int32 i = 0; i < SlotCount; ++i)
 	{
 		TObjectPtr<UUserWidget> SlotWidget = CreateWidget<UUserWidget>(GetWorld(), SlotReference);
-		WeaponSlots.Add(SlotWidget);
+		WeaponSlots[i] = SlotWidget;
 
-		// Slot Layout
 		TObjectPtr<UHorizontalBoxSlot> SlotHandle = Slots->AddChildToHorizontalBox(SlotWidget);
 
-		FSlateChildSize				   NewSize;
+		FSlateChildSize NewSize;
 		NewSize.SizeRule = ESlateSizeRule::Fill;
 		SlotHandle->SetSize(NewSize);
 		SlotHandle->SetHorizontalAlignment(HAlign_Center);
 		SlotHandle->SetVerticalAlignment(VAlign_Center);
-	}
-}
-
-void UEWEQuickSlot::AddWeapon(UEWEWeaponData* Weapon)
-{
-	check(Weapon);
-	for (int32 i = 0; i < MaxSlotSize; ++i)
-	{
-		if (WeaponSlots.IsValidIndex(i) == false || WeaponSlots[i] == nullptr)
-			continue;
-
-		if (Weapons.IsValidIndex(i) == true)
-			continue;
-
-		SetWeaponSlot(i, Weapon);
-		break;
-	}
-}
-
-void UEWEQuickSlot::SetWeaponSlot(int32 SlotIndex, UEWEWeaponData* Weapon)
-{
-	if (Weapon)
-	{
-		Weapons.Insert(Weapon, SlotIndex);
-	}
-
-	else
-	{
-		Weapons.RemoveAt(SlotIndex);
 	}
 }

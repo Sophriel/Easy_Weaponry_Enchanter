@@ -6,48 +6,12 @@
 #include "Blueprint/UserWidget.h"
 #include "EWETargetInfo.generated.h"
 
-class UEWEAttributeBase;
-
-/**
- * Target info HUD widget.
- * Displays the currently targeted character's name and health.
- * Binds to the target's AttributeSet and auto-updates via delegates.
- */
+/*
+ * Target info widget — implements visual processing only. No knowledge of data required.
+ * Data binding is handled on the BP side via UEWETargetInfoViewModel.
+*/
 UCLASS()
 class EWE_API UEWETargetInfo : public UUserWidget
 {
-    GENERATED_BODY()
-
-public:
-    void BindTarget(const FText &TargetName);
-
-    /** Binds to a target's AttributeSet for automatic health updates */
-    void BindTargetAttributeSet(const FText &TargetName, UEWEAttributeBase* AttributeSet);
-
-    /** Unbinds from the current target's AttributeSet and clears display */
-    void UnbindTargetAttributeSet();
-
-    /** Returns true if currently bound to a target */
-    bool HasTarget() const { return CachedTargetAttributeSet != nullptr; }
-
-protected:
-    /** Attribute change handler */
-    void HandleTargetHealthChange(int32 CurrentHP, int32 MaxHP);
-
-    /** BlueprintImplementableEvent: Called when target data updates */
-    UFUNCTION(BlueprintImplementableEvent, Category = TargetInfo, Meta = (DisplayName = "OnTargetUpdated"))
-    void K2_OnTargetUpdated(const FText &TargetName, int32 CurrentHP, int32 MaxHP);
-
-    /** BlueprintImplementableEvent: Called when target is cleared */
-    UFUNCTION(BlueprintImplementableEvent, Category = TargetInfo, Meta = (DisplayName = "OnTargetCleared"))
-    void K2_OnTargetCleared();
-
-    /** Cached target AttributeSet reference */
-    TObjectPtr<UEWEAttributeBase> CachedTargetAttributeSet;
-
-    /** Delegate handle for unsubscribing */
-    FDelegateHandle TargetHealthDelegateHandle;
-
-    /** Cached target display name */
-    FText CachedTargetName;
+	GENERATED_BODY()
 };

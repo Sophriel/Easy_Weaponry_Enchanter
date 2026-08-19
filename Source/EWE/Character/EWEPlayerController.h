@@ -19,7 +19,6 @@ public:
     class UEWELocalUIManageSubsystem *GetUIManager() { return CachedUIManager; }
 
 protected:
-    virtual void BeginPlay() override;
     virtual void AcknowledgePossession(APawn *P) override;
 
     /** Cached reference to the UI management subsystem */
@@ -65,7 +64,7 @@ public:
 public:
     /** Updates the target info UI with a new target's data */
     void UpdateTargetName(const FText &TargetName);
-    void UpdateTargetInfo(const FText &TargetName, class UEWEAttributeBase *TargetAttributeSet);
+    void UpdateTargetInfo(const FText &TargetName, class UAbilitySystemComponent *TargetASC);
 
     /** Clears the target info UI */
     void ClearTargetInfo();

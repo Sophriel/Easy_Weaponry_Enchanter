@@ -191,18 +191,21 @@ protected:
 
 #pragma endregion
 
-#pragma region TargetAcquisition
+#pragma region TargetInfo
 
 public:
     /** Returns the currently focused target actor, if any */
     AActor *GetFocusedTarget() const { return FocusedTarget; }
 
+    /** Refreshes the target info UI with the current focused target. */
+    void RefreshTargetInfo();
+
     /** Trace range for target acquisition */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Target Acquisition")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Target Info")
     float TargetTraceRange = 5000.f;
 
     /** Trace frequency in seconds (how often to perform target trace) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Target Acquisition")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Target Info")
     float TargetTraceInterval = 0.1f;
 
 protected:

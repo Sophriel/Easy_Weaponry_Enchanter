@@ -371,6 +371,9 @@ void AEWECharacter::EquipWeapon(UEWEWeaponData *Weapon)
 
     if (Weapon == nullptr)
     {
+        // Unequip. Clear CurrentWeapon so AttackHold()/AttackHit() don't iterate
+        // abilities that no longer exist.
+        CurrentWeapon = nullptr;
         WeaponMesh->SetSkeletalMesh(nullptr);
         return;
     }
@@ -441,6 +444,11 @@ void AEWECharacter::AttackHold()
 void AEWECharacter::AttackHitCheck()
 {
     // Release Hold Ability
+    if (!WeaponAbilityComponent || !CurrentWeapon)
+    {
+        return;
+    }
+
     int32 HoldAbilityCount = CurrentWeapon->HoldAbilities.Num();
     for (int32 AbilityIndex = CHoldAbilityIndex; AbilityIndex < HoldAbilityCount; ++AbilityIndex)
     {
@@ -457,6 +465,11 @@ void AEWECharacter::AttackHitCheck()
 
 void AEWECharacter::AttackReleaseCheck()
 {
+    if (!WeaponAbilityComponent || !CurrentWeapon)
+    {
+        return;
+    }
+
     int32 HitAbilityCount = CurrentWeapon->HitAbilities.Num();
     for (int32 AbilityIndex = 0; AbilityIndex < HitAbilityCount; ++AbilityIndex)
     {
@@ -472,7 +485,12 @@ UEWEAttributeBase *AEWECharacter::GetCharacterAttribute() { return AttributeSet;
 
 #pragma endregion
 
-#pragma region TargetAcquisition
+#pragma region TargetInfo
+
+void AEWECharacter::RefreshTargetInfo()
+{
+    NotifyTargetChanged(GetFocusedTarget());
+}
 
 void AEWECharacter::UpdateTargetAcquisition(float DeltaTime)
 {
@@ -537,15 +555,20 @@ void AEWECharacter::NotifyTargetChanged(AActor *NewTarget)
         return;
     }
 
+    // TODO: Replace GetActorLabel() with a proper display name source.
+    // GetActorLabel() is declared inside #if WITH_EDITOR, so this code does not
+    // compile for non-editor targets (Shipping / Game). It also returns the level
+    // editor label (e.g. "BP_Enemy_2"), which is not player-facing text.
+    // Once a character display name exists, read the localizable FText from it and
+    // drop the FString -> FText conversion here.
     if (NewTarget)
     {
         AEWECharacter *TargetChar = Cast<AEWECharacter>(NewTarget);
         if (TargetChar)
         {
-            UEWEAttributeBase *TargetAttr = TargetChar->GetCharacterAttribute();
             FText TargetName = FText::FromString(NewTarget->GetActorLabel());
 
-            PC->UpdateTargetInfo(TargetName, TargetAttr);
+            PC->UpdateTargetInfo(TargetName, TargetChar->GetAbilitySystemComponent());
         }
         else
         {
