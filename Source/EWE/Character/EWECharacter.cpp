@@ -106,10 +106,11 @@ void AEWECharacter::OnRep_PlayerState()
 
 void AEWECharacter::BeginPlay()
 {
-    Super::BeginPlay();
-
-    // Setup inventory event subscriptions
+    // Subscribe before Super::BeginPlay(), which dispatches component BeginPlay.
+    // The inventory can broadcast its initial sync from there.
     SetupInventorySubscriptions();
+
+    Super::BeginPlay();
 
     // Enable ticking for target acquisition
     PrimaryActorTick.bCanEverTick = true;
