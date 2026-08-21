@@ -74,32 +74,19 @@ void UEWEInventoryComponent::BeginPlay()
     OwnerCharacter.SetInterface(Cast<IEWECharacterInterface>(GetOwner()));
     check(OwnerCharacter);
 
-    for (const TSoftObjectPtr<UEWEWeaponData> &WeaponData : InitialWeapons)
-    {
-        if (WeaponData.IsValid() == false)
-            continue;
+    bBeginPlayReached = true;
 
-        if (WeaponData.IsPending() == true)
-            WeaponData.LoadSynchronous();
-
-        UEWEWeaponData *LoadedWeapon = WeaponData.Get();
-        AcquireWeapon(LoadedWeapon);
-    }
-
-    if (Weapons.IsEmpty() == true)
-        return;
-
-    // Broadcast the sync. Subscribers (the UI side) decide on seeding and
-    // selection — the inventory has no reason to know a slot index.
-    SyncInventoryUI();
+    TryApplyInitialLoadout();
 }
 
 void UEWEInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    for (TObjectPtr<UEWEWeaponData> &Weapon : Weapons)
+    if (InitialWeaponsHandle.IsValid())
     {
-        Weapon = nullptr;
+        InitialWeaponsHandle->ReleaseHandle();
+        InitialWeaponsHandle.Reset();
     }
+
     Weapons.Empty();
 
     Super::EndPlay(EndPlayReason);
@@ -115,37 +102,67 @@ void UEWEInventoryComponent::SyncInventoryUI()
 
 void UEWEInventoryComponent::LoadInitialWeaponsAsync()
 {
-    for (TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
-    {
-        LoadWeaponAsync(WeaponAsset);
-    }
-}
+    TArray<FSoftObjectPath> WeaponPaths;
+    WeaponPaths.Reserve(InitialWeapons.Num());
 
-void UEWEInventoryComponent::LoadWeaponAsync(TSoftObjectPtr<UEWEWeaponData> WeaponAsset)
-{
-    if (!WeaponAsset.IsPending())
+    for (const TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
     {
-        if (WeaponAsset.IsValid())
-        {
-            WeaponAsset->LoadWeaponAssets();
-        }
+        if (WeaponAsset.IsNull())
+            continue;
+
+        WeaponPaths.Add(WeaponAsset.ToSoftObjectPath());
+    }
+
+    if (WeaponPaths.IsEmpty())
+    {
+        // Nothing to stream. Treat as immediately complete.
+        OnInitialWeaponsLoaded();
         return;
     }
 
     FStreamableManager &StreamableManager = UAssetManager::Get().GetStreamableManager();
-    StreamableManager.RequestAsyncLoad(
-        WeaponAsset.ToSoftObjectPath(),
-        FStreamableDelegate::CreateUObject(this, &UEWEInventoryComponent::OnWeaponLoaded, WeaponAsset));
+    InitialWeaponsHandle = StreamableManager.RequestAsyncLoad(
+        WeaponPaths, FStreamableDelegate::CreateUObject(this, &UEWEInventoryComponent::OnInitialWeaponsLoaded));
 }
 
-void UEWEInventoryComponent::OnWeaponLoaded(TSoftObjectPtr<UEWEWeaponData> WeaponAsset)
+void UEWEInventoryComponent::OnInitialWeaponsLoaded()
 {
-    if (!WeaponAsset.IsValid())
+    for (const TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
     {
-        EWE_LOG(LogEWEInventory, Error, TEXT("Asset %s AsyncLoad Failed"), *WeaponAsset.GetAssetName());
-        return;
+        if (!WeaponAsset.IsValid())
+        {
+            EWE_LOG(LogEWEInventory, Error, TEXT("Initial weapon failed to load: %s"), *WeaponAsset.ToString());
+            continue;
+        }
+
+        UEWEWeaponData *LoadedWeapon = WeaponAsset.Get();
+        LoadedWeapon->LoadWeaponAssets();
+
+        // Single acquisition path. AcquireWeapon handles dedup and broadcasts OnWeaponAcquired.
+        AcquireWeapon(LoadedWeapon);
     }
 
-    WeaponAsset->LoadWeaponAssets();
-    Weapons.Add(WeaponAsset.Get());
+    bInitialWeaponsLoaded = true;
+    TryApplyInitialLoadout();
+}
+
+void UEWEInventoryComponent::TryApplyInitialLoadout()
+{
+    if (bInitialLoadoutApplied)
+        return;
+
+    // Both gates must be satisfied. Either may complete first.
+    if (!bBeginPlayReached || !bInitialWeaponsLoaded)
+        return;
+
+    bInitialLoadoutApplied = true;
+
+    if (Weapons.IsEmpty())
+        return;
+
+    // Broadcast only. Subscribers decide on seeding, selection and equipping —
+    // the inventory has no reason to know a slot index or to equip anything.
+    SyncInventoryUI();
+
+    EWE_LOG(LogEWEInventory, Log, TEXT("Initial loadout broadcast: %d weapons"), Weapons.Num());
 }
