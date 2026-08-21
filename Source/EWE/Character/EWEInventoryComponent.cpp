@@ -8,9 +8,9 @@
 
 UEWEInventoryComponent::UEWEInventoryComponent()
 {
-    // Set this component to be initialized when the game starts, and to be ticked every frame.
-    // You can turn these features off to improve performance if you don't need them.
-    PrimaryComponentTick.bCanEverTick = true;
+    // Set this component to be initialized when the game starts.
+    // No TickComponent override exists, so ticking is disabled.
+    PrimaryComponentTick.bCanEverTick = false;
     bWantsInitializeComponent = true;
 }
 
