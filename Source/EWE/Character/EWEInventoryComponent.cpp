@@ -16,7 +16,12 @@ UEWEInventoryComponent::UEWEInventoryComponent()
 
 UEWEWeaponData *UEWEInventoryComponent::GetWeapon(int32 TargetWeapon)
 {
-    Weapons.RangeCheck(TargetWeapon);
+    if (!Weapons.IsValidIndex(TargetWeapon))
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Invalid weapon index: %d"), TargetWeapon);
+        return nullptr;
+    }
+
     return Weapons[TargetWeapon];
 }
 
