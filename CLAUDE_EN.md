@@ -308,8 +308,13 @@ Commit block:
   Never commit a file that still contains an `@@@` marker.
   If a marker appears in staged changes, stop the commit and report to the user.
 
-  Check command (added lines only):
-    git diff --cached | grep -n "^+.*@@@"
+  Check command (added lines only) — match it to the commit method:
+    git diff --cached | grep -n "^+.*@@@"        # commit without pathspec
+    git diff HEAD -- <paths> | grep -n "^+.*@@@" # pathspec commit
+
+  A pathspec commit commits the working tree, not the index.
+  If the check and the method disagree, the check passes and the
+  marker is committed. See commit-guide.md sections 1-0 and 4-3.
 ```
 
 ### Committing — `commit-guide.md` Is Required Reading

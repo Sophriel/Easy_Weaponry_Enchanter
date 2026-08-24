@@ -308,8 +308,13 @@ Claude의 처리 방침:
   `@@@` 마커가 남아 있는 파일은 커밋하지 않는다.
   스테이징된 변경에서 마커를 발견하면 커밋을 중단하고 사용자에게 보고할 것.
 
-  확인 명령 (추가된 줄만 검사):
-    git diff --cached | grep -n "^+.*@@@"
+  확인 명령 (추가된 줄만 검사) — 커밋 방식에 맞는 것을 쓸 것:
+    git diff --cached | grep -n "^+.*@@@"        # pathspec 없는 커밋
+    git diff HEAD -- <paths> | grep -n "^+.*@@@" # pathspec 커밋
+
+  pathspec 커밋은 인덱스가 아니라 워크트리를 커밋한다.
+  방식과 검사가 어긋나면 검사는 통과하고 마커는 커밋된다.
+  상세는 commit-guide.md §1-0 / §4-3.
 ```
 
 ### 커밋 — `commit-guide.md` 필수 참조

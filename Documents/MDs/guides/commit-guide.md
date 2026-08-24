@@ -28,14 +28,44 @@
 
 커밋을 만들기 전에 아래를 확인한다. 하나라도 걸리면 **커밋하지 말고 먼저 보고**할 것.
 
+### 1-0. 검사 대상 정하기 — 먼저 읽을 것
+
+아래 검사들이 **무엇을 들여다봐야 하는지는 커밋 방식에 따라 달라진다.**
+`git commit <pathspec>` 은 인덱스가 아니라 **워크트리**를 커밋하기 때문이다 (§4-3).
+
+| 커밋 방식 | 검사 대상 diff |
+|-----------|----------------|
+| `git commit` (pathspec 없음) | `git diff --cached` |
+| `git commit <paths>` (pathspec) | `git diff HEAD -- <paths>` |
+
+**커밋 방식을 먼저 정하고, 그에 맞는 명령으로 검사한다.**
+pathspec 커밋을 하면서 `--cached` 로 검사하면
+**검사는 통과하고 문제는 그대로 커밋된다.** 실제로 그렇게 사고가 났다.
+
 ### 1-1. 코드에 한글이 없는가
 
 ```bash
+# pathspec 없는 커밋
 git diff --cached -U0 | grep -nP '^\+.*[\x{AC00}-\x{D7A3}\x{3131}-\x{318E}]'
+
+# pathspec 커밋
+git diff HEAD -U0 -- <paths> | grep -nP '^\+.*[\x{AC00}-\x{D7A3}\x{3131}-\x{318E}]'
 ```
 
 `.md` 파일은 한국어 허용이므로 결과에서 제외한다.
 `.cpp` / `.h` / `.cs` / `.ini` 에 한글이 잡히면 영어로 고친 뒤 커밋한다.
+
+### 1-1b. `@@@` 마커가 남아 있지 않은가
+
+```bash
+# pathspec 없는 커밋
+git diff --cached | grep -n "^+.*@@@"
+
+# pathspec 커밋
+git diff HEAD -- <paths> | grep -n "^+.*@@@"
+```
+
+마커가 잡히면 커밋을 중단하고 사용자에게 보고한다. 임의로 지우지 않는다.
 
 ### 1-2. 디버그 잔여물이 없는가
 
@@ -151,15 +181,59 @@ out=$(git add <paths> 2>&1); rc=$?
 echo "$out"; echo "rc=$rc"
 ```
 
-### 4-3. 인덱스를 건드리지 않는 커밋
+### 4-3. 부분 커밋 — 두 방식과 각각의 함정
 
-다른 변경이 이미 staged인 상태에서 일부만 커밋하려면 **pathspec 커밋**을 쓴다.
+다른 변경이 이미 staged인 상태에서 일부만 커밋하는 방법은 두 가지다.
+**파일 단위냐 hunk 단위냐로 갈린다. 잘못 고르면 조용히 오염된 커밋이 만들어진다.**
+
+#### 파일 단위 → pathspec 커밋
+
+특정 파일 전체를 **워크트리 상태 그대로** 커밋할 때 쓴다.
 `git reset`으로 스테이지를 비우지 않아도 된다.
 
 ```bash
 git add <새 파일들>                    # untracked 파일만 add
-git commit <paths> -m "..." -m "..."   # 해당 경로만 커밋, 나머지 인덱스 보존
+git commit <paths> -m "..." -m "..."   # 해당 경로만 커밋
 ```
+
+`<paths>` 에 없는 경로의 스테이징은 그대로 보존된다.
+
+> ⚠️ **pathspec 커밋은 그 경로의 인덱스를 무시하고 워크트리를 커밋한다.**
+> git 의 기본 동작(`--only`)이다. 따라서
+> - 검사는 반드시 `git diff HEAD -- <paths>` 로 한다 (§1-0)
+> - 그 경로에 아직 커밋하면 안 되는 변경이 섞여 있으면 이 방식을 쓰지 않는다
+
+#### hunk 단위 → 인덱스 커밋 (pathspec 금지)
+
+한 파일 안에서 일부 hunk 만 골라 커밋할 때 쓴다.
+
+```bash
+git apply --cached <patch>        # 또는 git add -p
+git diff --cached                 # 인덱스에 의도한 것만 있는지 눈으로 확인
+git diff --cached --name-only     # 무관한 파일이 섞이지 않았는지 확인
+git commit -m "..."               # pathspec 없이. 인덱스 그대로 커밋된다
+```
+
+> ⚠️ 여기서 `git commit <paths>` 를 쓰면 **정밀 선택이 통째로 무효화된다.**
+> 워크트리 버전이 인덱스를 덮어써서, 제외했던 hunk(`@@@` 마커 등)까지 커밋된다.
+
+> ⚠️ 반대 방향 함정 — pathspec 없는 커밋은 **인덱스 전체**를 커밋한다.
+> 무관한 파일이 staged 되어 있으면 그것까지 딸려 들어간다.
+> 불필요한 것은 `git restore --staged <path>` 로 내린 뒤 커밋한다.
+
+#### 잘못 커밋했을 때
+
+```bash
+git reset --soft HEAD~1
+```
+
+> ⚠️ **`--soft` 로 되돌려도 hunk 선택은 복구되지 않는다.**
+> pathspec 커밋은 커밋 시점에 그 경로의 인덱스를 워크트리 내용으로 덮어쓴다.
+> 되돌린 직후 인덱스에는 **오염된 버전이 그대로 남아 있다.**
+> `git apply --cached` / `git add -p` 로 **인덱스를 처음부터 다시 구성**한 뒤
+> pathspec 없는 `git commit` 으로 커밋할 것.
+
+`git reset --hard` 는 쓰지 않는다 (§7).
 
 ### 4-4. 저자 지정
 
@@ -187,6 +261,15 @@ git --no-optional-locks status --short
 - trailer가 정상 인식되는가 (빈 줄 누락 시 인식 안 됨)
 - 의도하지 않은 파일이 딸려 들어가지 않았는가
 - 남은 변경이 그대로 보존되어 있는가
+- **커밋본 실물에 `@@@` 마커나 한글이 없는가** — diff 가 아니라 커밋된 파일을 직접 본다
+
+```bash
+git --no-optional-locks show HEAD -- <path> | grep -n "^+.*@@@"
+git --no-optional-locks show HEAD:<path> | grep -n "@@@"
+```
+
+diff 검사(§1)를 통과했어도 커밋 방식을 잘못 골랐으면 실물에는 남아 있을 수 있다.
+이 확인이 마지막 안전망이다.
 
 `git status` 같은 조회 명령도 인덱스를 갱신하며 락을 만들 수 있다.
 읽기 전용 조회에는 `--no-optional-locks`를 붙인다.
