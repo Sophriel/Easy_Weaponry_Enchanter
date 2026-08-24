@@ -52,8 +52,9 @@ Unreal Engine 5 C++ Plugin.
 
 ```
 /Source/EWE/
-│   └── Character/
-│       └── EWECharacter.h              ← ASC 소유 캐릭터 (핵심)
+│   ├── Character/
+│   │   └── EWECharacter.h              ← ASC 소유 캐릭터 (핵심)
+│   └── UI/                             ← HUD (MVVM). View + ViewModel + 관리 서브시스템
 │
 /Plugins/EasyWeaponryEnchanter/
 │   └── Source/EasyWeaponryEnchanter/
@@ -82,6 +83,7 @@ Unreal Engine 5 C++ Plugin.
 | 작업 | 참조 문서 |
 |------|-----------|
 | 모듈 구조, GAS 컴포넌트, 무기 교체 흐름 | `Documents/MDs/core/architecture.md` |
+| **UI 계층 (MVVM), ViewModel 소유·초기화 순서** | `Documents/MDs/core/architecture.md` → "UI 계층 (MVVM)" |
 | DataAsset, GA/AT 클래스, GA 생명주기, 실행 흐름 | `Documents/MDs/core/enchant-system.md` |
 | Trigger 타입, Condition 판별, 조합 규칙 | `Documents/MDs/core/trigger-condition.md` |
 | RPC, 서버 권한, 복제 정책 | `Documents/MDs/core/network.md` |
@@ -148,7 +150,7 @@ Unreal Engine 5 C++ Plugin.
 | 항목 | 내용 |
 |------|------|
 | 엔진 버전 | Unreal Engine 5.5 |
-| 필수 플러그인 | `GameplayAbilities`, `EnhancedInput` |
+| 필수 플러그인 | `GameplayAbilities`, `EnhancedInput`, `ModelViewViewModel` |
 | 빌드 타겟 | `Win64`, `Editor`, `Development` |
 
 ### 빌드 검증
@@ -179,6 +181,9 @@ C++ 파일(.h 또는 .cpp)을 수정한 후, 다음 작업으로 넘어가기 �
 - **ASC, AttributeSet = `AEWECharacter` 소유.** 무기는 GA 목록만 보유. → `architecture.md`
 - **Server Confirm 필수, Client Prediction 없음.** Confirm 전 피드백 없음. → `network.md`
 - **모듈 분리:** `EWERuntime` / `EWEEditor` (`WITH_EDITOR` 엄격 분리)
+- **HUD 는 MVVM.** 위젯은 데이터를 소유하지 않는다. → `architecture.md` "UI 계층"
+- **초기화 순서를 가정하지 않는다.** 인벤토리 로드 · 폰 빙의 · 위젯 부착은 독립된 축이다.
+  준비되면 알리고, 받는 쪽이 조건을 판정한다. → 아래 "UI 계층 규칙"
 
 ---
 
@@ -216,6 +221,39 @@ GA에서 직접 Actor 스폰 금지.
 EndAbility(bWasCancelled=false)만 PrecedingEnchantEnd 조건 트리거로 인정.
 CancelAbility는 종료로 인정하지 않음.
 이 두 경로를 혼용하면 인챈트 체인이 깨진다.
+```
+
+### UI 계층 규칙 — MVVM
+
+```
+위젯은 데이터를 소유하지 않는다. 바인딩만 한다.
+ViewModel 은 View 를 참조하지 않는다. View → ViewModel → Model 이 유일한 방향.
+
+ViewModel 생성과 이벤트 구독은 서브시스템 Initialize() 에서 1회.
+  ❌ Bind*() 안에서 구독 — 조기 반환 분기가 많아 0회 또는 2회가 된다
+  ✅ Initialize() 에서 NewObject + AddUObject
+
+Bind*() 는 몇 번 불려도 안전해야 한다. 이미 채워졌으면 덮어쓰지 않는다.
+
+데이터가 아직 없는 상태는 에러가 아니라 기대 상태다.
+  → Warning 이 아니라 Verbose 로 남기고 조용히 넘어간다.
+
+BP 프로퍼티 바인딩 금지 (DefaultEditor.ini: PropertyBindingRule=Prevent).
+반드시 ViewModel 바인딩을 쓴다.
+```
+
+### 퀵슬롯 ViewModel — SetSlot 단일 관문
+
+```
+슬롯 내용을 바꾸는 모든 경로는 UEWEQuickSlotViewModel::SetSlot() 을 거친다.
+  SeedFromInventory / AddWeapon / ClearSlot → 전부 SetSlot 경유
+
+SlotItem->SetWeapon() 직접 호출 금지.
+SetSlot() 이 "선택 중인 슬롯의 내용이 바뀌면 재장착 브로드캐스트" 를 담당하므로,
+우회하면 그 보호가 조용히 사라진다.
+
+// ❌ SlotItems[i]->SetWeapon(Weapon);
+// ✅ SetSlot(i, Weapon);
 ```
 
 ### Function 확장 — IEnchantFunction 필수
@@ -306,6 +344,17 @@ IEnchantFunction        Function 확장 인터페이스
 FEnchantContext         실행 컨텍스트 (시전자, 부모 무기 참조)
 ```
 
+### UI 계층
+
+```
+UEWELocalUIManageSubsystem      ViewModel 소유 · 위젯 생성 · 게임플레이 명령 중계
+UEWEStatusViewModel             ASC 구독 → HP / MP
+UEWETargetInfoViewModel         타겟 ASC 구독
+UEWEQuickSlotViewModel          슬롯 배열 · 선택 인덱스 · OnSlotSelected
+UEWEQuickSlotItemViewModel      슬롯 1칸 (Weapon / bSelected / SlotIndex)
+UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
+```
+
 전체 클래스 맵 및 파일 위치 → `architecture.md`
 
 ---
@@ -320,6 +369,8 @@ FEnchantContext         실행 컨텍스트 (시전자, 부모 무기 참조)
 | GameplayAbility | `UEWEGA_` | `UEWEGA_Creation` | `EWEGA_Creation.h` |
 | AbilityTask | `UEWEAT_` | `UEWEAT_SpawnActor` | `EWEAT_SpawnActor.h` |
 | 무기 관련 | `UEWEWeapon*` | `UEWEWeaponData` | `EWEWeaponData.h` |
+| ViewModel | `UEWE*ViewModel` | `UEWEQuickSlotViewModel` | `EWEQuickSlotViewModel.h` |
+| UI 위젯 (View) | `UEWE*` | `UEWEQuickSlot` | `EWEQuickSlot.h` |
 | 일반 UObject | `UEWE` | `UEWEAttributeSet` | `EWEAttributeSet.h` |
 | AActor 계열 | `AEWE` | `AEWECharacter` | `EWECharacter.h` |
 | 구조체 | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
@@ -339,4 +390,18 @@ FEnchantContext         실행 컨텍스트 (시전자, 부모 무기 참조)
 [ ] 오브젝트 자연 소멸 예외 케이스
     → DestroyConditions 미설정 시 Lifetime 외 소멸 없음 (현재 정책)
     → 추가 예외 케이스 발생 시 functions/basic.md 업데이트
+
+[ ] 인벤토리 위젯 MVVM 미전환
+    → UEWEInventory 만 아직 서브시스템을 직접 조회한다
+    → 퀵슬롯 배정 경로가 둘 (EWEInventory 직접 / PC::AssignSelectedInventoryItemToSlot)
+    → 인벤토리 UI 작업 시 단일화
+
+[ ] 입력 라우팅 3-hop 체인
+    → AEWECharacter → PC → Subsystem → ViewModel
+    → 포워딩 함수 자체는 유지하기로 결정 (근거: architecture.md "UI 계층")
+    → 체인 길이는 별도 검토 사항
+
+[ ] architecture.md 앞부분이 목표 구조와 실제 구조를 섞어 서술
+    → "플러그인 모듈 구조" / "주요 클래스 파일 위치" 절이 실제 코드와 다름
+    → 대조 후 정리 필요
 ```

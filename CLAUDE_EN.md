@@ -181,6 +181,9 @@ Do not modify many files at once — build once per logical unit of change.
 - **ASC and AttributeSet are owned by `AEWECharacter`.** Weapons only hold GA class lists. → `architecture.md`
 - **Server Confirm required. No Client Prediction.** No client feedback before confirmation. → `network.md`
 - **Module split:** `EWERuntime` / `EWEEditor` (strict `WITH_EDITOR` separation)
+- **The HUD is MVVM.** Widgets never own data. → `architecture.md` "UI 계층"
+- **Never assume initialization order.** Inventory load, pawn possession and widget
+  attachment are independent axes. Each announces when ready; the receiver decides.
 
 ---
 
@@ -188,6 +191,39 @@ Do not modify many files at once — build once per logical unit of change.
 
 > For general UE5/GAS code patterns, refer to the `/unreal-engine` skill references first.
 > Below are **constraints specific to this project only**. These take priority over general GAS conventions when they conflict.
+
+### UI Layer Rules — MVVM
+
+```
+Widgets never own data. They only bind.
+ViewModels never reference Views. View -> ViewModel -> Model is the only direction.
+
+Create the ViewModel and subscribe to its events once, in the subsystem's Initialize().
+  BAD  subscribing inside Bind*() -- it has many early returns, so you get 0 or 2
+  GOOD NewObject + AddUObject in Initialize()
+
+Bind*() must be safe to call repeatedly. Never overwrite what is already filled.
+
+"No data yet" is an expected state, not an error.
+  -> Log at Verbose, not Warning, and move on.
+
+Blueprint property binding is disabled (DefaultEditor.ini: PropertyBindingRule=Prevent).
+Always use ViewModel bindings.
+```
+
+### Quick Slot ViewModel — SetSlot Is the Only Gate
+
+```
+Every path that writes slot contents goes through UEWEQuickSlotViewModel::SetSlot().
+  SeedFromInventory / AddWeapon / ClearSlot -> all route through SetSlot
+
+Never call SlotItem->SetWeapon() directly.
+SetSlot() owns the "re-equip when the held slot's contents change" broadcast,
+so bypassing it silently drops that protection.
+
+// BAD  SlotItems[i]->SetWeapon(Weapon);
+// GOOD SetSlot(i, Weapon);
+```
 
 ### Attribute Modification — GE Only
 ```
@@ -308,6 +344,17 @@ IEnchantFunction        Function extension interface
 FEnchantContext         Execution context (caster, parent weapon reference)
 ```
 
+### UI Layer
+
+```
+UEWELocalUIManageSubsystem      Owns ViewModels, creates widgets, relays gameplay commands
+UEWEStatusViewModel             Subscribes to the ASC -> HP / MP
+UEWETargetInfoViewModel         Subscribes to the target's ASC
+UEWEQuickSlotViewModel          Slot array, selected index, OnSlotSelected
+UEWEQuickSlotItemViewModel      One slot (Weapon / bSelected / SlotIndex)
+UEWEQuickSlot / UEWEStatus / UEWETargetInfo   Views. They own no data
+```
+
 Full class map and file locations → `architecture.md`
 
 ---
@@ -322,6 +369,8 @@ Full class map and file locations → `architecture.md`
 | GameplayAbility | `UEWEGA_` | `UEWEGA_Creation` | `EWEGA_Creation.h` |
 | AbilityTask | `UEWEAT_` | `UEWEAT_SpawnActor` | `EWEAT_SpawnActor.h` |
 | Weapon-related | `UEWEWeapon*` | `UEWEWeaponData` | `EWEWeaponData.h` |
+| ViewModel | `UEWE*ViewModel` | `UEWEQuickSlotViewModel` | `EWEQuickSlotViewModel.h` |
+| UI widget (View) | `UEWE*` | `UEWEQuickSlot` | `EWEQuickSlot.h` |
 | General UObject | `UEWE` | `UEWEAttributeSet` | `EWEAttributeSet.h` |
 | AActor-derived | `AEWE` | `AEWECharacter` | `EWECharacter.h` |
 | Structs | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
