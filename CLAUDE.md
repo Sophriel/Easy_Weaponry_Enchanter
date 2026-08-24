@@ -392,7 +392,8 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
     → 추가 예외 케이스 발생 시 functions/basic.md 업데이트
 
 [ ] 인벤토리 위젯 MVVM 미전환
-    → UEWEInventory 만 아직 서브시스템을 직접 조회한다
+    → UEWEInventory 는 퀵슬롯 배정 시에만 서브시스템을 조회한다
+      (무기 목록은 SetWeapons() push 로만 받는다 — pull 경로 없음)
     → 퀵슬롯 배정 경로가 둘 (EWEInventory 직접 / PC::AssignSelectedInventoryItemToSlot)
     → 인벤토리 UI 작업 시 단일화
 
