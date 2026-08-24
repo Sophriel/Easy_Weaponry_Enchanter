@@ -47,8 +47,86 @@ GAS의 GameplayAbilitySpec.IsActive() 를 폴링하거나
 OnGameplayAbilityActivated / OnGameplayAbilityEnded 델리게이트 구독.
 
 UMG 위젯에서 ASC를 직접 참조하지 말 것.
-→ PlayerController 또는 HUD 클래스를 통해 간접 참조.
+→ ViewModel 을 통해 간접 참조. UEWEStatusViewModel 이 ASC 를 구독하고
+   위젯은 그 ViewModel 에만 바인딩한다.
 ```
+
+---
+
+## HUD MVVM 구조
+
+> 구조·의존 방향·설계 결정은 `core/architecture.md` 의 "UI 계층 (MVVM)" 절에 있다.
+> 여기서는 **HUD 를 만들거나 고칠 때의 실무 규칙**만 다룬다.
+
+### 위젯을 만들 때
+
+세 HUD 위젯(Status / TargetInfo / QuickSlot)은 전부 같은 형태다. 새 HUD 를 추가할 때도 따른다.
+
+```
+1. UEWE<이름>ViewModel  : UMVVMViewModelBase   생성
+     표시할 값을 FieldNotify 로 노출
+     소스(ASC · 인벤토리 등)를 구독해 값 갱신
+
+2. UEWE<이름>  : UUserWidget                   생성
+     데이터 멤버를 두지 않는다. 바인딩만 한다
+
+3. UEWELocalUIManageSubsystem 에 Create / Bind 추가
+     Create<X>Widget()  — 위젯 생성 → UMVVMView 에 VM 주입 → Bind<X>()
+     Bind<X>()          — 데이터 소스 연결. 여러 번 불려도 안전할 것
+
+4. WBP Class Settings 에서 ViewModel 등록
+     Creation Type = Manual, 이름은 C++ SetViewModel() 의 FName 과 일치
+```
+
+### BP 바인딩 규칙
+
+```
+프로퍼티 바인딩 금지 — Config/DefaultEditor.ini 의 PropertyBindingRule=Prevent
+→ 반드시 ViewModel 바인딩을 쓴다
+
+바인딩 대상은 프로퍼티보다 BP 함수를 권장
+→ SetHighlighted(bool) 같은 함수에 꽂아두면
+   나중에 사운드·애니메이션을 그 안에 추가할 수 있다
+
+"Execute at Initialization" 을 켜둘 것
+→ 꺼져 있으면 첫 입력 전까지 초기 상태가 화면에 반영되지 않는다
+```
+
+### 자식 위젯은 스스로 관찰한다
+
+```
+❌ 부모 위젯이 자식의 함수를 호출해 상태를 밀어넣는다
+✅ 부모는 자식에게 Entry ViewModel 을 1회 주입하고, 자식이 그 VM 을 관찰한다
+```
+
+퀵슬롯이 그 예다. `UEWEQuickSlot` 이 `BP_ItemSlot` 마다
+`UEWEQuickSlotItemViewModel` 을 주입하고, 이후로는 자식에게 아무것도 하지 않는다.
+`WeaponSlots` 배열은 생성·레이아웃용일 뿐 상태 전달 통로가 아니다.
+
+| 표시할 것 | 바인딩 소스 |
+|---|---|
+| 선택 강조 | `IsSelected` |
+| 무기 아이콘 | `GetWeapon()` |
+| 무기 이름 | `GetWeaponName()` |
+| 빈 슬롯 처리 | `IsEmpty()` |
+
+> ⚠️ **`IsSelected` 는 슬롯 변경 1회당 두 번 발화한다** — 이전 슬롯에 `false`,
+> 새 슬롯에 `true`. 하이라이트는 이게 맞는 동작이지만, 전환 사운드를 넣으면
+> "딸깍딸깍" 두 번 난다. `bSelected == true` 일 때만 재생하거나,
+> 슬롯당이 아니라 **변경당 1회**인 피드백은 부모 쪽에서 처리한다.
+
+### 초기화 순서를 가정하지 말 것
+
+인벤토리 로드 · 폰 빙의 · 위젯 부착은 순서가 보장되지 않는다.
+
+```
+❌ "BeginPlay 시점엔 인벤토리가 차 있다"
+❌ "위젯이 만들어졌으니 폰도 있다"
+✅ 준비되면 알린다 / 받는 쪽이 조건을 판정한다
+```
+
+HUD 코드에서 데이터가 비어 있는 상태는 **에러가 아니라 기대 상태**다.
+경고 대신 `Verbose` 로 남기고 조용히 넘긴다.
 
 ---
 
