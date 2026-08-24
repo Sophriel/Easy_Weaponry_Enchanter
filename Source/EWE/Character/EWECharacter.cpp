@@ -118,6 +118,8 @@ void AEWECharacter::BeginPlay()
 
 void AEWECharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    ClearInventorySubscriptions();
+
     WeaponMesh->SetSkeletalMesh(nullptr);
     SubWeaponMesh->SetSkeletalMesh(nullptr);
 
@@ -361,8 +363,10 @@ void AEWECharacter::ToggleInventory()
 
 void AEWECharacter::AcquireWeapon(UEWEWeaponData *NewWeapon)
 {
-    // Deprecated: Event-based system now handles this via InventoryComponent
-    // This function is kept for interface compatibility
+    // Intentionally empty. Required by IEWECharacterInterface.
+    // Acquisition is owned by UEWEInventoryComponent::AcquireWeapon, which
+    // broadcasts OnWeaponAcquired. This character reacts through that event
+    // (see HandleWeaponAcquired), not through this entry point.
 }
 
 void AEWECharacter::EquipWeapon(UEWEWeaponData *Weapon)

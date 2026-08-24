@@ -134,10 +134,13 @@ void UEWEInventoryComponent::OnInitialWeaponsLoaded()
 {
     for (const TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
     {
+        if (WeaponAsset.IsNull())
+            continue;   // Empty slot in InitialWeapons — not an error.
+
         if (!WeaponAsset.IsValid())
         {
             EWE_LOG(LogEWEInventory, Error, TEXT("Initial weapon failed to load: %s"), *WeaponAsset.ToString());
-            continue;
+            continue;   // Genuine load failure.
         }
 
         UEWEWeaponData *LoadedWeapon = WeaponAsset.Get();

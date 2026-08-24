@@ -80,17 +80,6 @@ void AEWEPlayerController::AddWeapon(UEWEWeaponData *Weapon)
     CachedUIManager->AddWeaponToQuickSlot(Weapon);
 }
 
-void AEWEPlayerController::SetSlot(const uint8 SlotIndex, UEWEWeaponData *Weapon)
-{
-    if (!CachedUIManager)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("SetSlot: UI manager not cached yet"));
-        return;
-    }
-
-    CachedUIManager->SetQuickSlot(SlotIndex, Weapon);
-}
-
 void AEWEPlayerController::SelectSlot(const uint8 SlotIndex)
 {
     if (!CachedUIManager)

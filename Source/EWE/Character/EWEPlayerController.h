@@ -42,16 +42,13 @@ public:
 
 #pragma region QuickSlot
 public:
-    /** Delegates to AEWEHUD::AddWeapon */
+    /** Delegates to UEWELocalUIManageSubsystem::AddWeaponToQuickSlot */
     void AddWeapon(class UEWEWeaponData *Weapon);
 
-    /** Delegates to AEWEHUD::SetSlot */
-    void SetSlot(const uint8 SlotIndex, class UEWEWeaponData *Weapon);
-
-    /** Delegates to AEWEHUD::SelectSlot */
+    /** Delegates to UEWELocalUIManageSubsystem::SelectQuickSlot */
     void SelectSlot(const uint8 SlotIndex);
 
-    /** Delegates to AEWEHUD::ScrollSlot */
+    /** Delegates to UEWELocalUIManageSubsystem::ScrollQuickSlot */
     void ScrollSlot(const float ScrollDirection);
 
     /** Assigns the selected inventory item to the specified quick slot */
