@@ -7,6 +7,7 @@
 *.code-workspace
 
 # User specific files
+Batches/
 Config/DefaultEditor.ini
 AGENTS.md
 .agents

@@ -22,7 +22,11 @@
       "Bash(\"C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Build\\BatchFiles\\Build.bat\" EWEEditor *)",
       "Bash(\"C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Build\\BatchFiles\\Build.bat\" EWE *)",
       "PowerShell(& \"C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Build\\BatchFiles\\Build.bat\" *)",
-      "PowerShell(& \"C:\\\\Program Files\\\\Epic Games\\\\UE_5.5\\\\Engine\\\\Build\\\\BatchFiles\\\\Build.bat\" EWEEditor Win64 Development \"C:\\\\Users\\\\nsa24\\\\Desktop\\\\Projects\\\\Unreal Projects\\\\EWE\\\\EWE.uproject\" -WaitMutex)"
+      "PowerShell(& \"C:\\\\Program Files\\\\Epic Games\\\\UE_5.5\\\\Engine\\\\Build\\\\BatchFiles\\\\Build.bat\" EWEEditor Win64 Development \"C:\\\\Users\\\\nsa24\\\\Desktop\\\\Projects\\\\Unreal Projects\\\\EWE\\\\EWE.uproject\" -WaitMutex)",
+      "Bash(awk '/struct TSoftObjectPtrBase/,/^};/' \"/c/Program Files/Epic Games/UE_5.5/Engine/Source/Runtime/CoreUObject/Public/UObject/SoftObjectPath.h\")",
+      "Bash(git *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(grep *)"
     ],
     "deny": [
       "Read(//**/.env)",
