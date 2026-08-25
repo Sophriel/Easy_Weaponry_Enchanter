@@ -125,7 +125,7 @@ void UEWEInventoryComponent::LoadInitialWeaponsAsync()
         return;
     }
 
-    FStreamableManager &StreamableManager = UAssetManager::Get().GetStreamableManager();
+    FStreamableManager &StreamableManager = UAssetManager::GetStreamableManager();
     InitialWeaponsHandle = StreamableManager.RequestAsyncLoad(
         WeaponPaths, FStreamableDelegate::CreateUObject(this, &UEWEInventoryComponent::OnInitialWeaponsLoaded));
 }
