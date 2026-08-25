@@ -65,6 +65,12 @@ protected:
 
     void SyncInventoryUI();
 
+    /**
+     * Adds a weapon without broadcasting OnWeaponAcquired. Used by the initial
+     * batch load, where the single OnWeaponsSynced broadcast is the UI notification.
+     */
+    void AddWeaponSilent(class UEWEWeaponData *Weapon);
+
 protected:
     TScriptInterface<class IEWECharacterInterface> OwnerCharacter;
 

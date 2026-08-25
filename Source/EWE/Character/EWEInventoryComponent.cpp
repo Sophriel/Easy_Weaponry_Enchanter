@@ -54,6 +54,24 @@ void UEWEInventoryComponent::AcquireWeapon(UEWEWeaponData *NewWeapon)
     EWE_LOG(LogEWEInventory, Log, TEXT("Weapon acquired: %s (Total: %d)"), *NewWeapon->GetName(), Weapons.Num());
 }
 
+void UEWEInventoryComponent::AddWeaponSilent(UEWEWeaponData *NewWeapon)
+{
+    if (NewWeapon == nullptr)
+        return;
+
+    // Check if weapon already exists (prevent duplicates)
+    for (const auto &ExistingWeapon : Weapons)
+    {
+        if (ExistingWeapon == NewWeapon)
+        {
+            EWE_LOG(LogEWEInventory, Warning, TEXT("Weapon already exists: %s"), *NewWeapon->GetName());
+            return;
+        }
+    }
+
+    Weapons.Add(NewWeapon);
+}
+
 void UEWEInventoryComponent::RemoveWeapon(int32 Index)
 {
     if (!IsValidWeaponIndex(Index))
@@ -148,8 +166,9 @@ void UEWEInventoryComponent::OnInitialWeaponsLoaded()
         UEWEWeaponData *LoadedWeapon = WeaponAsset.Get();
         LoadedWeapon->LoadWeaponAssets();
 
-        // Single acquisition path. AcquireWeapon handles dedup and broadcasts OnWeaponAcquired.
-        AcquireWeapon(LoadedWeapon);
+        // No per-weapon broadcast during the initial batch. TryApplyInitialLoadout()
+        // sends one OnWeaponsSynced for the whole list instead.
+        AddWeaponSilent(LoadedWeapon);
     }
 
     bInitialWeaponsLoaded = true;
