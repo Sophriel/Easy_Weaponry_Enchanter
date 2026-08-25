@@ -76,6 +76,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
     TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
 
+    /** Logs and returns false when the index does not address a weapon. */
+    bool IsValidWeaponIndex(int32 Index) const;
+
     /** Handle for the batched initial weapon load. Released on EndPlay. */
     TSharedPtr<struct FStreamableHandle> InitialWeaponsHandle;
 

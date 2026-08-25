@@ -14,13 +14,20 @@ UEWEInventoryComponent::UEWEInventoryComponent()
     bWantsInitializeComponent = true;
 }
 
+bool UEWEInventoryComponent::IsValidWeaponIndex(int32 Index) const
+{
+    if (!Weapons.IsValidIndex(Index))
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Invalid weapon index: %d"), Index);
+        return false;
+    }
+    return true;
+}
+
 UEWEWeaponData *UEWEInventoryComponent::GetWeapon(int32 TargetWeapon)
 {
-    if (!Weapons.IsValidIndex(TargetWeapon))
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Invalid weapon index: %d"), TargetWeapon);
+    if (!IsValidWeaponIndex(TargetWeapon))
         return nullptr;
-    }
 
     return Weapons[TargetWeapon];
 }
@@ -49,11 +56,8 @@ void UEWEInventoryComponent::AcquireWeapon(UEWEWeaponData *NewWeapon)
 
 void UEWEInventoryComponent::RemoveWeapon(int32 Index)
 {
-    if (!Weapons.IsValidIndex(Index))
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Invalid weapon index: %d"), Index);
+    if (!IsValidWeaponIndex(Index))
         return;
-    }
 
     UEWEWeaponData *RemovedWeapon = Weapons[Index];
     Weapons.RemoveAt(Index);
