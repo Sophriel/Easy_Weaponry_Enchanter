@@ -34,7 +34,11 @@ UEWEWeaponData *UEWEInventoryComponent::GetWeapon(int32 TargetWeapon)
 
 void UEWEInventoryComponent::AcquireWeapon(UEWEWeaponData *NewWeapon)
 {
-    check(NewWeapon);
+    if (NewWeapon == nullptr)
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("AcquireWeapon: null weapon"));
+        return;
+    }
 
     // Check if weapon already exists (prevent duplicates)
     for (const auto &ExistingWeapon : Weapons)
