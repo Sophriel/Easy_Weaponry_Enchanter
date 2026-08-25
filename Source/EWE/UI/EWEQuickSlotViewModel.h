@@ -30,7 +30,8 @@ public:
     /** Places a weapon in the first empty slot. Returns the slot used, or INDEX_NONE. */
     int32 AddWeapon(class UEWEWeaponData *Weapon);
 
-    /** Clears the slot. No caller yet — kept as the readable form of SetSlot(Index, nullptr). */
+    /** Clears the slot. No caller yet — kept as the readable form of
+     *  SetSlot(Index, nullptr) for the upcoming inventory "clear slot" action. */
     void ClearSlot(int32 SlotIndex);
     void SelectSlot(int32 SlotIndex);
 

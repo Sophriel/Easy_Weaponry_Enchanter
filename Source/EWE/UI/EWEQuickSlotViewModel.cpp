@@ -78,10 +78,6 @@ int32 UEWEQuickSlotViewModel::AddWeapon(UEWEWeaponData *Weapon)
     return INDEX_NONE;
 }
 
-/**
- * Clears the slot. No caller yet — kept as the readable form of
- * SetSlot(Index, nullptr) for the upcoming inventory "clear slot" action.
- */
 void UEWEQuickSlotViewModel::ClearSlot(int32 SlotIndex)
 {
     // Route through SetSlot: clearing the currently held slot must broadcast
