@@ -83,8 +83,6 @@ void UEWEInventoryComponent::BeginPlay()
     OwnerCharacter.SetInterface(Cast<IEWECharacterInterface>(GetOwner()));
     check(OwnerCharacter);
 
-    bBeginPlayReached = true;
-
     TryApplyInitialLoadout();
 }
 
@@ -164,7 +162,7 @@ void UEWEInventoryComponent::TryApplyInitialLoadout()
         return;
 
     // Both gates must be satisfied. Either may complete first.
-    if (!bBeginPlayReached || !bInitialWeaponsLoaded)
+    if (!HasBegunPlay() || !bInitialWeaponsLoaded)
         return;
 
     bInitialLoadoutApplied = true;

@@ -85,9 +85,6 @@ protected:
     /** True once the batched initial load has finished (or was a no-op). */
     bool bInitialWeaponsLoaded = false;
 
-    /** True once BeginPlay has run. */
-    bool bBeginPlayReached = false;
-
     /** Guards TryApplyInitialLoadout against running more than once. */
     bool bInitialLoadoutApplied = false;
 };
