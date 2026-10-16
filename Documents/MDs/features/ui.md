@@ -195,7 +195,7 @@ Possess Object 빙의 중:
 
 ```
 DataAsset 변경은 반드시 서버를 통해 처리.
-클라이언트에서 UWeaponDataAsset을 직접 수정하면 안 됨.
+클라이언트에서 UEWEWeaponData을 직접 수정하면 안 됨.
 → Server RPC로 변경 요청 → 서버에서 처리 → 복제로 클라이언트 반영.
 ```
 

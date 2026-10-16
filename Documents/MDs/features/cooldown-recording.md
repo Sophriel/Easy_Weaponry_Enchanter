@@ -2,6 +2,9 @@
 
 > 쿨타임 GE 정책, 레코딩 시스템, 두루마리 아이템, JSON Export/Import를 다룬다.
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> 이 문서 전체가 `UEnchantDataAsset` · 인챈트 GA(`SourceEnchant`) · 인챈트 슬롯을 전제로 한다.
+
 ---
 
 ## 쿨타임 시스템
@@ -46,13 +49,13 @@ CooldownGE가 외부 요인으로 Cancel 되면:
 ```
 무기 교체 시 쿨타임 GE는 초기화되지 않음.
 무기를 바꿔도 이전 무기의 쿨타임이 그대로 유지됨.
-(AttributeSet만 재설정되고 GE는 유지)
+(무기 교체로 제거되는 GE 는 장착 GA(UEWEGA_DefaultOnEquip)가 건 장착 GE 뿐이다)
 ```
 
 ### 구현 패턴
 
 ```cpp
-bool UEWEGameplayAbility::CheckCooldown(
+bool UEWEAbilityBase::CheckCooldown(
     const FGameplayAbilitySpecHandle Handle,
     const FGameplayAbilityActorInfo* ActorInfo,
     FGameplayTagContainer* OptionalRelevantTags) const
@@ -107,14 +110,14 @@ QuickSlot[0]에 고정 배치.
 
 ```cpp
 UCLASS()
-class EWERUNTIME_API UEWERecordingComponent : public UActorComponent
+class EASYWEAPONRYENCHANTER_API UEWERecordingComponent : public UActorComponent
 {
     GENERATED_BODY()
 
 public:
     void StartRecording();
     void StopRecording();         // 두루마리 생성 후 종료
-    void OnGAActivated(UEWEGameplayAbility* GA);  // GA 발동 시 호출됨
+    void OnGAActivated(UEWEAbilityBase* GA);  // GA 발동 시 호출됨
 
 private:
     bool bIsRecording = false;
@@ -133,8 +136,8 @@ private:
 ### GA 기록 훅
 
 ```cpp
-// UEWEGameplayAbility::ActivateAbility 내에서 호출
-void UEWEGameplayAbility::ActivateAbility(...)
+// UEWEAbilityBase::ActivateAbility 내에서 호출
+void UEWEAbilityBase::ActivateAbility(...)
 {
     // 레코딩 중이면 기록
     if (UEWERecordingComponent* Rec = GetOwner()->FindComponentByClass<UEWERecordingComponent>())
@@ -170,7 +173,7 @@ void UEWEGameplayAbility::ActivateAbility(...)
 ### 무기 부여 로직
 
 ```cpp
-void UEWEScrollItem::ApplyToWeapon(UWeaponDataAsset* WeaponData)
+void UEWEScrollItem::ApplyToWeapon(UEWEWeaponData* WeaponData)
 {
     int32 AvailableSlots = WeaponData->MaxEnchantSlots - WeaponData->Enchants.Num();
     int32 ApplyCount = FMath::Min(RecordedEnchants.Num(), AvailableSlots);
@@ -235,7 +238,7 @@ void UEWEScrollItem::ApplyToWeapon(UWeaponDataAsset* WeaponData)
 ```cpp
 bool UEWEJsonImporter::ImportFromFile(
     const FString& FilePath,
-    UWeaponDataAsset* TargetWeapon)
+    UEWEWeaponData* TargetWeapon)
 {
     FString JsonStr;
     if (!FFileHelper::LoadFileToString(JsonStr, *FilePath))

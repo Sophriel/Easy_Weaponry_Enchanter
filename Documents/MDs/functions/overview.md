@@ -3,6 +3,10 @@
 > 새 Function을 추가하기 전에 반드시 이 문서를 먼저 읽을 것.
 > 공통 컨텍스트 구조, IEnchantFunction 인터페이스, 파이프라인 통합 방법을 다룬다.
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> `IEnchantFunction` · `FEnchantContext` · `UEWEAbilityTask_Base` · Function Factory 파이프라인은 아직 없다.
+> 현재 Function 은 GA(`UEWEGA_Creation` 등)가 직접 AT(`UEWEAT_SpawnActor`)를 쓰는 형태다.
+
 ---
 
 ## Function이란
@@ -70,7 +74,7 @@ class UEnchantFunction : public UInterface
     GENERATED_BODY()
 };
 
-class EWERUNTIME_API IEnchantFunction
+class EASYWEAPONRYENCHANTER_API IEnchantFunction
 {
     GENERATED_BODY()
 
@@ -117,7 +121,7 @@ enum class EEnchantFunctionType : uint8
 
 ```cpp
 UCLASS()
-class EWERUNTIME_API UEWEAbilityTask_MyNewFunction
+class EASYWEAPONRYENCHANTER_API UEWEAbilityTask_MyNewFunction
     : public UEWEAbilityTask_Base
     , public IEnchantFunction
 {

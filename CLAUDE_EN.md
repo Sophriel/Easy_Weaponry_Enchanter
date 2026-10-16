@@ -385,7 +385,7 @@ Full class map and file locations → `architecture.md`
 | Weapon-related | `UEWEWeapon*` | `UEWEWeaponData` | `EWEWeaponData.h` |
 | ViewModel | `UEWE*ViewModel` | `UEWEQuickSlotViewModel` | `EWEQuickSlotViewModel.h` |
 | UI widget (View) | `UEWE*` | `UEWEQuickSlot` | `EWEQuickSlot.h` |
-| General UObject | `UEWE` | `UEWEAttributeSet` | `EWEAttributeSet.h` |
+| General UObject | `UEWE` | `UEWEAttributeBase` | `EWEAttributeBase.h` |
 | AActor-derived | `AEWE` | `AEWECharacter` | `EWECharacter.h` |
 | Structs | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
 | Log category | `LogEWE` | - | - |

@@ -224,12 +224,14 @@ Silence GE 활성 중: 모든 인챈트(GA) 발동 차단
 
 ## Execution Counter (CountLimit 구현 주의사항)
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
+
 ```cpp
 // Execution Counter는 GA 인스턴스에 귀속
 // 동일 DataAsset 중복 부여 시 각각 독립 카운터를 가짐
 
 UCLASS()
-class UEWEGameplayAbility : public UGameplayAbility
+class UEWEAbilityBase : public UGameplayAbility
 {
     // ...
     int32 ExecutionCount = 0;  // 인스턴스 변수

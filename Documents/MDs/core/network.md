@@ -175,6 +175,9 @@ void Multicast_ApplyFreeze(AActor* TargetActor);
 
 ### AEWEWeaponActor
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> 현재 무기는 `UEWEWeaponData` (DataAsset) 이고 액터로 스폰되지 않는다. 메시는 캐릭터의 `WeaponMesh` 컴포넌트가 표시한다.
+
 ```cpp
 AEWEWeaponActor::AEWEWeaponActor()
 {

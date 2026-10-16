@@ -76,11 +76,13 @@ ClearAllAbilities (다음 EquipWeapon)
 
 ## UEnchantDataAsset 구조
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
+
 인챈트 1개 = DataAsset 1개 = GA 1개.
 
 ```cpp
 UCLASS(BlueprintType)
-class EWERUNTIME_API UEnchantDataAsset : public UPrimaryDataAsset
+class EASYWEAPONRYENCHANTER_API UEnchantDataAsset : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
@@ -107,17 +109,21 @@ public:
 
     // 내부적으로 생성될 GA 클래스 (자동 지정, 수동 변경 불필요)
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enchant|Internal")
-    TSubclassOf<UEWEGameplayAbility> AbilityClass;
+    TSubclassOf<UEWEAbilityBase> AbilityClass;
 };
 ```
 
 ---
 
-## UWeaponDataAsset 구조
+## UEWEWeaponData 구조
+
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> 실제 `UEWEWeaponData` 멤버는 `WeaponIcon` / `WeaponMesh` / `HoldAbilities` / `HitAbilities` / `OnEquipAbilities` / `WeaponMeshAsset` 이다.
+> 아래 블록의 인챈트 슬롯·`DefaultAttributes`·`WeaponActorClass` 는 계획상의 멤버다.
 
 ```cpp
 UCLASS(BlueprintType)
-class EWERUNTIME_API UWeaponDataAsset : public UPrimaryDataAsset
+class EASYWEAPONRYENCHANTER_API UEWEWeaponData : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
@@ -145,14 +151,14 @@ public:
 ### DefaultAttributes 유효성 검증
 
 ```cpp
-void UWeaponDataAsset::ValidateAttributes(const UEWEAttributeSet* AttributeSet) const
+void UEWEWeaponData::ValidateAttributes(const UEWEAttributeBase* AttributeSet) const
 {
     for (const auto& Pair : DefaultAttributes)
     {
         if (!AttributeSet->HasAttribute(Pair.Key))
         {
             UE_LOG(LogEWE, Warning,
-                TEXT("[WeaponDataAsset] Attribute '%s' not found in AttributeSet. Ignored."),
+                TEXT("[UEWEWeaponData] Attribute '%s' not found in AttributeSet. Ignored."),
                 *Pair.Key.ToString());
         }
     }
@@ -161,14 +167,17 @@ void UWeaponDataAsset::ValidateAttributes(const UEWEAttributeSet* AttributeSet) 
 
 ---
 
-## UEWEGameplayAbility 설계
+## UEWEAbilityBase 설계 — 인챈트 GA
+
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> `UEWEAbilityBase` 클래스 자체는 있지만 아래 멤버(`SourceEnchant`, `ActiveTasks` 등)는 없다.
 
 인챈트 1개가 런타임에 생성되는 GA 클래스.
 EWE 고유 멤버만 기술한다.
 
 ```cpp
 UCLASS()
-class EWERUNTIME_API UEWEGameplayAbility : public UGameplayAbility
+class EASYWEAPONRYENCHANTER_API UEWEAbilityBase : public UGameplayAbility
 {
     GENERATED_BODY()
 
@@ -191,7 +200,7 @@ protected:
 ### ActivateAbility 구현 패턴 (EWE 고유 흐름)
 
 ```cpp
-void UEWEGameplayAbility::ActivateAbility(...)
+void UEWEAbilityBase::ActivateAbility(...)
 {
     Super::ActivateAbility(...);
 
@@ -210,7 +219,7 @@ void UEWEGameplayAbility::ActivateAbility(...)
         UEWEAbilityTask_Base* Task = CreateFunctionTask(FuncData);
         if (Task)
         {
-            Task->OnCompleted.AddUObject(this, &UEWEGameplayAbility::OnTaskCompleted);
+            Task->OnCompleted.AddUObject(this, &UEWEAbilityBase::OnTaskCompleted);
             Task->ReadyForActivation();
             ActiveTasks.Add(Task);
         }
@@ -227,12 +236,14 @@ void UEWEGameplayAbility::ActivateAbility(...)
 
 ## UEWEAbilityTask_Base 설계
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음. 현재 AT 는 `UEWEAT_SpawnActor` 하나다.
+
 Function 1개 = AbilityTask 1개.
 EWE 고유 멤버만 기술한다.
 
 ```cpp
 UCLASS(Abstract)
-class EWERUNTIME_API UEWEAbilityTask_Base : public UAbilityTask
+class EASYWEAPONRYENCHANTER_API UEWEAbilityTask_Base : public UAbilityTask
 {
     GENERATED_BODY()
 
@@ -275,15 +286,17 @@ GA가 완전히 종료되는 조건:
 
 ### 실수하기 쉬운 패턴
 
+> 아래 코드는 목표 설계("UEWEAbilityBase 설계 — 인챈트 GA")의 멤버를 전제로 한다.
+
 ```cpp
 // ❌ 잘못된 패턴: Task 하나 완료 시 바로 EndAbility
-void UEWEGameplayAbility::OnTaskCompleted()
+void UEWEAbilityBase::OnTaskCompleted()
 {
     EndAbility(...);  // 다른 Task들이 아직 실행 중일 수 있음
 }
 
 // ✅ 올바른 패턴: 모든 Task 완료 후 EndAbility
-void UEWEGameplayAbility::OnTaskCompleted()
+void UEWEAbilityBase::OnTaskCompleted()
 {
     CompletedTaskCount++;
     if (CompletedTaskCount >= ActiveTasks.Num())
@@ -297,6 +310,8 @@ void UEWEGameplayAbility::OnTaskCompleted()
 
 ## EventType 별 동작
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
+
 | EventType | 동작 | AbilityTask 완료 조건 |
 |-----------|------|----------------------|
 | `OneShot` | 1회 실행 후 종료 | Task 즉시 완료 |
@@ -308,7 +323,9 @@ void UEWEGameplayAbility::OnTaskCompleted()
 
 ## 인챈트 슬롯 정책
 
-- 슬롯 수는 `UWeaponDataAsset::MaxEnchantSlots`로 제한
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
+
+- 슬롯 수는 `UEWEWeaponData::MaxEnchantSlots`로 제한
 - 실행 순서는 `Enchants` 배열 인덱스 순서로 고정
 - 동일 DataAsset을 같은 무기에 중복 등록 가능 → 완전 독립 GA 인스턴스 생성
 - 인챈트 슬롯 편집은 해당 무기가 **미장착** 상태일 때만 허용

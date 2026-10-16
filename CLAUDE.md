@@ -385,7 +385,7 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
 | 무기 관련 | `UEWEWeapon*` | `UEWEWeaponData` | `EWEWeaponData.h` |
 | ViewModel | `UEWE*ViewModel` | `UEWEQuickSlotViewModel` | `EWEQuickSlotViewModel.h` |
 | UI 위젯 (View) | `UEWE*` | `UEWEQuickSlot` | `EWEQuickSlot.h` |
-| 일반 UObject | `UEWE` | `UEWEAttributeSet` | `EWEAttributeSet.h` |
+| 일반 UObject | `UEWE` | `UEWEAttributeBase` | `EWEAttributeBase.h` |
 | AActor 계열 | `AEWE` | `AEWECharacter` | `EWECharacter.h` |
 | 구조체 | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
 | 로그 카테고리 | `LogEWE` | - | - |
