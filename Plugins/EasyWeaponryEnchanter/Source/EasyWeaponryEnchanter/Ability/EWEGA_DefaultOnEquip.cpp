@@ -78,10 +78,10 @@ void UEWEGA_DefaultOnEquip::ActivateAbility(
             continue;
         }
 
-        FActiveGameplayEffectHandle H = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
-        if (H.IsValid())
+        FActiveGameplayEffectHandle EffectHandle = ASC->ApplyGameplayEffectSpecToSelf(*SpecHandle.Data.Get());
+        if (EffectHandle.IsValid())
         {
-            AppliedEffectHandles.Add(H);
+            AppliedEffectHandles.Add(EffectHandle);
         }
     }
 
@@ -97,11 +97,11 @@ void UEWEGA_DefaultOnEquip::EndAbility(
 {
     if (ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
     {
-        for (const FActiveGameplayEffectHandle &H : AppliedEffectHandles)
+        for (const FActiveGameplayEffectHandle &EffectHandle : AppliedEffectHandles)
         {
-            if (H.IsValid())
+            if (EffectHandle.IsValid())
             {
-                ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(H);
+                ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(EffectHandle);
             }
         }
         AppliedEffectHandles.Reset();
