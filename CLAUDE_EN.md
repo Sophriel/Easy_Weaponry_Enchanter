@@ -179,7 +179,7 @@ Do not modify many files at once — build once per logical unit of change.
 ## ⚙️ Architecture Decisions (Do Not Change)
 
 - **ASC and AttributeSet are owned by `AEWECharacter`.** Weapons only hold GA class lists. → `architecture.md`
-- **Server Confirm required. No Client Prediction.** No client feedback before confirmation. → `network.md`
+- **GA NetExecutionPolicy is chosen per GA. EWE does not enforce one.** LocalPredicted is recommended for frequently used GAs and ServerInitiated for infrequent ones; the GA author decides. Exception: the equip GA (`UEWEGA_DefaultOnEquip`) is forced to ServerOnly. → `network.md`
 - **Module split:** `EWERuntime` / `EWEEditor` (strict `WITH_EDITOR` separation)
 - **The HUD is MVVM.** Widgets never own data. → `architecture.md` "UI 계층"
 - **Never assume initialization order.** Inventory load, pawn possession and widget
@@ -395,4 +395,9 @@ Full class map and file locations → `architecture.md`
 [ ] Object natural destruction edge cases
     → Without DestroyConditions, no destruction other than Lifetime (current policy)
     → Update functions/basic.md if new edge cases arise
+
+[ ] Per-GA NetExecutionPolicy migration
+    → All GAs are currently developed with the engine default LocalPredicted
+    → After the server path work (EquipWeapon server RPC, etc.), switch GAs that need ServerOnly one at a time
+    → Policy criteria: network.md "GA Execution Policy"
 ```

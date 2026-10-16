@@ -179,7 +179,7 @@ C++ 파일(.h 또는 .cpp)을 수정한 후, 다음 작업으로 넘어가기 �
 ## ⚙️ 아키텍처 결정 (변경 금지)
 
 - **ASC, AttributeSet = `AEWECharacter` 소유.** 무기는 GA 목록만 보유. → `architecture.md`
-- **Server Confirm 필수, Client Prediction 없음.** Confirm 전 피드백 없음. → `network.md`
+- **GA NetExecutionPolicy 는 GA 별로 선택한다. EWE 는 강요하지 않는다.** 자주 쓰는 GA 는 LocalPredicted, 드문 GA 는 ServerInitiated 를 권장하되 판단은 GA 제작자 몫. 단, 장착 GA(`UEWEGA_DefaultOnEquip`) 는 ServerOnly 강제. → `network.md`
 - **모듈 분리:** `EWERuntime` / `EWEEditor` (`WITH_EDITOR` 엄격 분리)
 - **HUD 는 MVVM.** 위젯은 데이터를 소유하지 않는다. → `architecture.md` "UI 계층"
 - **초기화 순서를 가정하지 않는다.** 인벤토리 로드 · 폰 빙의 · 위젯 부착은 독립된 축이다.
@@ -410,4 +410,9 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
 [ ] architecture.md 앞부분이 목표 구조와 실제 구조를 섞어 서술
     → "플러그인 모듈 구조" / "주요 클래스 파일 위치" 절이 실제 코드와 다름
     → 대조 후 정리 필요
+
+[ ] GA 별 NetExecutionPolicy 전환
+    → 현재 모든 GA 는 엔진 기본값 LocalPredicted 로 개발 중
+    → 서버 경로 작업 (EquipWeapon 서버 RPC 등) 완료 후, ServerOnly 가 필요한 GA 를 하나씩 전환
+    → 정책 기준: network.md "GA 실행 정책"
 ```
