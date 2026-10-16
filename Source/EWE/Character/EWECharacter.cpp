@@ -13,6 +13,8 @@
 #include "EWEControlData.h"
 #include "EWEPlayerController.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
+#include "GameplayEffectTypes.h"
 #include "EWE/EWELog.h"
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
 #include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
@@ -79,29 +81,18 @@ void AEWECharacter::PossessedBy(AController *NewController)
 
     if (WeaponAbilityComponent)
     {
-        WeaponAbilityComponent->InitAbilityActorInfo(this, this);
-
-        // Set Attribute with GE after init ASC
+        // Apply the default attribute GE after Super::PossessedBy, which has already run
+        // NotifyControllerChanged and finished InitAbilityActorInfo, so the ASC is ready.
+        // Re-possessing resets Health to full; this is accepted behavior, not a bug.
         if (DefaultAttributeGE)
         {
             FGameplayEffectContextHandle Context = WeaponAbilityComponent->MakeEffectContext();
             Context.AddSourceObject(this);
-
             WeaponAbilityComponent->ApplyGameplayEffectToSelf(DefaultAttributeGE.GetDefaultObject(), 1.f, Context);
         }
     }
 
     SetOwner(NewController);
-}
-
-void AEWECharacter::OnRep_PlayerState()
-{
-    Super::OnRep_PlayerState();
-
-    if (WeaponAbilityComponent)
-    {
-        WeaponAbilityComponent->InitAbilityActorInfo(this, this);
-    }
 }
 
 void AEWECharacter::BeginPlay()
@@ -146,6 +137,14 @@ void AEWECharacter::Tick(float DeltaTime)
 void AEWECharacter::NotifyControllerChanged()
 {
     Super::NotifyControllerChanged();
+
+    // Convergence point for PossessedBy / UnPossessed / OnRep_Controller. The ASC does
+    // not detect controller changes on its own, so refresh its cached PlayerController here.
+    // Avatar is always `this` (invariant). Temporary location until the ASC moves to PlayerState.
+    if (WeaponAbilityComponent)
+    {
+        WeaponAbilityComponent->InitAbilityActorInfo(this, this);
+    }
 
     // Add Input Mapping Context
     if (APlayerController *PlayerController = Cast<APlayerController>(Controller))
@@ -371,7 +370,8 @@ void AEWECharacter::AcquireWeapon(UEWEWeaponData *NewWeapon)
 
 void AEWECharacter::EquipWeapon(UEWEWeaponData *Weapon)
 {
-    WeaponAbilityComponent->RemoveAllSpawnedAttributes();
+    // Removes weapon abilities. OnEquip GAs (UEWEGA_DefaultOnEquip) remove their GEs in
+    // EndAbility, which the engine triggers via OnRemoveAbility when ClearAllAbilities runs.
     WeaponAbilityComponent->ClearAllAbilities();
 
     if (Weapon == nullptr)
@@ -408,6 +408,14 @@ void AEWECharacter::EquipWeapon(UEWEWeaponData *Weapon)
         FGameplayAbilitySpec AbilitySpec(Ability, 0, HitAbilityIndex);
         WeaponAbilityComponent->GiveAbility(AbilitySpec);
         ++HitAbilityIndex;
+    }
+
+    // OnEquip GAs: level 0 (consistent with Hold/Hit), InputID INDEX_NONE to avoid colliding
+    // with the Hold/Hit input indices, SourceObject = the weapon.
+    for (const auto &Ability : CurrentWeapon->OnEquipAbilities)
+    {
+        FGameplayAbilitySpec AbilitySpec(Ability, 0, INDEX_NONE, Weapon);
+        WeaponAbilityComponent->GiveAbility(AbilitySpec);
     }
 }
 
