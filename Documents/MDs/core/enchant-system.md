@@ -8,6 +8,72 @@
 
 ---
 
+## 무기 GA 계층 (`UEWEGA_*`) — 현재 구현
+
+```
+UGameplayAbility
+└── UEWEAbilityBase                 ← 무기 GA 공통 부모 (Ability/EWEAbilityBase.h)
+    ├── UEWEGA_Creation             ← 액터 생성 (UEWEAT_SpawnActor 경유)
+    ├── UEWEGA_FireProjectile       ← 투사체 발사
+    └── UEWEGA_DefaultOnEquip       ← 장착 중 GE 적용
+```
+
+무기 GA 는 `UEWEWeaponData` 의 세 배열로 부여된다 (`AEWECharacter::EquipWeapon`, 전부 레벨 0).
+
+| 배열 | InputID | 활성화 |
+|------|---------|--------|
+| `HoldAbilities` | `CHoldAbilityIndex` 부터 순번 | 공격 입력 Hold |
+| `HitAbilities` | `CHitAbilityIndex` 부터 순번 | 공격 입력 Hit (애님 노티파이) |
+| `OnEquipAbilities` | `INDEX_NONE` | 부여 즉시 자동 (아래). SourceObject = 무기 |
+
+요소 타입은 모두 `TSubclassOf<UGameplayAbility>` 다. `OnEquipAbilities` 에는 `UEWEGA_DefaultOnEquip` 파생을 넣는다.
+
+### UEWEGA_DefaultOnEquip
+
+장착되는 동안 `OnEquipEffects` (`TArray<TSubclassOf<UGameplayEffect>>`) 를 캐릭터에 건다.
+예: 무기별 MaxHealth 버프 Infinite GE.
+
+| 항목 | 값 | 이유 |
+|------|-----|------|
+| InstancingPolicy | `InstancedPerActor` (생성자) | 적용한 Active GE 핸들을 인스턴스에 저장해야 해제 때 제거할 수 있다 |
+| NetExecutionPolicy | `ServerOnly` (강제) | 클라이언트는 예측 키 없이 GE 를 적용할 수 없다. GE·Attribute 는 서버에서 복제된다 |
+| CommitAbility | 호출하지 않음 | 비용·쿨타임이 없다 |
+
+**ServerOnly 강제 — 3중 장치**
+
+1. 생성자에서 기본값으로 설정
+2. `IsDataValid` (에디터) — ServerOnly 가 아니면 저장 시 에러
+3. `OnAvatarSet` (런타임) — ServerOnly 가 아니면 Warning 후 자동 활성화 생략
+
+이것은 `network.md` "GA 실행 정책" 의 유일한 강제 예외다.
+
+**흐름**
+
+```
+GiveAbility (EquipWeapon)
+  → OnAvatarSet
+      1. NetExecutionPolicy != ServerOnly → Warning, return
+      2. !ActorInfo->IsNetAuthority()    → return
+      3. Spec.IsActive()                 → return (재진입 방지)
+      4. ASC->TryActivateAbility(Spec.Handle)
+  → ActivateAbility
+      OnEquipEffects 마다 MakeOutgoingGameplayEffectSpec → ASC->ApplyGameplayEffectSpecToSelf
+      유효한 Active 핸들만 AppliedEffectHandles 에 저장
+      EndAbility 하지 않음 — 장착 동안 활성 유지
+
+ClearAllAbilities (다음 EquipWeapon)
+  → OnRemoveAbility → EndAbility
+      AppliedEffectHandles 전부 RemoveActiveGameplayEffect → Reset → Super::EndAbility
+```
+
+- `IsNetAuthority` 가드는 중복이 아니다. Spec 이 복제되므로 소유 클라이언트에서도 `OnAvatarSet` 이 불린다.
+  가드가 없으면 클라이언트의 `TryActivateAbility` 가 서버로 원격 활성화 RPC 를 보낸다.
+- GA 경로로 적용하므로 EffectContext 에 Ability 와 SourceObject(= 무기)가 자동 기록된다.
+- GE 가 빠지면서 Max 가 바뀌면 `UEWEAttributeBase` 의 Max 변화 정책이 종속 Attribute 를 보정한다 (`architecture.md` "AttributeSet 설계").
+- 제약: 현재 `EquipWeapon` 이 로컬 호출이므로 Standalone / 리슨 호스트에서만 동작한다.
+
+---
+
 ## UEnchantDataAsset 구조
 
 인챈트 1개 = DataAsset 1개 = GA 1개.

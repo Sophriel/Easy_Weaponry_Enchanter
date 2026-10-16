@@ -60,6 +60,7 @@ This project does not override the language at the project level.
 │   └── Source/EasyWeaponryEnchanter/
 │       ├── Ability/                    ← GA implementations (UEWEGA_*)
 │       ├── AbilityTask/                ← AT implementations (UEWEAT_*)
+│       ├── Attribute/                  ← AttributeSet · Max change policy GE component
 │       └── Weapon/                     ← Weapon classes (UEWEWeapon*)
 │
 /Content/
@@ -181,6 +182,7 @@ Do not modify many files at once — build once per logical unit of change.
 - **ASC and AttributeSet are owned by `AEWECharacter`.** Weapons only hold GA class lists. → `architecture.md`
 - **GA NetExecutionPolicy is chosen per GA. EWE does not enforce one.** LocalPredicted is recommended for frequently used GAs and ServerInitiated for infrequent ones; the GA author decides. Exception: the equip GA (`UEWEGA_DefaultOnEquip`) is forced to ServerOnly. → `network.md`
 - **Module split:** `EWERuntime` / `EWEEditor` (strict `WITH_EDITOR` separation)
+  (current runtime module = `EasyWeaponryEnchanter`. No Editor module yet)
 - **The HUD is MVVM.** Widgets never own data. → `architecture.md` "UI 계층"
 - **Never assume initialization order.** Inventory load, pawn possession and widget
   attachment are independent axes. Each announces when ready; the receiver decides.
@@ -233,6 +235,8 @@ While allowed in general GAS, EWE enforces all modifications through GE.
 // ❌ AttributeSet->SetHealth(100.f);
 // ✅ ASC->ApplyGameplayEffectToSelf(DamageGE, ...);
 ```
+
+> Exception: correcting the **base** value of a dependent attribute when its Max attribute changes is allowed via `ApplyModToAttribute`, only inside `UEWEAttributeBase::PostAttributeChange` and only on the authority. No GE side effects are triggered. The policy (Clamp/KeepRatio) is set by `UEWEMaxChangePolicyComponent` on an Instant GE.
 
 ### GE Stacking — Aggregate Only
 ```
@@ -340,10 +344,15 @@ Key rules (see commit-guide.md for details):
 ## 📐 Core Classes
 
 ```
+UEWEWeaponData          Defines a weapon (WeaponIcon, WeaponMeshAsset, Hold / Hit / OnEquip GA arrays)
+AEWECharacter           Character owning ASC / AttributeSet. Grants weapon GAs via EquipWeapon
+UEWEAttributeBase       AttributeSet (Health / MaxHealth / Mana / MaxMana, clamping, Max change policy)
+UEWEMaxChangePolicyComponent  GE component registering Max change policies (Clamp / KeepRatio), Instant GE only
+UEWEAbilityBase         Base class for all weapon GAs
+UEWEGA_DefaultOnEquip   GA applying GEs while equipped (ServerOnly enforced)
+
+(Not implemented — target design)
 UEnchantDataAsset       Defines one enchant (Trigger + Conditions + Functions + CooldownGE)
-UEWEWeaponData          Defines a weapon (slot count, default Attributes, enchant slot array)
-AEWECharacter           Character owning ASC / AttributeSet
-UEWEGA_Base             Base class for all GAs
 UEWEAT_Base             Base class for all ATs (IEnchantFunction implementor)
 IEnchantFunction        Function extension interface
 FEnchantContext         Execution context (caster, parent weapon reference)

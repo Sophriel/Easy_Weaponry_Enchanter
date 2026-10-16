@@ -60,6 +60,7 @@ Unreal Engine 5 C++ Plugin.
 │   └── Source/EasyWeaponryEnchanter/
 │       ├── Ability/                    ← GA 구현체 (UEWEGA_*)
 │       ├── AbilityTask/                ← AT 구현체 (UEWEAT_*)
+│       ├── Attribute/                  ← AttributeSet · Max 변화 정책 GE 컴포넌트
 │       └── Weapon/                     ← 무기 클래스 (UEWEWeapon*)
 │
 /Content/
@@ -181,6 +182,7 @@ C++ 파일(.h 또는 .cpp)을 수정한 후, 다음 작업으로 넘어가기 �
 - **ASC, AttributeSet = `AEWECharacter` 소유.** 무기는 GA 목록만 보유. → `architecture.md`
 - **GA NetExecutionPolicy 는 GA 별로 선택한다. EWE 는 강요하지 않는다.** 자주 쓰는 GA 는 LocalPredicted, 드문 GA 는 ServerInitiated 를 권장하되 판단은 GA 제작자 몫. 단, 장착 GA(`UEWEGA_DefaultOnEquip`) 는 ServerOnly 강제. → `network.md`
 - **모듈 분리:** `EWERuntime` / `EWEEditor` (`WITH_EDITOR` 엄격 분리)
+  (현재 런타임 모듈 = `EasyWeaponryEnchanter`. Editor 모듈은 아직 없음)
 - **HUD 는 MVVM.** 위젯은 데이터를 소유하지 않는다. → `architecture.md` "UI 계층"
 - **초기화 순서를 가정하지 않는다.** 인벤토리 로드 · 폰 빙의 · 위젯 부착은 독립된 축이다.
   준비되면 알리고, 받는 쪽이 조건을 판정한다. → 아래 "UI 계층 규칙"
@@ -200,6 +202,8 @@ C++ 파일(.h 또는 .cpp)을 수정한 후, 다음 작업으로 넘어가기 �
 // ❌ AttributeSet->SetHealth(100.f);
 // ✅ ASC->ApplyGameplayEffectToSelf(DamageGE, ...);
 ```
+
+> 예외: Max Attribute 변화에 따른 종속 Attribute 의 **Base** 보정은 `UEWEAttributeBase::PostAttributeChange` 안에서, 권한 측에 한해 `ApplyModToAttribute` 를 허용한다. GE 부수효과는 발생하지 않는다. 정책(Clamp/KeepRatio) 은 Instant GE 의 `UEWEMaxChangePolicyComponent` 로 지정한다.
 
 ### GE 스택 — Aggregate 전용
 ```
@@ -340,10 +344,15 @@ Claude의 처리 방침:
 ## 📐 핵심 클래스
 
 ```
+UEWEWeaponData          무기 정의 (WeaponIcon, WeaponMeshAsset, Hold / Hit / OnEquip GA 배열)
+AEWECharacter           ASC / AttributeSet 소유 캐릭터. EquipWeapon 으로 무기 GA 부여
+UEWEAttributeBase       AttributeSet (Health / MaxHealth / Mana / MaxMana, 클램프, Max 변화 정책)
+UEWEMaxChangePolicyComponent  Max 변화 정책(Clamp / KeepRatio) 등록 GE 컴포넌트 (Instant GE 전용)
+UEWEAbilityBase         모든 무기 GA 의 베이스 클래스
+UEWEGA_DefaultOnEquip   장착 중 GE 적용 GA (ServerOnly 강제)
+
+(미구현 — 목표 설계)
 UEnchantDataAsset       인챈트 1개 정의 (Trigger + Conditions + Functions + CooldownGE)
-UEWEWeaponData          무기 정의 (슬롯 수, Attribute 기본값, 인챈트 슬롯 배열)
-AEWECharacter           ASC / AttributeSet 소유 캐릭터
-UEWEGA_Base             모든 GA의 베이스 클래스
 UEWEAT_Base             모든 AT의 베이스 클래스 (IEnchantFunction 구현체)
 IEnchantFunction        Function 확장 인터페이스
 FEnchantContext         실행 컨텍스트 (시전자, 부모 무기 참조)
@@ -407,9 +416,8 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
     → 포워딩 함수 자체는 유지하기로 결정 (근거: architecture.md "UI 계층")
     → 체인 길이는 별도 검토 사항
 
-[ ] architecture.md 앞부분이 목표 구조와 실제 구조를 섞어 서술
-    → "플러그인 모듈 구조" / "주요 클래스 파일 위치" 절이 실제 코드와 다름
-    → 대조 후 정리 필요
+[x] architecture.md 앞부분이 목표 구조와 실제 구조를 섞어 서술
+    → 해소: "현재 구조" / "목표 구조" 로 분리하고 목표 설계 절에 배너 표시 (2026-10-16)
 
 [ ] GA 별 NetExecutionPolicy 전환
     → 현재 모든 GA 는 엔진 기본값 LocalPredicted 로 개발 중
