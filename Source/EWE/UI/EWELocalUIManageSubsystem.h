@@ -6,6 +6,12 @@
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "EWELocalUIManageSubsystem.generated.h"
 
+// Forward declarations
+class UEWEQuickSlotViewModel;
+class UEWEStatusViewModel;
+class UEWETargetInfoViewModel;
+class UEWEInventoryComponent;
+
 /**
  * Manages all UI widgets for local player.
  * - Inventory widget creation/open/close
@@ -22,13 +28,26 @@ public:
     virtual void Deinitialize() override;
     virtual void PlayerControllerChanged(APlayerController *NewPlayerController) override;
 
-    void CreateUIWidgets();
+    void AddUIWidgets();
+
+protected:
+    /** Loads and returns the UIConfigAsset if available */
+    const class UEWEUIAsset *GetUIConfigAsset() const;
+
+    /**
+     * True when every always-on HUD widget already exists and sits in the viewport.
+     * The inventory widget is created on demand and is deliberately excluded.
+     */
+    bool AreEssentialWidgetsInViewport() const;
+
+    /** Drops the pending OnUILoaded subscription, if any. */
+    void ClearUILoadedSubscription();
 
 protected:
     TSoftObjectPtr<class UEWEUIAsset> UIConfigAsset;
 
-    /** Loads and returns the UIConfigAsset if available */
-    const class UEWEUIAsset *GetUIConfigAsset() const;
+    /** Handle for the pending UEWEUIAsset::OnUILoaded subscription. */
+    FDelegateHandle UILoadedHandle;
 
     UPROPERTY(Transient)
     TObjectPtr<APlayerController> CurrentPlayerController;
@@ -71,6 +90,11 @@ protected:
 
 #pragma region QuickSlot
 public:
+    UEWEQuickSlotViewModel *GetQuickSlotViewModel() const { return QuickSlotViewModel; }
+
+    /** Restores the initial slot assignment from the owning pawn's inventory. */
+    void BindQuickSlot();
+
     /** Adds a weapon to the first available quick slot */
     UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
     void AddWeaponToQuickSlot(class UEWEWeaponData *Weapon);
@@ -92,8 +116,30 @@ public:
     UEWEQuickSlot *GetQuickSlotWidget() const { return QuickSlotWidget; }
 
 protected:
+    /** Creates the view model and subscribes to it. Called once from Initialize(). */
+    void CreateQuickSlotViewModel();
+
     /** Creates the quick slot widget */
     void CreateQuickSlotWidget();
+
+    /** Forwards the selected weapon to the possessed pawn. */
+    void HandleSlotSelected(int32 SlotIndex, class UEWEWeaponData *Weapon);
+
+    /** Subscribes to the pawn's inventory so a late load still reaches the view model. */
+    void SubscribeToInventory();
+
+    /** Fills the view model from the bound inventory. Safe to call more than once. */
+    void SeedQuickSlotFromInventory();
+
+    /** Reacts to the inventory sync broadcast: seeds the slots and ensures a selection. */
+    UFUNCTION()
+    void HandleWeaponsSynced(const TArray<class UEWEWeaponData *> &InWeapons, int32 NewCount);
+
+    UPROPERTY(Transient)
+    TObjectPtr<class UEWEQuickSlotViewModel> QuickSlotViewModel;
+
+    /** Inventory currently subscribed to. Weak: the pawn may be replaced. */
+    TWeakObjectPtr<class UEWEInventoryComponent> BoundInventory;
 
     /** Currently active quick slot widget instance */
     UPROPERTY(Transient)
@@ -103,6 +149,9 @@ protected:
 
 #pragma region Status
 
+public:
+    void BindStatus();
+
 protected:
     /** Creates the Status Widget */
     void CreateStatusWidget();
@@ -111,10 +160,16 @@ protected:
     UPROPERTY(Transient)
     TObjectPtr<class UEWEStatus> StatusWidget;
 
+    /** Status ViewModel — subscribes to ASC changes and exposes them to the UI */
+    UPROPERTY(Transient)
+    TObjectPtr<class UEWEStatusViewModel> StatusViewModel;
+
 #pragma endregion
 
 #pragma region TargetInfo
 public:
+    void BindTargetInfo();
+
     /** Shows the target info widget */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
     void ShowTargetInfo();
@@ -128,7 +183,7 @@ public:
     void UpdateTargetName(const FText &TargetName);
 
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
-    void UpdateTargetInfo(const FText &TargetName, class UEWEAttributeBase *TargetAttributeSet);
+    void UpdateTargetInfo(const FText &TargetName, class UAbilitySystemComponent *TargetASC);
 
     /** Clears target info and hides the widget */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
@@ -145,6 +200,10 @@ protected:
     /** Cached target info widget instance */
     UPROPERTY(Transient)
     TObjectPtr<class UEWETargetInfo> TargetInfoWidget;
+
+    /** TargetInfo ViewModel — subscribes to target ASC changes and exposes them to the UI */
+    UPROPERTY(Transient)
+    TObjectPtr<class UEWETargetInfoViewModel> TargetInfoViewModel;
 
 #pragma endregion
 };

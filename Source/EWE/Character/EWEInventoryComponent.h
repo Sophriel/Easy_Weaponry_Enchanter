@@ -51,11 +51,25 @@ protected:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+    /** Kicks off a single batched async load for all InitialWeapons entries. */
     void LoadInitialWeaponsAsync();
-    void LoadWeaponAsync(TSoftObjectPtr<class UEWEWeaponData> WeaponAsset);
-    void OnWeaponLoaded(TSoftObjectPtr<class UEWEWeaponData> WeaponAsset);
+
+    /** Streamable completion callback for the batched initial weapon load. */
+    void OnInitialWeaponsLoaded();
+
+    /**
+     * Broadcasts the initial loadout once BeginPlay has run and the initial load
+     * has finished. Safe to call from either path regardless of which finishes first.
+     */
+    void TryApplyInitialLoadout();
 
     void SyncInventoryUI();
+
+    /**
+     * Adds a weapon without broadcasting OnWeaponAcquired. Used by the initial
+     * batch load, where the single OnWeaponsSynced broadcast is the UI notification.
+     */
+    void AddWeaponSilent(class UEWEWeaponData *Weapon);
 
 protected:
     TScriptInterface<class IEWECharacterInterface> OwnerCharacter;
@@ -67,4 +81,16 @@ protected:
     // Loaded Weapon Data
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
     TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
+
+    /** Logs and returns false when the index does not address a weapon. */
+    bool IsValidWeaponIndex(int32 Index) const;
+
+    /** Handle for the batched initial weapon load. Released on EndPlay. */
+    TSharedPtr<struct FStreamableHandle> InitialWeaponsHandle;
+
+    /** True once the batched initial load has finished (or was a no-op). */
+    bool bInitialWeaponsLoaded = false;
+
+    /** Guards TryApplyInitialLoadout against running more than once. */
+    bool bInitialLoadoutApplied = false;
 };

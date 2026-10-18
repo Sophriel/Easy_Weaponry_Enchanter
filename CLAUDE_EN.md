@@ -40,7 +40,7 @@ This project does not override the language at the project level.
 |------|----------|
 | Chat responses | Global setting (Korean) |
 | Documents (.md) | Korean |
-| Code (all areas) | **English only — Korean strictly forbidden** |
+| Code (all areas) | **English only — Korean strictly forbidden** (`@@@` marker comments exempt) |
 | Commit messages | **English only — Korean strictly forbidden** |
 | Log strings | **English only** |
 
@@ -60,11 +60,19 @@ This project does not override the language at the project level.
 │   └── Source/EasyWeaponryEnchanter/
 │       ├── Ability/                    ← GA implementations (UEWEGA_*)
 │       ├── AbilityTask/                ← AT implementations (UEWEAT_*)
+│       ├── Attribute/                  ← AttributeSet · Max change policy GE component
 │       └── Weapon/                     ← Weapon classes (UEWEWeapon*)
 │
 /Content/
-    ├── Weapons/                        ← Weapon assets
-    └── Effects/                        ← Effect assets
+│   ├── Weapons/                        ← Weapon assets
+│   └── Effects/                        ← Effect assets
+│
+/Documents/MDs/                         ← All project markdown documents
+    ├── core/                           ← System structure & design
+    ├── functions/                      ← Function catalog
+    ├── features/                       ← Auxiliary systems
+    ├── guides/                         ← Workflow processes
+    └── plans/                          ← Work plans (gitignored)
 ```
 
 ---
@@ -75,16 +83,65 @@ This project does not override the language at the project level.
 
 | Task | Reference Document |
 |------|--------------------|
-| Module structure, GAS components, weapon swap flow | `Documents/MDs/architecture.md` |
-| DataAsset, GA/AT classes, GA lifecycle, execution flow | `Documents/MDs/enchant-system.md` |
-| Trigger types, Condition evaluation, combination rules | `Documents/MDs/trigger-condition.md` |
+| Module structure, GAS components, weapon swap flow | `Documents/MDs/core/architecture.md` |
+| DataAsset, GA/AT classes, GA lifecycle, execution flow | `Documents/MDs/core/enchant-system.md` |
+| Trigger types, Condition evaluation, combination rules | `Documents/MDs/core/trigger-condition.md` |
+| RPC, server authority, replication policies | `Documents/MDs/core/network.md` |
 | Adding a new Function **(read first)** | `Documents/MDs/functions/overview.md` |
 | Creation / Ejection / Rotation / Attach | `Documents/MDs/functions/basic.md` |
 | TimeStop / Freeze / Teleport / Possess / Weather / StatusEffect | `Documents/MDs/functions/special.md` |
-| Cooldown, Recording system, Scrolls, JSON Import/Export | `Documents/MDs/cooldown-recording.md` |
-| RPC, server authority, replication policies | `Documents/MDs/network.md` |
-| HUD, Inventory, Enchanter UI | `Documents/MDs/ui.md` |
-| Committing **(read before any commit attempt)** | `Documents/MDs/commit-guide.md` |
+| Cooldown, Recording system, Scrolls, JSON Import/Export | `Documents/MDs/features/cooldown-recording.md` |
+| HUD, Inventory, Enchanter UI | `Documents/MDs/features/ui.md` |
+| Committing **(read before any commit attempt)** | `Documents/MDs/guides/commit-guide.md` |
+
+---
+
+## 📄 Document Placement Rules
+
+### Markdown file locations
+
+**Only the four files below belong at the repository root. Every other markdown file goes under `Documents/MDs/`.**
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Project guide for Claude (Korean, primary) |
+| `CLAUDE_EN.md` | English version of the same content |
+| `AGENTS.md` | Guide for Codex |
+| `README.md` | Repository overview |
+
+Never create a new markdown file at the repository root or directly under `Documents/`.
+The top level of `Documents/` is reserved for non-markdown deliverables (docx / pdf).
+
+### MDs subfolders
+
+| Folder | Contents |
+|--------|----------|
+| `core/` | System structure & design — architecture, enchant system, Trigger/Condition, network |
+| `functions/` | Function catalog |
+| `features/` | Auxiliary systems — cooldown/recording, UI |
+| `guides/` | Workflow processes — commit guide, etc. |
+| `plans/` | Work plans (see below) |
+
+- If nothing fits, **do not invent a new folder — ask the user first**
+- When adding or moving a document, update the **Document Map** above along with `CLAUDE.md` / `AGENTS.md`
+
+### Work plans — `plans/` only
+
+Any markdown describing **work to be done** — code application plans, refactoring plans,
+bug fix plans — goes in `Documents/MDs/plans/` without exception.
+
+```
+❌ Documents/plan.md
+❌ Documents/MDs/quickslot-plan.md
+❌ Documents/MDs/core/quickslot-viewmodel.md
+✅ Documents/MDs/plans/quickslot-viewmodel.md
+```
+
+- **Filename**: kebab-case English, naming the target of the work (`fix-inventory-load-race.md`)
+- **Revisions**: keep prior versions with `-v2`, `-v3` suffixes instead of deleting them
+- **`plans/` is gitignored — local only, never committed.**
+  To preserve a plan's content, fold it into the relevant design document (`core/`, etc.) once done
+- Plans are markdown, so write them in Korean. The "no Korean in code" rule does not apply
 
 ---
 
@@ -123,8 +180,12 @@ Do not modify many files at once — build once per logical unit of change.
 ## ⚙️ Architecture Decisions (Do Not Change)
 
 - **ASC and AttributeSet are owned by `AEWECharacter`.** Weapons only hold GA class lists. → `architecture.md`
-- **Server Confirm required. No Client Prediction.** No client feedback before confirmation. → `network.md`
+- **GA NetExecutionPolicy is chosen per GA. EWE does not enforce one.** LocalPredicted is recommended for frequently used GAs and ServerInitiated for infrequent ones; the GA author decides. Exception: the equip GA (`UEWEGA_DefaultOnEquip`) is forced to ServerOnly. → `network.md`
 - **Module split:** `EWERuntime` / `EWEEditor` (strict `WITH_EDITOR` separation)
+  (current runtime module = `EasyWeaponryEnchanter`. No Editor module yet)
+- **The HUD is MVVM.** Widgets never own data. → `architecture.md` "UI 계층"
+- **Never assume initialization order.** Inventory load, pawn possession and widget
+  attachment are independent axes. Each announces when ready; the receiver decides.
 
 ---
 
@@ -132,6 +193,39 @@ Do not modify many files at once — build once per logical unit of change.
 
 > For general UE5/GAS code patterns, refer to the `/unreal-engine` skill references first.
 > Below are **constraints specific to this project only**. These take priority over general GAS conventions when they conflict.
+
+### UI Layer Rules — MVVM
+
+```
+Widgets never own data. They only bind.
+ViewModels never reference Views. View -> ViewModel -> Model is the only direction.
+
+Create the ViewModel and subscribe to its events once, in the subsystem's Initialize().
+  BAD  subscribing inside Bind*() -- it has many early returns, so you get 0 or 2
+  GOOD NewObject + AddUObject in Initialize()
+
+Bind*() must be safe to call repeatedly. Never overwrite what is already filled.
+
+"No data yet" is an expected state, not an error.
+  -> Log at Verbose, not Warning, and move on.
+
+Blueprint property binding is disabled (DefaultEditor.ini: PropertyBindingRule=Prevent).
+Always use ViewModel bindings.
+```
+
+### Quick Slot ViewModel — SetSlot Is the Only Gate
+
+```
+Every path that writes slot contents goes through UEWEQuickSlotViewModel::SetSlot().
+  SeedFromInventory / AddWeapon / ClearSlot -> all route through SetSlot
+
+Never call SlotItem->SetWeapon() directly.
+SetSlot() owns the "re-equip when the held slot's contents change" broadcast,
+so bypassing it silently drops that protection.
+
+// BAD  SlotItems[i]->SetWeapon(Weapon);
+// GOOD SetSlot(i, Weapon);
+```
 
 ### Attribute Modification — GE Only
 ```
@@ -141,6 +235,8 @@ While allowed in general GAS, EWE enforces all modifications through GE.
 // ❌ AttributeSet->SetHealth(100.f);
 // ✅ ASC->ApplyGameplayEffectToSelf(DamageGE, ...);
 ```
+
+> Exception: correcting the **base** value of a dependent attribute when its Max attribute changes is allowed via `ApplyModToAttribute`, only inside `UEWEAttributeBase::PostAttributeChange` and only on the authority. No GE side effects are triggered. The policy (Clamp/KeepRatio) is set by `UEWEMaxChangePolicyComponent` on an Instant GE.
 
 ### GE Stacking — Aggregate Only
 ```
@@ -189,12 +285,46 @@ All code areas — comments, log strings, identifiers, macros — must be writte
 // ✅ UE_LOG(LogEWE, Warning, TEXT("Attribute not found"));
 
 Korean is allowed in explanations and documentation (.md). Forbidden only inside code.
+
+Exception: `@@@` marker comments (see "`@@@` Marker Comments" below)
+```
+
+### `@@@` Marker Comments — Rule Exempt / Never Commit
+```
+Comments starting with `@@@` (any count: @@@, @@@@, @@@@@, ...) are personal
+markers the user intentionally left for themselves to review and resolve.
+
+  // @@@ Will be moved later
+  // @@@@@ TODO: 무기에 의한 GE 제거
+
+Properties:
+  - Korean is permitted — the sole exception to "No Korean in Code"
+  - Not required to follow sentence, tone, or formatting conventions
+  - The user is the author
+
+Claude's handling policy:
+  1. Never edit, delete, translate, or rewrite them unprompted
+  2. Never flag them for being Korean or suggest converting to English
+  3. Remove a marker only after completing the work it points to
+  4. Always check for leftovers before committing
+
+Commit block:
+  Never commit a file that still contains an `@@@` marker.
+  If a marker appears in staged changes, stop the commit and report to the user.
+
+  Check command (added lines only) — match it to the commit method:
+    git diff --cached | grep -n "^+.*@@@"        # commit without pathspec
+    git diff HEAD -- <paths> | grep -n "^+.*@@@" # pathspec commit
+
+  A pathspec commit commits the working tree, not the index.
+  If the check and the method disagree, the check passes and the
+  marker is committed. See commit-guide.md sections 1-0 and 4-3.
 ```
 
 ### Committing — `commit-guide.md` Is Required Reading
 ```
 When asked to commit, read this before doing any work:
-  → Documents/MDs/commit-guide.md
+  → Documents/MDs/guides/commit-guide.md
 
 Commit messages must be written in English. Korean is strictly forbidden.
 
@@ -214,13 +344,29 @@ Key rules (see commit-guide.md for details):
 ## 📐 Core Classes
 
 ```
+UEWEWeaponData          Defines a weapon (WeaponIcon, WeaponMeshAsset, Hold / Hit / OnEquip GA arrays)
+AEWECharacter           Character owning ASC / AttributeSet. Grants weapon GAs via EquipWeapon
+UEWEAttributeBase       AttributeSet (Health / MaxHealth / Mana / MaxMana, clamping, Max change policy)
+UEWEMaxChangePolicyComponent  GE component registering Max change policies (Clamp / KeepRatio), Instant GE only
+UEWEAbilityBase         Base class for all weapon GAs
+UEWEGA_DefaultOnEquip   GA applying GEs while equipped (ServerOnly enforced)
+
+(Not implemented — target design)
 UEnchantDataAsset       Defines one enchant (Trigger + Conditions + Functions + CooldownGE)
-UEWEWeaponData          Defines a weapon (slot count, default Attributes, enchant slot array)
-AEWECharacter           Character owning ASC / AttributeSet
-UEWEGA_Base             Base class for all GAs
 UEWEAT_Base             Base class for all ATs (IEnchantFunction implementor)
 IEnchantFunction        Function extension interface
 FEnchantContext         Execution context (caster, parent weapon reference)
+```
+
+### UI Layer
+
+```
+UEWELocalUIManageSubsystem      Owns ViewModels, creates widgets, relays gameplay commands
+UEWEStatusViewModel             Subscribes to the ASC -> HP / MP
+UEWETargetInfoViewModel         Subscribes to the target's ASC
+UEWEQuickSlotViewModel          Slot array, selected index, OnSlotSelected
+UEWEQuickSlotItemViewModel      One slot (Weapon / bSelected / SlotIndex)
+UEWEQuickSlot / UEWEStatus / UEWETargetInfo   Views. They own no data
 ```
 
 Full class map and file locations → `architecture.md`
@@ -237,7 +383,9 @@ Full class map and file locations → `architecture.md`
 | GameplayAbility | `UEWEGA_` | `UEWEGA_Creation` | `EWEGA_Creation.h` |
 | AbilityTask | `UEWEAT_` | `UEWEAT_SpawnActor` | `EWEAT_SpawnActor.h` |
 | Weapon-related | `UEWEWeapon*` | `UEWEWeaponData` | `EWEWeaponData.h` |
-| General UObject | `UEWE` | `UEWEAttributeSet` | `EWEAttributeSet.h` |
+| ViewModel | `UEWE*ViewModel` | `UEWEQuickSlotViewModel` | `EWEQuickSlotViewModel.h` |
+| UI widget (View) | `UEWE*` | `UEWEQuickSlot` | `EWEQuickSlot.h` |
+| General UObject | `UEWE` | `UEWEAttributeBase` | `EWEAttributeBase.h` |
 | AActor-derived | `AEWE` | `AEWECharacter` | `EWECharacter.h` |
 | Structs | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
 | Log category | `LogEWE` | - | - |
@@ -256,4 +404,9 @@ Full class map and file locations → `architecture.md`
 [ ] Object natural destruction edge cases
     → Without DestroyConditions, no destruction other than Lifetime (current policy)
     → Update functions/basic.md if new edge cases arise
+
+[ ] Per-GA NetExecutionPolicy migration
+    → All GAs are currently developed with the engine default LocalPredicted
+    → After the server path work (EquipWeapon server RPC, etc.), switch GAs that need ServerOnly one at a time
+    → Policy criteria: network.md "GA Execution Policy"
 ```

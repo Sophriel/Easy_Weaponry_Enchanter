@@ -13,6 +13,8 @@
 #include "EWEControlData.h"
 #include "EWEPlayerController.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffect.h"
+#include "GameplayEffectTypes.h"
 #include "EWE/EWELog.h"
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
 #include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
@@ -79,14 +81,13 @@ void AEWECharacter::PossessedBy(AController *NewController)
 
     if (WeaponAbilityComponent)
     {
-        WeaponAbilityComponent->InitAbilityActorInfo(this, this);
-
-        // Set Attribute with GE after init ASC
+        // Apply the default attribute GE after Super::PossessedBy, which has already run
+        // NotifyControllerChanged and finished InitAbilityActorInfo, so the ASC is ready.
+        // Re-possessing resets Health to full; this is accepted behavior, not a bug.
         if (DefaultAttributeGE)
         {
             FGameplayEffectContextHandle Context = WeaponAbilityComponent->MakeEffectContext();
             Context.AddSourceObject(this);
-
             WeaponAbilityComponent->ApplyGameplayEffectToSelf(DefaultAttributeGE.GetDefaultObject(), 1.f, Context);
         }
     }
@@ -94,22 +95,13 @@ void AEWECharacter::PossessedBy(AController *NewController)
     SetOwner(NewController);
 }
 
-void AEWECharacter::OnRep_PlayerState()
-{
-    Super::OnRep_PlayerState();
-
-    if (WeaponAbilityComponent)
-    {
-        WeaponAbilityComponent->InitAbilityActorInfo(this, this);
-    }
-}
-
 void AEWECharacter::BeginPlay()
 {
-    Super::BeginPlay();
-
-    // Setup inventory event subscriptions
+    // Subscribe before Super::BeginPlay(), which dispatches component BeginPlay.
+    // The inventory can broadcast its initial sync from there.
     SetupInventorySubscriptions();
+
+    Super::BeginPlay();
 
     // Enable ticking for target acquisition
     PrimaryActorTick.bCanEverTick = true;
@@ -117,6 +109,8 @@ void AEWECharacter::BeginPlay()
 
 void AEWECharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    ClearInventorySubscriptions();
+
     WeaponMesh->SetSkeletalMesh(nullptr);
     SubWeaponMesh->SetSkeletalMesh(nullptr);
 
@@ -143,6 +137,14 @@ void AEWECharacter::Tick(float DeltaTime)
 void AEWECharacter::NotifyControllerChanged()
 {
     Super::NotifyControllerChanged();
+
+    // Convergence point for PossessedBy / UnPossessed / OnRep_Controller. The ASC does
+    // not detect controller changes on its own, so refresh its cached PlayerController here.
+    // Avatar is always `this` (invariant). Temporary location until the ASC moves to PlayerState.
+    if (WeaponAbilityComponent)
+    {
+        WeaponAbilityComponent->InitAbilityActorInfo(this, this);
+    }
 
     // Add Input Mapping Context
     if (APlayerController *PlayerController = Cast<APlayerController>(Controller))
@@ -360,17 +362,23 @@ void AEWECharacter::ToggleInventory()
 
 void AEWECharacter::AcquireWeapon(UEWEWeaponData *NewWeapon)
 {
-    // Deprecated: Event-based system now handles this via InventoryComponent
-    // This function is kept for interface compatibility
+    // Intentionally empty. Required by IEWECharacterInterface.
+    // Acquisition is owned by UEWEInventoryComponent::AcquireWeapon, which
+    // broadcasts OnWeaponAcquired. This character reacts through that event
+    // (see HandleWeaponAcquired), not through this entry point.
 }
 
 void AEWECharacter::EquipWeapon(UEWEWeaponData *Weapon)
 {
-    WeaponAbilityComponent->RemoveAllSpawnedAttributes();
+    // Removes weapon abilities. OnEquip GAs (UEWEGA_DefaultOnEquip) remove their GEs in
+    // EndAbility, which the engine triggers via OnRemoveAbility when ClearAllAbilities runs.
     WeaponAbilityComponent->ClearAllAbilities();
 
     if (Weapon == nullptr)
     {
+        // Unequip. Clear CurrentWeapon so AttackHold()/AttackHit() don't iterate
+        // abilities that no longer exist.
+        CurrentWeapon = nullptr;
         WeaponMesh->SetSkeletalMesh(nullptr);
         return;
     }
@@ -400,6 +408,14 @@ void AEWECharacter::EquipWeapon(UEWEWeaponData *Weapon)
         FGameplayAbilitySpec AbilitySpec(Ability, 0, HitAbilityIndex);
         WeaponAbilityComponent->GiveAbility(AbilitySpec);
         ++HitAbilityIndex;
+    }
+
+    // OnEquip GAs: level 0 (consistent with Hold/Hit), InputID INDEX_NONE to avoid colliding
+    // with the Hold/Hit input indices, SourceObject = the weapon.
+    for (const auto &Ability : CurrentWeapon->OnEquipAbilities)
+    {
+        FGameplayAbilitySpec AbilitySpec(Ability, 0, INDEX_NONE, Weapon);
+        WeaponAbilityComponent->GiveAbility(AbilitySpec);
     }
 }
 
@@ -441,6 +457,11 @@ void AEWECharacter::AttackHold()
 void AEWECharacter::AttackHitCheck()
 {
     // Release Hold Ability
+    if (!WeaponAbilityComponent || !CurrentWeapon)
+    {
+        return;
+    }
+
     int32 HoldAbilityCount = CurrentWeapon->HoldAbilities.Num();
     for (int32 AbilityIndex = CHoldAbilityIndex; AbilityIndex < HoldAbilityCount; ++AbilityIndex)
     {
@@ -457,6 +478,11 @@ void AEWECharacter::AttackHitCheck()
 
 void AEWECharacter::AttackReleaseCheck()
 {
+    if (!WeaponAbilityComponent || !CurrentWeapon)
+    {
+        return;
+    }
+
     int32 HitAbilityCount = CurrentWeapon->HitAbilities.Num();
     for (int32 AbilityIndex = 0; AbilityIndex < HitAbilityCount; ++AbilityIndex)
     {
@@ -472,7 +498,12 @@ UEWEAttributeBase *AEWECharacter::GetCharacterAttribute() { return AttributeSet;
 
 #pragma endregion
 
-#pragma region TargetAcquisition
+#pragma region TargetInfo
+
+void AEWECharacter::RefreshTargetInfo()
+{
+    NotifyTargetChanged(GetFocusedTarget());
+}
 
 void AEWECharacter::UpdateTargetAcquisition(float DeltaTime)
 {
@@ -537,15 +568,20 @@ void AEWECharacter::NotifyTargetChanged(AActor *NewTarget)
         return;
     }
 
+    // TODO: Replace GetActorLabel() with a proper display name source.
+    // GetActorLabel() is declared inside #if WITH_EDITOR, so this code does not
+    // compile for non-editor targets (Shipping / Game). It also returns the level
+    // editor label (e.g. "BP_Enemy_2"), which is not player-facing text.
+    // Once a character display name exists, read the localizable FText from it and
+    // drop the FString -> FText conversion here.
     if (NewTarget)
     {
         AEWECharacter *TargetChar = Cast<AEWECharacter>(NewTarget);
         if (TargetChar)
         {
-            UEWEAttributeBase *TargetAttr = TargetChar->GetCharacterAttribute();
             FText TargetName = FText::FromString(NewTarget->GetActorLabel());
 
-            PC->UpdateTargetInfo(TargetName, TargetAttr);
+            PC->UpdateTargetInfo(TargetName, TargetChar->GetAbilitySystemComponent());
         }
         else
         {

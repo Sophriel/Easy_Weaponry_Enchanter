@@ -40,6 +40,11 @@ public:
     UPROPERTY(EditAnywhere, Category = Weapon)
     TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
 
+    // Granted on equip, reclaimed by ClearAllAbilities on unequip. Only the
+    // UEWEGA_DefaultOnEquip family auto-activates (via OnAvatarSet).
+    UPROPERTY(EditAnywhere, Category = Weapon)
+    TArray<TSubclassOf<class UGameplayAbility>> OnEquipAbilities;
+
 protected:
     UPROPERTY(EditAnywhere, Category = Weapon, meta = (AllowPrivateAccess = "true"))
     TSoftObjectPtr<class USkeletalMesh> WeaponMeshAsset;

@@ -13,7 +13,9 @@ public class EWE : ModuleRules
             "EasyWeaponryEnchanter",
             "GameplayAbilities",
             "GameplayTasks",
-            "GameplayTags"
+            "GameplayTags",
+            "ModelViewViewModel",
+            "UMG"
         });
     }
 }

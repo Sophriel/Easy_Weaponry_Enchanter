@@ -8,13 +8,81 @@
 
 ---
 
+## 무기 GA 계층 (`UEWEGA_*`) — 현재 구현
+
+```
+UGameplayAbility
+└── UEWEAbilityBase                 ← 무기 GA 공통 부모 (Ability/EWEAbilityBase.h)
+    ├── UEWEGA_Creation             ← 액터 생성 (UEWEAT_SpawnActor 경유)
+    ├── UEWEGA_FireProjectile       ← 투사체 발사
+    └── UEWEGA_DefaultOnEquip       ← 장착 중 GE 적용
+```
+
+무기 GA 는 `UEWEWeaponData` 의 세 배열로 부여된다 (`AEWECharacter::EquipWeapon`, 전부 레벨 0).
+
+| 배열 | InputID | 활성화 |
+|------|---------|--------|
+| `HoldAbilities` | `CHoldAbilityIndex` 부터 순번 | 공격 입력 Hold |
+| `HitAbilities` | `CHitAbilityIndex` 부터 순번 | 공격 입력 Hit (애님 노티파이) |
+| `OnEquipAbilities` | `INDEX_NONE` | 부여 즉시 자동 (아래). SourceObject = 무기 |
+
+요소 타입은 모두 `TSubclassOf<UGameplayAbility>` 다. `OnEquipAbilities` 에는 `UEWEGA_DefaultOnEquip` 파생을 넣는다.
+
+### UEWEGA_DefaultOnEquip
+
+장착되는 동안 `OnEquipEffects` (`TArray<TSubclassOf<UGameplayEffect>>`) 를 캐릭터에 건다.
+예: 무기별 MaxHealth 버프 Infinite GE.
+
+| 항목 | 값 | 이유 |
+|------|-----|------|
+| InstancingPolicy | `InstancedPerActor` (생성자) | 적용한 Active GE 핸들을 인스턴스에 저장해야 해제 때 제거할 수 있다 |
+| NetExecutionPolicy | `ServerOnly` (강제) | 클라이언트는 예측 키 없이 GE 를 적용할 수 없다. GE·Attribute 는 서버에서 복제된다 |
+| CommitAbility | 호출하지 않음 | 비용·쿨타임이 없다 |
+
+**ServerOnly 강제 — 3중 장치**
+
+1. 생성자에서 기본값으로 설정
+2. `IsDataValid` (에디터) — ServerOnly 가 아니면 저장 시 에러
+3. `OnAvatarSet` (런타임) — ServerOnly 가 아니면 Warning 후 자동 활성화 생략
+
+이것은 `network.md` "GA 실행 정책" 의 유일한 강제 예외다.
+
+**흐름**
+
+```
+GiveAbility (EquipWeapon)
+  → OnAvatarSet
+      1. NetExecutionPolicy != ServerOnly → Warning, return
+      2. !ActorInfo->IsNetAuthority()    → return
+      3. Spec.IsActive()                 → return (재진입 방지)
+      4. ASC->TryActivateAbility(Spec.Handle)
+  → ActivateAbility
+      OnEquipEffects 마다 MakeOutgoingGameplayEffectSpec → ASC->ApplyGameplayEffectSpecToSelf
+      유효한 Active 핸들만 AppliedEffectHandles 에 저장
+      EndAbility 하지 않음 — 장착 동안 활성 유지
+
+ClearAllAbilities (다음 EquipWeapon)
+  → OnRemoveAbility → EndAbility
+      AppliedEffectHandles 전부 RemoveActiveGameplayEffect → Reset → Super::EndAbility
+```
+
+- `IsNetAuthority` 가드는 중복이 아니다. Spec 이 복제되므로 소유 클라이언트에서도 `OnAvatarSet` 이 불린다.
+  가드가 없으면 클라이언트의 `TryActivateAbility` 가 서버로 원격 활성화 RPC 를 보낸다.
+- GA 경로로 적용하므로 EffectContext 에 Ability 와 SourceObject(= 무기)가 자동 기록된다.
+- GE 가 빠지면서 Max 가 바뀌면 `UEWEAttributeBase` 의 Max 변화 정책이 종속 Attribute 를 보정한다 (`architecture.md` "AttributeSet 설계").
+- 제약: 현재 `EquipWeapon` 이 로컬 호출이므로 Standalone / 리슨 호스트에서만 동작한다.
+
+---
+
 ## UEnchantDataAsset 구조
+
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
 
 인챈트 1개 = DataAsset 1개 = GA 1개.
 
 ```cpp
 UCLASS(BlueprintType)
-class EWERUNTIME_API UEnchantDataAsset : public UPrimaryDataAsset
+class EASYWEAPONRYENCHANTER_API UEnchantDataAsset : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
@@ -41,17 +109,21 @@ public:
 
     // 내부적으로 생성될 GA 클래스 (자동 지정, 수동 변경 불필요)
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Enchant|Internal")
-    TSubclassOf<UEWEGameplayAbility> AbilityClass;
+    TSubclassOf<UEWEAbilityBase> AbilityClass;
 };
 ```
 
 ---
 
-## UWeaponDataAsset 구조
+## UEWEWeaponData 구조
+
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> 실제 `UEWEWeaponData` 멤버는 `WeaponIcon` / `WeaponMesh` / `HoldAbilities` / `HitAbilities` / `OnEquipAbilities` / `WeaponMeshAsset` 이다.
+> 아래 블록의 인챈트 슬롯·`DefaultAttributes`·`WeaponActorClass` 는 계획상의 멤버다.
 
 ```cpp
 UCLASS(BlueprintType)
-class EWERUNTIME_API UWeaponDataAsset : public UPrimaryDataAsset
+class EASYWEAPONRYENCHANTER_API UEWEWeaponData : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
@@ -79,14 +151,14 @@ public:
 ### DefaultAttributes 유효성 검증
 
 ```cpp
-void UWeaponDataAsset::ValidateAttributes(const UEWEAttributeSet* AttributeSet) const
+void UEWEWeaponData::ValidateAttributes(const UEWEAttributeBase* AttributeSet) const
 {
     for (const auto& Pair : DefaultAttributes)
     {
         if (!AttributeSet->HasAttribute(Pair.Key))
         {
             UE_LOG(LogEWE, Warning,
-                TEXT("[WeaponDataAsset] Attribute '%s' not found in AttributeSet. Ignored."),
+                TEXT("[UEWEWeaponData] Attribute '%s' not found in AttributeSet. Ignored."),
                 *Pair.Key.ToString());
         }
     }
@@ -95,14 +167,17 @@ void UWeaponDataAsset::ValidateAttributes(const UEWEAttributeSet* AttributeSet) 
 
 ---
 
-## UEWEGameplayAbility 설계
+## UEWEAbilityBase 설계 — 인챈트 GA
+
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> `UEWEAbilityBase` 클래스 자체는 있지만 아래 멤버(`SourceEnchant`, `ActiveTasks` 등)는 없다.
 
 인챈트 1개가 런타임에 생성되는 GA 클래스.
 EWE 고유 멤버만 기술한다.
 
 ```cpp
 UCLASS()
-class EWERUNTIME_API UEWEGameplayAbility : public UGameplayAbility
+class EASYWEAPONRYENCHANTER_API UEWEAbilityBase : public UGameplayAbility
 {
     GENERATED_BODY()
 
@@ -125,7 +200,7 @@ protected:
 ### ActivateAbility 구현 패턴 (EWE 고유 흐름)
 
 ```cpp
-void UEWEGameplayAbility::ActivateAbility(...)
+void UEWEAbilityBase::ActivateAbility(...)
 {
     Super::ActivateAbility(...);
 
@@ -144,7 +219,7 @@ void UEWEGameplayAbility::ActivateAbility(...)
         UEWEAbilityTask_Base* Task = CreateFunctionTask(FuncData);
         if (Task)
         {
-            Task->OnCompleted.AddUObject(this, &UEWEGameplayAbility::OnTaskCompleted);
+            Task->OnCompleted.AddUObject(this, &UEWEAbilityBase::OnTaskCompleted);
             Task->ReadyForActivation();
             ActiveTasks.Add(Task);
         }
@@ -161,12 +236,14 @@ void UEWEGameplayAbility::ActivateAbility(...)
 
 ## UEWEAbilityTask_Base 설계
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음. 현재 AT 는 `UEWEAT_SpawnActor` 하나다.
+
 Function 1개 = AbilityTask 1개.
 EWE 고유 멤버만 기술한다.
 
 ```cpp
 UCLASS(Abstract)
-class EWERUNTIME_API UEWEAbilityTask_Base : public UAbilityTask
+class EASYWEAPONRYENCHANTER_API UEWEAbilityTask_Base : public UAbilityTask
 {
     GENERATED_BODY()
 
@@ -209,15 +286,17 @@ GA가 완전히 종료되는 조건:
 
 ### 실수하기 쉬운 패턴
 
+> 아래 코드는 목표 설계("UEWEAbilityBase 설계 — 인챈트 GA")의 멤버를 전제로 한다.
+
 ```cpp
 // ❌ 잘못된 패턴: Task 하나 완료 시 바로 EndAbility
-void UEWEGameplayAbility::OnTaskCompleted()
+void UEWEAbilityBase::OnTaskCompleted()
 {
     EndAbility(...);  // 다른 Task들이 아직 실행 중일 수 있음
 }
 
 // ✅ 올바른 패턴: 모든 Task 완료 후 EndAbility
-void UEWEGameplayAbility::OnTaskCompleted()
+void UEWEAbilityBase::OnTaskCompleted()
 {
     CompletedTaskCount++;
     if (CompletedTaskCount >= ActiveTasks.Num())
@@ -231,6 +310,8 @@ void UEWEGameplayAbility::OnTaskCompleted()
 
 ## EventType 별 동작
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
+
 | EventType | 동작 | AbilityTask 완료 조건 |
 |-----------|------|----------------------|
 | `OneShot` | 1회 실행 후 종료 | Task 즉시 완료 |
@@ -242,7 +323,9 @@ void UEWEGameplayAbility::OnTaskCompleted()
 
 ## 인챈트 슬롯 정책
 
-- 슬롯 수는 `UWeaponDataAsset::MaxEnchantSlots`로 제한
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
+
+- 슬롯 수는 `UEWEWeaponData::MaxEnchantSlots`로 제한
 - 실행 순서는 `Enchants` 배열 인덱스 순서로 고정
 - 동일 DataAsset을 같은 무기에 중복 등록 가능 → 완전 독립 GA 인스턴스 생성
 - 인챈트 슬롯 편집은 해당 무기가 **미장착** 상태일 때만 허용

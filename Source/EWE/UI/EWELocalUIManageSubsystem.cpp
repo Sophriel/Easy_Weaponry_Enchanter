@@ -8,26 +8,52 @@
 #include "EWEUIAsset.h"
 #include "EWE/EWESettings.h"
 #include "EWE/EWELog.h"
-#include "EWE/Character/EWECharacter.h"
-#include "EasyWeaponryEnchanter/Public/EasyWeaponryEnchanter.h"
 #include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
+#include "EWEStatusViewModel.h"
+#include "EWETargetInfoViewModel.h"
+#include "EWEQuickSlotViewModel.h"
+#include "EWE/Character/EWECharacter.h"
+#include "EWE/Character/EWEInventoryComponent.h"
+#include "EasyWeaponryEnchanter/Interface/EWECharacterInterface.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include "View/MVVMView.h"
 
 // Initialize subsystem
 void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
     Super::Initialize(Collection);
 
-    // Pre-load UIAssets during initialization
     const UEWESettings *Settings = GetDefault<UEWESettings>();
-    if (Settings && !Settings->UIConfigAsset.IsNull())
+    if (Settings && Settings->UIConfigAsset.IsValid())
     {
-        UIConfigAsset = Settings->UIConfigAsset.LoadSynchronous();
+        UIConfigAsset = Settings->UIConfigAsset.Get();
     }
+
+    CreateQuickSlotViewModel();
 }
 
 // Cleanup on shutdown
 void UEWELocalUIManageSubsystem::Deinitialize()
 {
+    // UEWEUIAsset outlives this subsystem, so never leave a subscription behind.
+    ClearUILoadedSubscription();
+
+    // Tear the view model down before the widget, so the widget's injected
+    // reference is still valid while we unsubscribe.
+    if (QuickSlotViewModel)
+    {
+        QuickSlotViewModel->OnSlotSelected.RemoveAll(this);
+        QuickSlotViewModel = nullptr;
+    }
+
+    // Drop the inventory subscription; it must not outlive this subsystem.
+    if (UEWEInventoryComponent *Inventory = BoundInventory.Get())
+    {
+        Inventory->OnWeaponsSynced.RemoveDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
+    }
+    BoundInventory = nullptr;
+
     // Destroy widgets
     if (InventoryWidget)
     {
@@ -42,15 +68,26 @@ void UEWELocalUIManageSubsystem::Deinitialize()
         QuickSlotWidget = nullptr;
     }
 
+    if (StatusViewModel)
+    {
+        StatusViewModel->SetSource(nullptr);
+        StatusViewModel = nullptr;
+    }
+
     if (StatusWidget)
     {
         StatusWidget->RemoveFromParent();
         StatusWidget = nullptr;
     }
 
+    if (TargetInfoViewModel)
+    {
+        TargetInfoViewModel->ClearTarget();
+        TargetInfoViewModel = nullptr;
+    }
+
     if (TargetInfoWidget)
     {
-        TargetInfoWidget->UnbindTargetAttributeSet();
         TargetInfoWidget->RemoveFromParent();
         TargetInfoWidget = nullptr;
     }
@@ -62,7 +99,54 @@ void UEWELocalUIManageSubsystem::PlayerControllerChanged(APlayerController *NewP
 {
     CurrentPlayerController = NewPlayerController;
 
-    UIConfigAsset->AsyncLoadWidgetClass(this);
+    // This fires more than once per session (possession, respawn, non-seamless travel).
+    // The essential HUD is owned by this subsystem and outlives the controller, so once
+    // it is on screen there is nothing to load and nothing to create.
+    if (AreEssentialWidgetsInViewport())
+    {
+        return;
+    }
+
+    UEWEUIAsset *UIConfig = UIConfigAsset.Get();
+    if (!UIConfig)
+    {
+        EWE_LOG(LogEWE, Error, TEXT("PlayerControllerChanged: UIConfigAsset is not loaded"));
+        return;
+    }
+
+    if (UIConfig->IsWidgetsLoaded())
+    {
+        AddUIWidgets();
+        return;
+    }
+
+    // Widget classes are still streaming. Subscribe once; re-entry before the load
+    // completes must not stack duplicate callbacks.
+    if (!UILoadedHandle.IsValid())
+    {
+        UILoadedHandle = UIConfig->OnUILoaded.AddUObject(this, &UEWELocalUIManageSubsystem::AddUIWidgets);
+    }
+}
+
+bool UEWELocalUIManageSubsystem::AreEssentialWidgetsInViewport() const
+{
+    return QuickSlotWidget && QuickSlotWidget->IsInViewport() && StatusWidget && StatusWidget->IsInViewport() &&
+           TargetInfoWidget && TargetInfoWidget->IsInViewport();
+}
+
+void UEWELocalUIManageSubsystem::ClearUILoadedSubscription()
+{
+    if (!UILoadedHandle.IsValid())
+    {
+        return;
+    }
+
+    if (UEWEUIAsset *UIConfig = UIConfigAsset.Get())
+    {
+        UIConfig->OnUILoaded.Remove(UILoadedHandle);
+    }
+
+    UILoadedHandle.Reset();
 }
 
 const UEWEUIAsset *UEWELocalUIManageSubsystem::GetUIConfigAsset() const
@@ -77,8 +161,12 @@ const UEWEUIAsset *UEWELocalUIManageSubsystem::GetUIConfigAsset() const
     return UIConfig;
 }
 
-void UEWELocalUIManageSubsystem::CreateUIWidgets()
+void UEWELocalUIManageSubsystem::AddUIWidgets()
 {
+    // OnUILoaded is a one-shot for this subsystem. Drop the subscription whether we
+    // arrived here from the callback or directly from PlayerControllerChanged.
+    ClearUILoadedSubscription();
+
     // Create widgets when ASyncLoad is ready (always visible)
     CreateQuickSlotWidget();
     CreateStatusWidget();
@@ -154,7 +242,11 @@ void UEWELocalUIManageSubsystem::CreateInventoryWidget()
     if (InventoryWidget)
         return;
 
-    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->InventoryWidgetClass;
+    const UEWEUIAsset *UIConfig = GetUIConfigAsset();
+    if (!UIConfig)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = UIConfig->InventoryWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("InventoryWidgetClass not set in UEWEUIAsset"));
@@ -175,12 +267,56 @@ void UEWELocalUIManageSubsystem::CreateInventoryWidget()
 
 #pragma region QuickSlot
 
+void UEWELocalUIManageSubsystem::CreateQuickSlotViewModel()
+{
+    if (QuickSlotViewModel)
+        return;
+
+    QuickSlotViewModel = NewObject<UEWEQuickSlotViewModel>(this);
+
+    // Subscribe exactly once, at creation. Never inside BindQuickSlot(), which runs
+    // more than once and returns early on several paths.
+    QuickSlotViewModel->OnSlotSelected.AddUObject(
+        this, &UEWELocalUIManageSubsystem::HandleSlotSelected);
+
+    // The slot array stays empty until the widget attaches and sizes it.
+}
+
+void UEWELocalUIManageSubsystem::HandleSlotSelected(int32 SlotIndex, UEWEWeaponData *Weapon)
+{
+    if (!IsValid(CurrentPlayerController))
+        return;
+
+    APawn *CurrentPawn = CurrentPlayerController->GetPawn();
+    if (!CurrentPawn)
+    {
+        EWE_LOG(LogEWE, Warning, TEXT("HandleSlotSelected: no pawn possessed"));
+        return;
+    }
+
+    // EquipWeapon is a pure virtual on IEWECharacterInterface. Do not cast to the
+    // concrete AEWECharacter here.
+    IEWECharacterInterface *CharacterInterface = Cast<IEWECharacterInterface>(CurrentPawn);
+    if (!CharacterInterface)
+    {
+        EWE_LOG(LogEWE, Warning, TEXT("HandleSlotSelected: pawn does not implement IEWECharacterInterface"));
+        return;
+    }
+
+    // Weapon may be nullptr — selecting an empty slot unequips. See EquipWeapon().
+    CharacterInterface->EquipWeapon(Weapon);
+}
+
 void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
 {
     if (QuickSlotWidget)
         return;
 
-    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->QuickSlotWidgetClass;
+    const UEWEUIAsset *UIConfig = GetUIConfigAsset();
+    if (!UIConfig)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = UIConfig->QuickSlotWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("QuickSlotWidgetClass not set in UEWEUIAsset"));
@@ -195,6 +331,91 @@ void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
     }
 
     QuickSlotWidget->AddToViewport();
+
+    QuickSlotWidget->SetViewModel(QuickSlotViewModel);
+
+    BindQuickSlot();
+}
+
+void UEWELocalUIManageSubsystem::BindQuickSlot()
+{
+    // No QuickSlotWidget check on purpose. The view model outlives the widget and
+    // must be able to hold data before any widget exists.
+    if (!IsValid(CurrentPlayerController) || !QuickSlotViewModel)
+        return;
+
+    // Subscribe first. The guards below return early on several paths, and a
+    // subscription placed after them would silently never happen.
+    SubscribeToInventory();
+
+    // The widget owns the slot count, so there is nothing to fill until it attaches.
+    // This is expected on the possession path and must not log as a warning.
+    if (QuickSlotViewModel->GetSlotCount() == 0)
+    {
+        EWE_LOG(LogEWE, Verbose, TEXT("BindQuickSlot: slots not sized yet, deferring"));
+        return;
+    }
+
+    SeedQuickSlotFromInventory();
+}
+
+void UEWELocalUIManageSubsystem::SubscribeToInventory()
+{
+    APawn *CurrentPawn = CurrentPlayerController->GetPawn();
+    if (!CurrentPawn)
+        return;
+
+    UEWEInventoryComponent *Inventory = CurrentPawn->FindComponentByClass<UEWEInventoryComponent>();
+    if (!Inventory)
+    {
+        EWE_LOG(LogEWE, Warning, TEXT("SubscribeToInventory: inventory component not found on pawn"));
+        return;
+    }
+
+    if (BoundInventory.Get() == Inventory)
+        return;
+
+    // The pawn may have been replaced. Drop the previous subscription first.
+    if (UEWEInventoryComponent *Previous = BoundInventory.Get())
+    {
+        Previous->OnWeaponsSynced.RemoveDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
+    }
+
+    Inventory->OnWeaponsSynced.AddDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
+    BoundInventory = Inventory;
+}
+
+void UEWELocalUIManageSubsystem::SeedQuickSlotFromInventory()
+{
+    if (!QuickSlotViewModel || QuickSlotViewModel->GetSlotCount() == 0)
+        return;
+
+    UEWEInventoryComponent *Inventory = BoundInventory.Get();
+    if (!Inventory)
+        return;
+
+    // Seed only when nothing has been assigned yet. A rebuild must not overwrite
+    // an arrangement the player already changed.
+    if (QuickSlotViewModel->IsEmpty())
+    {
+        QuickSlotViewModel->SeedFromInventory(Inventory->GetAllWeapons());
+    }
+
+    // Ensure a slot is selected — whether the data arrived through the seed
+    // above or through the AddWeapon() relay. Selecting an empty slot
+    // broadcasts nullptr (unarmed), which is correct while the inventory is
+    // still empty.
+    if (QuickSlotViewModel->GetSelectedIndex() == INDEX_NONE)
+    {
+        QuickSlotViewModel->SelectSlot(0);
+    }
+}
+
+void UEWELocalUIManageSubsystem::HandleWeaponsSynced(const TArray<UEWEWeaponData *> &InWeapons, int32 NewCount)
+{
+    // The widget may still be missing. CreateQuickSlotWidget() calls BindQuickSlot()
+    // afterwards, so that path picks the data up instead.
+    SeedQuickSlotFromInventory();
 }
 
 void UEWELocalUIManageSubsystem::AddWeaponToQuickSlot(UEWEWeaponData *Weapon)
@@ -204,47 +425,42 @@ void UEWELocalUIManageSubsystem::AddWeaponToQuickSlot(UEWEWeaponData *Weapon)
         EWE_LOG(LogEWE, Warning, TEXT("AddWeaponToQuickSlot: Weapon is null"));
         return;
     }
-
-    if (!QuickSlotWidget)
+    if (!QuickSlotViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("AddWeaponToQuickSlot: QuickSlotWidget not created"));
+        EWE_LOG(LogEWE, Warning, TEXT("AddWeaponToQuickSlot: view model not created"));
         return;
     }
-
-    QuickSlotWidget->AddWeapon(Weapon);
+    QuickSlotViewModel->AddWeapon(Weapon);
 }
 
 void UEWELocalUIManageSubsystem::SetQuickSlot(int32 SlotIndex, UEWEWeaponData *Weapon)
 {
-    if (!QuickSlotWidget)
+    if (!QuickSlotViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("SetQuickSlot: QuickSlotWidget not created"));
+        EWE_LOG(LogEWE, Warning, TEXT("SetQuickSlot: view model not created"));
         return;
     }
-
-    QuickSlotWidget->SetWeaponSlot(SlotIndex, Weapon);
+    QuickSlotViewModel->SetSlot(SlotIndex, Weapon);
 }
 
 void UEWELocalUIManageSubsystem::SelectQuickSlot(int32 SlotIndex)
 {
-    if (!QuickSlotWidget)
+    if (!QuickSlotViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("SelectQuickSlot: QuickSlotWidget not created"));
+        EWE_LOG(LogEWE, Warning, TEXT("SelectQuickSlot: view model not created"));
         return;
     }
-
-    QuickSlotWidget->K2_SelectSlot(SlotIndex);
+    QuickSlotViewModel->SelectSlot(SlotIndex);
 }
 
 void UEWELocalUIManageSubsystem::ScrollQuickSlot(float ScrollDirection)
 {
-    if (!QuickSlotWidget)
+    if (!QuickSlotViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("ScrollQuickSlot: QuickSlotWidget not created"));
+        EWE_LOG(LogEWE, Warning, TEXT("ScrollQuickSlot: view model not created"));
         return;
     }
-
-    QuickSlotWidget->K2_ScrollSlot(ScrollDirection);
+    QuickSlotViewModel->ScrollSlot(ScrollDirection);
 }
 
 #pragma endregion
@@ -256,7 +472,11 @@ void UEWELocalUIManageSubsystem::CreateStatusWidget()
     if (StatusWidget)
         return;
 
-    TSoftClassPtr<UUserWidget> WidgetClass = GetUIConfigAsset()->StatusWidgetClass;
+    const UEWEUIAsset *UIConfig = GetUIConfigAsset();
+    if (!UIConfig)
+        return;
+
+    TSoftClassPtr<UUserWidget> WidgetClass = UIConfig->StatusWidgetClass;
     if (!WidgetClass)
     {
         EWE_LOG(LogEWE, Error, TEXT("StatusWidgetClass not set in UEWEUIAsset"));
@@ -272,34 +492,67 @@ void UEWELocalUIManageSubsystem::CreateStatusWidget()
 
     StatusWidget->AddToViewport();
 
-    // Bind AttributeSet to the widget
-    if (!CurrentPlayerController)
+    // Create the ViewModel instance.
+    StatusViewModel = NewObject<UEWEStatusViewModel>(this);
+    UMVVMView *MVVMView = StatusWidget->GetExtension<UMVVMView>();
+    if (!MVVMView)
     {
+        EWE_LOG(LogEWE, Warning, TEXT("WBP_Status has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
         return;
     }
 
-    if (APawn *Pawn = CurrentPlayerController->GetPawn<APawn>())
+    // Inject the ViewModel into the Blueprint widget.
+    MVVMView->SetViewModel(FName(TEXT("EWEStatusViewModel")), StatusViewModel);
+
+    BindStatus();
+}
+
+void UEWELocalUIManageSubsystem::BindStatus()
+{
+    if (!CurrentPlayerController || !StatusWidget || !StatusViewModel)
+        return;
+
+    APawn *CurrentPawn = CurrentPlayerController->GetPawn();
+    if (!CurrentPawn)
+        return;
+
+    IAbilitySystemInterface *CurrentPawnASI = Cast<IAbilitySystemInterface>(CurrentPawn);
+    if (!CurrentPawnASI)
+        return;
+
+    UAbilitySystemComponent *CurrentPawnASC = CurrentPawnASI->GetAbilitySystemComponent();
+    if (!CurrentPawnASC)
     {
-        if (AEWECharacter *EWEChar = Cast<AEWECharacter>(Pawn))
-        {
-            if (UEWEAttributeBase *AttributeSet = EWEChar->GetCharacterAttribute())
-            {
-                StatusWidget->BindAttributeSet(AttributeSet);
-            }
-        }
+        EWE_LOG(LogEWE, Warning, TEXT("CreateStatusWidget: ASC not found on pawn"));
+        return;
     }
+
+    StatusViewModel->SetSource(CurrentPawnASC);
 }
 
 #pragma endregion
 
 #pragma region TargetInfo
 
+void UEWELocalUIManageSubsystem::BindTargetInfo()
+{
+    if (!IsValid(CurrentPlayerController) || !TargetInfoViewModel)
+        return;
+
+    AEWECharacter *Char = Cast<AEWECharacter>(CurrentPlayerController->GetPawn());
+    if (!Char)
+        return;
+
+    // Re-query the focused target so a late widget does not stay blank.
+    Char->RefreshTargetInfo();
+}
+
 void UEWELocalUIManageSubsystem::CreateTargetInfoWidget()
 {
     if (TargetInfoWidget)
         return;
 
-    const UEWEUIAsset* UIConfig = GetUIConfigAsset();
+    const UEWEUIAsset *UIConfig = GetUIConfigAsset();
     if (!UIConfig)
         return;
 
@@ -319,56 +572,68 @@ void UEWELocalUIManageSubsystem::CreateTargetInfoWidget()
 
     TargetInfoWidget->AddToViewport();
     TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
+
+    // Create the ViewModel and inject it into the Blueprint widget.
+    TargetInfoViewModel = NewObject<UEWETargetInfoViewModel>(this);
+    UMVVMView *MVVMView = TargetInfoWidget->GetExtension<UMVVMView>();
+    if (!MVVMView)
+    {
+        EWE_LOG(LogEWE, Warning,
+                TEXT("TargetInfo widget has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
+        return;
+    }
+
+    MVVMView->SetViewModel(FName(TEXT("EWETargetInfoViewModel")), TargetInfoViewModel);
+
+    BindTargetInfo();
 }
 
 void UEWELocalUIManageSubsystem::ShowTargetInfo()
 {
-    if (TargetInfoWidget)
-    {
-        TargetInfoWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
-    }
+    if (!TargetInfoWidget)
+        return;
+
+    TargetInfoWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void UEWELocalUIManageSubsystem::HideTargetInfo()
 {
-    if (TargetInfoWidget)
-    {
-        TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
-    }
+    if (!TargetInfoWidget)
+        return;
+
+    TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
 }
 
-void UEWELocalUIManageSubsystem::UpdateTargetName(const FText& TargetName)
+void UEWELocalUIManageSubsystem::UpdateTargetName(const FText &TargetName)
 {
-    if (!TargetInfoWidget)
+    if (!TargetInfoViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetInfo: TargetInfoWidget not created"));
+        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetName: TargetInfoViewModel not created"));
         return;
     }
 
-    TargetInfoWidget->BindTarget(TargetName);
+    TargetInfoViewModel->SetTarget(TargetName);
     ShowTargetInfo();
 }
 
-void UEWELocalUIManageSubsystem::UpdateTargetInfo(const FText& TargetName, UEWEAttributeBase* TargetAttributeSet)
+void UEWELocalUIManageSubsystem::UpdateTargetInfo(const FText &TargetName, UAbilitySystemComponent *TargetASC)
 {
-    if (!TargetInfoWidget)
+    if (!TargetInfoViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetInfo: TargetInfoWidget not created"));
+        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetInfo: TargetInfoViewModel not created"));
         return;
     }
 
-    TargetInfoWidget->BindTargetAttributeSet(TargetName, TargetAttributeSet);
+    TargetInfoViewModel->SetTarget(TargetName, TargetASC);
     ShowTargetInfo();
 }
 
 void UEWELocalUIManageSubsystem::ClearTargetInfo()
 {
-    if (!TargetInfoWidget)
-    {
+    if (!TargetInfoViewModel)
         return;
-    }
 
-    TargetInfoWidget->UnbindTargetAttributeSet();
+    TargetInfoViewModel->ClearTarget();
     HideTargetInfo();
 }
 

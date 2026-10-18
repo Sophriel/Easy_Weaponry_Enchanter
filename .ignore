@@ -1,4 +1,11 @@
+/.claude/projects
+/.claude/todos
+/.claude/shell-snapshots
+/.claude/statsig
+/.claude/debug
+/.claude/*.log
 /.git
+/.github
 /.vs
 /.vscode
 /Binaries

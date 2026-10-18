@@ -8,16 +8,40 @@
 
 ---
 
-## 기본 원칙 (변경 금지)
+## GA 실행 정책
 
 ```
-모든 GA 발동은 Server Confirm 이후 실행.
-클라이언트 예측(Prediction) 없음.
-서버 Confirm 전 클라이언트 피드백 없음.
+GA 의 NetExecutionPolicy 는 GA 마다 선택한다. EWE 는 특정 정책을 강요하지 않는다.
+판단 기준은 조작감이다. GA 제작자가 스스로 결정한다.
 ```
 
-이 원칙 때문에 레이턴시 환경에서 체감 반응이 늦을 수 있으나,
-동기화 문제를 사전 차단하는 것을 우선으로 설계됨.
+| 정책 | 권장 대상 | 특징 |
+|------|-----------|------|
+| `LocalPredicted` | 재사용 빈도가 높은 GA (기본 공격, 연타 입력) | 클라이언트가 먼저 실행하고 서버가 확인한다. 반응이 빠르다 |
+| `ServerInitiated` | 재사용 빈도가 낮은 GA | 서버가 먼저 실행하고 클라이언트가 뒤따른다 |
+| `ServerOnly` | 판정·상태 변경 전용 GA | 서버에서만 실행한다. 결과는 GE / Attribute 복제로 전달된다 |
+
+### 강제 예외 — 장착 GA
+
+```
+UEWEGA_DefaultOnEquip 은 ServerOnly 를 강제한다.
+  - 생성자에서 ServerOnly 로 설정
+  - IsDataValid 에서 BP 가 값을 바꾸면 에러
+  - OnAvatarSet 에서 ServerOnly 가 아니면 Warning 후 활성화하지 않음
+```
+
+근거: 이 GA 의 역할은 장착 GE 를 거는 것뿐이다.
+클라이언트는 prediction key 없이 GE 를 적용할 수 없으므로 (`AbilitySystemComponent.cpp:813`)
+클라이언트 실행은 의미가 없다. 장착 GE 와 Attribute 는 서버에서 복제된다.
+
+### 현재 상태와 전환 계획
+
+```
+현재 모든 GA 는 엔진 기본값 LocalPredicted 로 개발한다.
+서버 경로 작업 (EquipWeapon 서버 RPC 등) 이 끝난 뒤,
+ServerOnly 가 필요한 GA 를 하나씩 전환한다.
+→ CLAUDE.md "미결 항목" 에서 추적
+```
 
 ---
 
@@ -25,11 +49,14 @@
 
 ### GA 발동
 
+EWE 는 GA 발동용 RPC 를 따로 두지 않는다. 엔진의 `TryActivateAbility` 경로를 그대로 쓴다.
+
 ```
-Client → Server_RequestActivateAbility() [ServerRPC]
-Server → 유효성 검증 (Trigger, Condition, Cooldown)
-       → 승인 시: GA 활성화 + Multicast로 시각 효과 전파
-       → 거부 시: 무응답 (클라이언트 피드백 없음)
+Client → TryActivateAbility (입력: AbilityLocalInputPressed)
+  LocalPredicted  → 클라이언트 예측 실행 + ServerTryActivateAbility → 서버 확인 / 거부 시 롤백
+  ServerInitiated → ServerTryActivateAbility → 서버 실행 → 클라이언트 실행
+  ServerOnly      → ServerTryActivateAbility → 서버에서만 실행
+Server → 유효성 검증 (Trigger, Condition, Cooldown) 은 CanActivateAbility 에서 수행
 ```
 
 ### 독립 오브젝트 (Creation Function)
@@ -124,7 +151,7 @@ Client → 붉은 테두리 효과 표시 (이미 표시 중이면 무시)
 ```cpp
 // Server RPC: Server_ 접두사
 UFUNCTION(Server, Reliable)
-void Server_RequestActivateAbility(FGameplayAbilitySpecHandle Handle);
+void Server_RequestTeleport(FVector RequestedLocation);
 
 // Client RPC: Client_ 접두사
 UFUNCTION(Client, Reliable)
@@ -139,7 +166,7 @@ void Multicast_ApplyFreeze(AActor* TargetActor);
 
 | 구분 | 사용 케이스 |
 |------|------------|
-| `Reliable` | GA 발동, 위치 변경, 상태 변화 등 게임플레이에 영향 |
+| `Reliable` | 위치 변경, 상태 변화 등 게임플레이에 영향 |
 | `Unreliable` | 파티클, 사운드, 피격 알림 등 시각/청각 효과 |
 
 ---
@@ -147,6 +174,9 @@ void Multicast_ApplyFreeze(AActor* TargetActor);
 ## 복제 설정 (Replication)
 
 ### AEWEWeaponActor
+
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
+> 현재 무기는 `UEWEWeaponData` (DataAsset) 이고 액터로 스폰되지 않는다. 메시는 캐릭터의 `WeaponMesh` 컴포넌트가 표시한다.
 
 ```cpp
 AEWEWeaponActor::AEWEWeaponActor()

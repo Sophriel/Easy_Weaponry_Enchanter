@@ -7,9 +7,10 @@ Not a skill authoring tool — an **event combinator**.
 
 ## Requirements
 
-- `GameplayAbilities` plugin
-- `GameplayTags` plugin
-- `EnhancedInput` plugin
+- `GameplayAbilities` plugin for core GAS framework
+- `GameplayTags` plugin for tag-based condition & filtering
+- `EnhancedInput` plugin for input binding
+- `ModelViewViewModel` plugin for UI
 
 ## Features
 
@@ -18,6 +19,7 @@ Not a skill authoring tool — an **event combinator**.
 - **Async Asset Loading**: Weapons, UI, and other game assets are loaded asynchronously when needed. Each consumer holds a strong reference, delegating lifetime management to GC.
 - **Event-Driven Inventory**: Weapon acquisition, removal, and synchronization through delegates. Components communicate via events with no direct dependencies.
 - **Plugin Module Split**: Strict separation between EWERuntime and EWEEditor via `WITH_EDITOR`.
+- **MVVM UI Architecture**: UI views bind to ViewModels via the `ModelViewViewModel` plugin, decoupling UMG widgets from gameplay logic.
 
 ## In Progress
 
@@ -32,5 +34,4 @@ Not a skill authoring tool — an **event combinator**.
 
 ## AI Cooperation
 
-- `Continue` extension for VSCode
 - `Claude Code` MD files included

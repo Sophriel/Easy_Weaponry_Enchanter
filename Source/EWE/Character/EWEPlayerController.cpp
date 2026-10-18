@@ -7,25 +7,22 @@
 #include "EasyWeaponryEnchanter/Public/EasyWeaponryEnchanter.h"
 #include "AbilitySystemComponent.h"
 
-void AEWEPlayerController::BeginPlay()
+void AEWEPlayerController::AcknowledgePossession(APawn *P)
 {
-    Super::BeginPlay();
+    Super::AcknowledgePossession(P);
 
-    if (ULocalPlayer *LocalPlayer = GetLocalPlayer())
+    ULocalPlayer *LocalPlayer = GetLocalPlayer();
+    if (LocalPlayer)
     {
         // Cache UIManager reference for performance
         CachedUIManager = LocalPlayer->GetSubsystem<UEWELocalUIManageSubsystem>();
     }
-}
 
-void AEWEPlayerController::AcknowledgePossession(APawn *P)
-{
-    Super::AcknowledgePossession(P);
-    AEWECharacter *CharacterBase = Cast<AEWECharacter>(P);
-
-    if (CharacterBase)
+    if (CachedUIManager)
     {
-        CharacterBase->GetAbilitySystemComponent()->InitAbilityActorInfo(CharacterBase, CharacterBase);
+        CachedUIManager->BindStatus();
+        CachedUIManager->BindQuickSlot();
+        CachedUIManager->BindTargetInfo();
     }
 }
 
@@ -74,34 +71,35 @@ UEWEWeaponData *AEWEPlayerController::GetSelectedWeaponDataFromInventory()
 
 void AEWEPlayerController::AddWeapon(UEWEWeaponData *Weapon)
 {
-    if (CachedUIManager)
+    if (!CachedUIManager)
     {
-        CachedUIManager->AddWeaponToQuickSlot(Weapon);
+        EWE_LOG(LogEWE, Warning, TEXT("AddWeapon: UI manager not cached yet"));
+        return;
     }
-}
 
-void AEWEPlayerController::SetSlot(const uint8 SlotIndex, UEWEWeaponData *Weapon)
-{
-    if (CachedUIManager)
-    {
-        CachedUIManager->SetQuickSlot(SlotIndex, Weapon);
-    }
+    CachedUIManager->AddWeaponToQuickSlot(Weapon);
 }
 
 void AEWEPlayerController::SelectSlot(const uint8 SlotIndex)
 {
-    if (CachedUIManager)
+    if (!CachedUIManager)
     {
-        CachedUIManager->SelectQuickSlot(SlotIndex);
+        EWE_LOG(LogEWE, Warning, TEXT("SelectSlot: UI manager not cached yet"));
+        return;
     }
+
+    CachedUIManager->SelectQuickSlot(SlotIndex);
 }
 
 void AEWEPlayerController::ScrollSlot(const float ScrollDirection)
 {
-    if (CachedUIManager)
+    if (!CachedUIManager)
     {
-        CachedUIManager->ScrollQuickSlot(ScrollDirection);
+        EWE_LOG(LogEWE, Warning, TEXT("ScrollSlot: UI manager not cached yet"));
+        return;
     }
+
+    CachedUIManager->ScrollQuickSlot(ScrollDirection);
 }
 
 void AEWEPlayerController::AssignSelectedInventoryItemToSlot(int32 SlotIndex)
@@ -130,11 +128,11 @@ void AEWEPlayerController::UpdateTargetName(const FText &TargetName)
     }
 }
 
-void AEWEPlayerController::UpdateTargetInfo(const FText &TargetName, UEWEAttributeBase *TargetAttributeSet)
+void AEWEPlayerController::UpdateTargetInfo(const FText &TargetName, UAbilitySystemComponent *TargetASC)
 {
     if (CachedUIManager)
     {
-        CachedUIManager->UpdateTargetInfo(TargetName, TargetAttributeSet);
+        CachedUIManager->UpdateTargetInfo(TargetName, TargetASC);
     }
 }
 

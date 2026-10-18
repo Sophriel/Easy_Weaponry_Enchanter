@@ -2,28 +2,43 @@
 
 #include "EWEInventoryComponent.h"
 #include "EWE/EWELog.h"
-#include "EWE/Character/EWEPlayerController.h"
 #include "EasyWeaponryEnchanter/Interface/EWECharacterInterface.h"
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
 #include "Engine/AssetManager.h"
 
 UEWEInventoryComponent::UEWEInventoryComponent()
 {
-    // Set this component to be initialized when the game starts, and to be ticked every frame.
-    // You can turn these features off to improve performance if you don't need them.
-    PrimaryComponentTick.bCanEverTick = true;
+    // Set this component to be initialized when the game starts.
+    // No TickComponent override exists, so ticking is disabled.
+    PrimaryComponentTick.bCanEverTick = false;
     bWantsInitializeComponent = true;
+}
+
+bool UEWEInventoryComponent::IsValidWeaponIndex(int32 Index) const
+{
+    if (!Weapons.IsValidIndex(Index))
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Invalid weapon index: %d"), Index);
+        return false;
+    }
+    return true;
 }
 
 UEWEWeaponData *UEWEInventoryComponent::GetWeapon(int32 TargetWeapon)
 {
-    Weapons.RangeCheck(TargetWeapon);
+    if (!IsValidWeaponIndex(TargetWeapon))
+        return nullptr;
+
     return Weapons[TargetWeapon];
 }
 
 void UEWEInventoryComponent::AcquireWeapon(UEWEWeaponData *NewWeapon)
 {
-    check(NewWeapon);
+    if (NewWeapon == nullptr)
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("AcquireWeapon: null weapon"));
+        return;
+    }
 
     // Check if weapon already exists (prevent duplicates)
     for (const auto &ExistingWeapon : Weapons)
@@ -43,13 +58,28 @@ void UEWEInventoryComponent::AcquireWeapon(UEWEWeaponData *NewWeapon)
     EWE_LOG(LogEWEInventory, Log, TEXT("Weapon acquired: %s (Total: %d)"), *NewWeapon->GetName(), Weapons.Num());
 }
 
+void UEWEInventoryComponent::AddWeaponSilent(UEWEWeaponData *NewWeapon)
+{
+    if (NewWeapon == nullptr)
+        return;
+
+    // Check if weapon already exists (prevent duplicates)
+    for (const auto &ExistingWeapon : Weapons)
+    {
+        if (ExistingWeapon == NewWeapon)
+        {
+            EWE_LOG(LogEWEInventory, Warning, TEXT("Weapon already exists: %s"), *NewWeapon->GetName());
+            return;
+        }
+    }
+
+    Weapons.Add(NewWeapon);
+}
+
 void UEWEInventoryComponent::RemoveWeapon(int32 Index)
 {
-    if (!Weapons.IsValidIndex(Index))
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Invalid weapon index: %d"), Index);
+    if (!IsValidWeaponIndex(Index))
         return;
-    }
 
     UEWEWeaponData *RemovedWeapon = Weapons[Index];
     Weapons.RemoveAt(Index);
@@ -75,44 +105,17 @@ void UEWEInventoryComponent::BeginPlay()
     OwnerCharacter.SetInterface(Cast<IEWECharacterInterface>(GetOwner()));
     check(OwnerCharacter);
 
-    APawn *OwnerPawn = Cast<APawn>(GetOwner());
-    AEWEPlayerController *EWEPC = Cast<AEWEPlayerController>(OwnerPawn->GetController());
-    check(EWEPC);
-
-    uint8 WeaponIndex = 0;
-    for (const TSoftObjectPtr<UEWEWeaponData> &WeaponData : InitialWeapons)
-    {
-        if (WeaponData.IsValid() == false)
-            continue;
-
-        if (WeaponData.IsPending() == true)
-            WeaponData.LoadSynchronous();
-
-        UEWEWeaponData *LoadedWeapon = WeaponData.Get();
-        AcquireWeapon(LoadedWeapon);
-
-        // @@@@@ TEMP: Init QuickSlot Data with Initial Weapons
-        EWEPC->SetSlot(WeaponIndex, LoadedWeapon);
-
-        ++WeaponIndex;
-    }
-
-    if (Weapons.IsEmpty() == true)
-        return;
-
-    // Sync all weapons with inventory UI
-    SyncInventoryUI();
-
-    OwnerCharacter->EquipWeapon(Weapons[0]);
-    EWEPC->SelectSlot(0);
+    TryApplyInitialLoadout();
 }
 
 void UEWEInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    for (TObjectPtr<UEWEWeaponData> &Weapon : Weapons)
+    if (InitialWeaponsHandle.IsValid())
     {
-        Weapon = nullptr;
+        InitialWeaponsHandle->ReleaseHandle();
+        InitialWeaponsHandle.Reset();
     }
+
     Weapons.Empty();
 
     Super::EndPlay(EndPlayReason);
@@ -128,37 +131,71 @@ void UEWEInventoryComponent::SyncInventoryUI()
 
 void UEWEInventoryComponent::LoadInitialWeaponsAsync()
 {
-    for (TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
+    TArray<FSoftObjectPath> WeaponPaths;
+    WeaponPaths.Reserve(InitialWeapons.Num());
+
+    for (const TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
     {
-        LoadWeaponAsync(WeaponAsset);
+        if (WeaponAsset.IsNull())
+            continue;
+
+        WeaponPaths.Add(WeaponAsset.ToSoftObjectPath());
     }
+
+    if (WeaponPaths.IsEmpty())
+    {
+        // Nothing to stream. Treat as immediately complete.
+        OnInitialWeaponsLoaded();
+        return;
+    }
+
+    FStreamableManager &StreamableManager = UAssetManager::GetStreamableManager();
+    InitialWeaponsHandle = StreamableManager.RequestAsyncLoad(
+        WeaponPaths, FStreamableDelegate::CreateUObject(this, &UEWEInventoryComponent::OnInitialWeaponsLoaded));
 }
 
-void UEWEInventoryComponent::LoadWeaponAsync(TSoftObjectPtr<UEWEWeaponData> WeaponAsset)
+void UEWEInventoryComponent::OnInitialWeaponsLoaded()
 {
-    if (!WeaponAsset.IsPending())
+    for (const TSoftObjectPtr<UEWEWeaponData> &WeaponAsset : InitialWeapons)
     {
-        if (WeaponAsset.IsValid())
+        if (WeaponAsset.IsNull())
+            continue;   // Empty slot in InitialWeapons — not an error.
+
+        if (!WeaponAsset.IsValid())
         {
-            WeaponAsset->LoadWeaponAssets();
+            EWE_LOG(LogEWEInventory, Error, TEXT("Initial weapon failed to load: %s"), *WeaponAsset.ToString());
+            continue;   // Genuine load failure.
         }
-        return;
+
+        UEWEWeaponData *LoadedWeapon = WeaponAsset.Get();
+        LoadedWeapon->LoadWeaponAssets();
+
+        // No per-weapon broadcast during the initial batch. TryApplyInitialLoadout()
+        // sends one OnWeaponsSynced for the whole list instead.
+        AddWeaponSilent(LoadedWeapon);
     }
 
-    FStreamableManager &StreamableManager = UAssetManager::Get().GetStreamableManager();
-    StreamableManager.RequestAsyncLoad(
-        WeaponAsset.ToSoftObjectPath(),
-        FStreamableDelegate::CreateUObject(this, &UEWEInventoryComponent::OnWeaponLoaded, WeaponAsset));
+    bInitialWeaponsLoaded = true;
+    TryApplyInitialLoadout();
 }
 
-void UEWEInventoryComponent::OnWeaponLoaded(TSoftObjectPtr<UEWEWeaponData> WeaponAsset)
+void UEWEInventoryComponent::TryApplyInitialLoadout()
 {
-    if (!WeaponAsset.IsValid())
-    {
-        EWE_LOG(LogEWEInventory, Error, TEXT("Asset %s AsyncLoad Failed"), *WeaponAsset.GetAssetName());
+    if (bInitialLoadoutApplied)
         return;
-    }
 
-    WeaponAsset->LoadWeaponAssets();
-    Weapons.Add(WeaponAsset.Get());
+    // Both gates must be satisfied. Either may complete first.
+    if (!HasBegunPlay() || !bInitialWeaponsLoaded)
+        return;
+
+    bInitialLoadoutApplied = true;
+
+    if (Weapons.IsEmpty())
+        return;
+
+    // Broadcast only. Subscribers decide on seeding, selection and equipping —
+    // the inventory has no reason to know a slot index or to equip anything.
+    SyncInventoryUI();
+
+    EWE_LOG(LogEWEInventory, Log, TEXT("Initial loadout broadcast: %d weapons"), Weapons.Num());
 }

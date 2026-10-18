@@ -2,6 +2,10 @@
 # Wired up as a PostToolUse hook in .claude/settings.json.
 # Hook payload arrives on stdin as JSON containing tool_input.file_path.
 
+# Force UTF-8 output so Korean error messages are not mangled by the CP949 console codepage.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 $ErrorActionPreference = 'Stop'
 
 try {

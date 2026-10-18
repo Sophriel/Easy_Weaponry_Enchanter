@@ -7,7 +7,7 @@
 #include "EWEQuickSlot.generated.h"
 
 /**
- *
+ * Quick slot bar widget (View only). Data lives in UEWEQuickSlotViewModel.
  */
 UCLASS()
 class EWE_API UEWEQuickSlot : public UUserWidget
@@ -15,24 +15,12 @@ class EWE_API UEWEQuickSlot : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintImplementableEvent, Category = QuickSlot, Meta = (DisplayName = "OnInitSlot"))
-	void K2_InitSlot();
-
-	UFUNCTION(BlueprintImplementableEvent, Category = QuickSlot, Meta = (DisplayName = "OnSelectSlot"))
-	void K2_SelectSlot(int32 SlotIndex);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = QuickSlot, Meta = (DisplayName = "OnScrollSlot"))
-	void K2_ScrollSlot(float ScrollDirection);
+	/** Injects the view model and pushes each entry into its slot widget. */
+	void SetViewModel(class UEWEQuickSlotViewModel *InViewModel);
 
 protected:
 	UEWEQuickSlot(const FObjectInitializer& ObjectInitializer);
 	virtual void NativeConstruct() override;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = QuickSlot, Meta = (AllowPrivateAccess = "true"))
-	int32 MaxSlotSize;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = QuickSlot, Meta = (AllowPrivateAccess = "true"))
-	int32 CurrentSlotIndex;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = QuickSlot, Meta = (AllowPrivateAccess = "true"), Meta = (BindWidget))
 	TObjectPtr<class UHorizontalBox> Slots;
@@ -43,11 +31,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = QuickSlot, Meta = (AllowPrivateAccess = "true"))
 	TArray<TObjectPtr<UUserWidget>> WeaponSlots;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = QuickSlot, meta = (AllowPrivateAccess = "true"))
-	TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
+	/** Number of quick slots to create. Drives the view model's slot array size. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = QuickSlot,
+	          Meta = (AllowPrivateAccess = "true", ClampMin = "1", UIMin = "1"))
+	int32 MaxSlotSize = 5;
 
-public:
-	void InitWeaponSlots();
-	void AddWeapon(class UEWEWeaponData* Weapon);
-	void SetWeaponSlot(int32 SlotIndex, class UEWEWeaponData* Weapon);
+private:
+	void InitWeaponSlots(int32 SlotCount);
 };

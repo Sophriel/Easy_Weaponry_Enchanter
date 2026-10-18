@@ -15,12 +15,19 @@ AGENTS.md
 # See .claude/README.md before your first session: some rules contain
 # machine-specific absolute paths that you need to adjust.
 # Only runtime/cache artifacts are ignored.
+.claude/batches/
 .claude/projects/
 .claude/todos/
 .claude/shell-snapshots/
 .claude/statsig/
 .claude/debug/
 .claude/*.log
+
+# Plan verification hook output
+/.claude/plan-verify/
+
+# Plan verification request drop-in (watched by the hook)
+/plan_request.md
 
 # Compiled Object files
 *.slo
@@ -111,3 +118,4 @@ Content/Weapons/InfinityBladeWeapons
 
 # Cowork temporary outputs
 Documents/scratch/
+Documents/MDs/plans

@@ -19,7 +19,6 @@ public:
     class UEWELocalUIManageSubsystem *GetUIManager() { return CachedUIManager; }
 
 protected:
-    virtual void BeginPlay() override;
     virtual void AcknowledgePossession(APawn *P) override;
 
     /** Cached reference to the UI management subsystem */
@@ -43,16 +42,13 @@ public:
 
 #pragma region QuickSlot
 public:
-    /** Delegates to AEWEHUD::AddWeapon */
+    /** Delegates to UEWELocalUIManageSubsystem::AddWeaponToQuickSlot */
     void AddWeapon(class UEWEWeaponData *Weapon);
 
-    /** Delegates to AEWEHUD::SetSlot */
-    void SetSlot(const uint8 SlotIndex, class UEWEWeaponData *Weapon);
-
-    /** Delegates to AEWEHUD::SelectSlot */
+    /** Delegates to UEWELocalUIManageSubsystem::SelectQuickSlot */
     void SelectSlot(const uint8 SlotIndex);
 
-    /** Delegates to AEWEHUD::ScrollSlot */
+    /** Delegates to UEWELocalUIManageSubsystem::ScrollQuickSlot */
     void ScrollSlot(const float ScrollDirection);
 
     /** Assigns the selected inventory item to the specified quick slot */
@@ -65,7 +61,7 @@ public:
 public:
     /** Updates the target info UI with a new target's data */
     void UpdateTargetName(const FText &TargetName);
-    void UpdateTargetInfo(const FText &TargetName, class UEWEAttributeBase *TargetAttributeSet);
+    void UpdateTargetInfo(const FText &TargetName, class UAbilitySystemComponent *TargetASC);
 
     /** Clears the target info UI */
     void ClearTargetInfo();

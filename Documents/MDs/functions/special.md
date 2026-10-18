@@ -312,9 +312,11 @@ Stun = Freeze와 동일. 별도 제공 안 함.
 
 ### Silence 처리
 
+> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음. `SourceEnchant` 는 목표 설계의 인챈트 GA 멤버다.
+
 ```cpp
 // GA 발동 전 Silence 태그 확인
-bool UEWEGameplayAbility::CanActivateAbility(...) const
+bool UEWEAbilityBase::CanActivateAbility(...) const
 {
     // OnHit Trigger 기반 인챈트는 Silence 중에도 발동 가능
     if (SourceEnchant->Trigger.TriggerType == EEnchantTriggerType::OnHit)
