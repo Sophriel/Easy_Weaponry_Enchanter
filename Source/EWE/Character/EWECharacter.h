@@ -194,7 +194,7 @@ protected:
 
 public:
     /** Returns the currently focused target actor, if any */
-    AActor *GetFocusedTarget() const { return FocusedTarget; }
+    AActor *GetFocusedTarget() const { return FocusedTarget.Get(); }
 
     /** Refreshes the target info UI with the current focused target. */
     void RefreshTargetInfo();
@@ -214,9 +214,9 @@ protected:
     /** Notifies the player controller about target change */
     void NotifyTargetChanged(AActor *NewTarget);
 
-    /** Currently focused target actor */
-    UPROPERTY()
-    TObjectPtr<AActor> FocusedTarget;
+    /** Currently focused target actor. Weak: the character only observes it. */
+    UPROPERTY(Transient)
+    TWeakObjectPtr<AActor> FocusedTarget;
 
     /** Accumulator for trace interval */
     float TargetTraceAccumulator = 0.f;

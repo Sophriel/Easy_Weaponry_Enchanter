@@ -552,8 +552,9 @@ void AEWECharacter::UpdateTargetAcquisition(float DeltaTime)
         }
     }
 
-    // Only notify if the target has actually changed
-    if (NewTarget != FocusedTarget)
+    // A destroyed target reads as null (== "no hit"), so IsStale() is needed to
+    // still clear the HUD; it fires once because FocusedTarget is reset or set live after notify.
+    if (NewTarget != FocusedTarget.Get() || FocusedTarget.IsStale())
     {
         FocusedTarget = NewTarget;
         NotifyTargetChanged(NewTarget);
