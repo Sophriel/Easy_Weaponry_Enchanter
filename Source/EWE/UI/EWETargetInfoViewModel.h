@@ -41,7 +41,10 @@ protected:
     UPROPERTY(BlueprintReadOnly, FieldNotify) int32 MaxHP = 0;
     UPROPERTY(BlueprintReadOnly, FieldNotify) bool bHasHPInfo = false;
 
-    UPROPERTY(Transient) TObjectPtr<UAbilitySystemComponent> CachedASC;
+    /** ASC of the current target. Weak: the view model only observes it. */
+    UPROPERTY(Transient) 
+    TWeakObjectPtr<UAbilitySystemComponent> CachedTargetASC;
+    
     FDelegateHandle HealthHandle;
     FDelegateHandle MaxHealthHandle;
 };

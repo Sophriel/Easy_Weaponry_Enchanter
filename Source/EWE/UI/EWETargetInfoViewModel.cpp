@@ -31,7 +31,7 @@ void UEWETargetInfoViewModel::SetTarget(const FText &InTargetName, UAbilitySyste
         return;
     }
 
-    CachedASC = InASC;
+    CachedTargetASC = InASC;
     HealthHandle = InASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetHealthAttribute())
                        .AddUObject(this, &UEWETargetInfoViewModel::OnHealthChanged);
     MaxHealthHandle = InASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetMaxHealthAttribute())
@@ -54,15 +54,15 @@ void UEWETargetInfoViewModel::ClearTarget()
 
 void UEWETargetInfoViewModel::Unbind()
 {
-    if (IsValid(CachedASC))
+    if (UAbilitySystemComponent *TargetASC = CachedTargetASC.Get())
     {
-        CachedASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetHealthAttribute())
+        TargetASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetHealthAttribute())
             .Remove(HealthHandle);
-        CachedASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetMaxHealthAttribute())
+        TargetASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetMaxHealthAttribute())
             .Remove(MaxHealthHandle);
     }
 
-    CachedASC = nullptr;
+    CachedTargetASC = nullptr;
     HealthHandle.Reset();
     MaxHealthHandle.Reset();
 
