@@ -19,7 +19,9 @@ class EWE_API UEWEQuickSlotViewModel : public UMVVMViewModelBase
     GENERATED_BODY()
 
 public:
-    /** Allocates the fixed slot array. Safe to call again with the same size. */
+    /** Allocates the fixed slot array. Safe to call again with the same size.
+     *  Until the widget calls this, the view model is unsized: slot writes and
+     *  selection are deferred silently, not treated as errors. */
     void InitializeSlots(int32 InSlotCount);
 
     /** Assigns a weapon to an explicit slot. Out-of-range logs and returns.

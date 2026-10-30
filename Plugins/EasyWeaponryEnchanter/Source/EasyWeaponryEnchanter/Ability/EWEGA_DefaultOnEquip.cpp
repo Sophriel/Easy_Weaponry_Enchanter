@@ -115,9 +115,7 @@ EDataValidationResult UEWEGA_DefaultOnEquip::IsDataValid(FDataValidationContext&
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
-    // The equip GA is forced to ServerOnly (network.md "forced exception — equip GA"): the client
-    // cannot apply a GE without a prediction key, and the equip GE and attributes replicate from
-    // the server.
+    // Forced exception: see network.md "forced exception — equip GA".
     if (NetExecutionPolicy != EGameplayAbilityNetExecutionPolicy::ServerOnly)
     {
         Context.AddError(FText::Format(

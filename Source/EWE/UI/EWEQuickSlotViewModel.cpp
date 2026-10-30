@@ -21,8 +21,6 @@ void UEWEQuickSlotViewModel::InitializeSlots(int32 InSlotCount)
 
 void UEWEQuickSlotViewModel::SetSlot(int32 SlotIndex, UEWEWeaponData *Weapon)
 {
-    // Unsized is the expected state before the widget attaches and sizes the view
-    // model. Defer silently; a sized-but-out-of-range index still warns below.
     if (SlotItems.Num() == 0)
     {
         EWE_LOG(LogEWE, Verbose, TEXT("SetSlot: view model not sized yet, ignoring"));
@@ -54,9 +52,7 @@ void UEWEQuickSlotViewModel::SetSlot(int32 SlotIndex, UEWEWeaponData *Weapon)
 
 int32 UEWEQuickSlotViewModel::AddWeapon(UEWEWeaponData *Weapon)
 {
-    // Unsized is the expected state before the widget attaches and sizes the view
-    // model. Defer silently; the SetSlot() path below has its own guard, so this
-    // one is still required to avoid a spurious "no empty slot" warning.
+    // Needed despite SetSlot's own guard: avoids a spurious "no empty slot" warning.
     if (SlotItems.Num() == 0)
     {
         EWE_LOG(LogEWE, Verbose, TEXT("AddWeapon: view model not sized yet, ignoring"));
@@ -67,8 +63,6 @@ int32 UEWEQuickSlotViewModel::AddWeapon(UEWEWeaponData *Weapon)
     {
         if (SlotItems[i] && SlotItems[i]->IsEmpty())
         {
-            // Route through SetSlot so the re-equip path applies here too.
-            // Filling the currently selected slot must equip the weapon.
             SetSlot(i, Weapon);
             return i;
         }
@@ -80,16 +74,11 @@ int32 UEWEQuickSlotViewModel::AddWeapon(UEWEWeaponData *Weapon)
 
 void UEWEQuickSlotViewModel::ClearSlot(int32 SlotIndex)
 {
-    // Route through SetSlot: clearing the currently held slot must broadcast
-    // nullptr (unarmed), which only the re-equip path does. The range check and
-    // any unsized guard are inherited from SetSlot.
     SetSlot(SlotIndex, nullptr);
 }
 
 void UEWEQuickSlotViewModel::SelectSlot(int32 SlotIndex)
 {
-    // Unsized is the expected state before the widget attaches and sizes the view
-    // model. Defer silently; a sized-but-out-of-range index still warns below.
     if (SlotItems.Num() == 0)
     {
         EWE_LOG(LogEWE, Verbose, TEXT("SelectSlot: view model not sized yet, ignoring"));
@@ -160,8 +149,6 @@ bool UEWEQuickSlotViewModel::IsEmpty() const
 
 void UEWEQuickSlotViewModel::SeedFromInventory(const TArray<UEWEWeaponData *> &InWeapons)
 {
-    // Unsized is the expected state before the widget attaches and sizes the view
-    // model. Defer silently; the slots simply do not exist yet.
     if (SlotItems.Num() == 0)
     {
         EWE_LOG(LogEWE, Verbose, TEXT("SeedFromInventory: view model not sized yet, ignoring"));
@@ -180,7 +167,6 @@ void UEWEQuickSlotViewModel::SeedFromInventory(const TArray<UEWEWeaponData *> &I
             break;
         }
 
-        // Route through SetSlot so the re-equip path applies here too.
         SetSlot(i, InWeapons[i]);
     }
 }

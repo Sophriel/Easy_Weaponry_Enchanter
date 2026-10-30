@@ -155,7 +155,6 @@ protected:
     UPROPERTY(Transient)
     TObjectPtr<class UEWEStatus> StatusWidget;
 
-    /** Status ViewModel — subscribes to ASC changes and exposes them to the UI */
     UPROPERTY(Transient)
     TObjectPtr<class UEWEStatusViewModel> StatusViewModel;
 
@@ -195,7 +194,6 @@ protected:
     UPROPERTY(Transient)
     TObjectPtr<class UEWETargetInfo> TargetInfoWidget;
 
-    /** TargetInfo ViewModel — subscribes to target ASC changes and exposes them to the UI */
     UPROPERTY(Transient)
     TObjectPtr<class UEWETargetInfoViewModel> TargetInfoViewModel;
 

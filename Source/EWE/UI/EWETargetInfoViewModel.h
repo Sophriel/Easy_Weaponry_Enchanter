@@ -9,6 +9,7 @@
 class UAbilitySystemComponent;
 struct FOnAttributeChangeData;
 
+/** Target info ViewModel. Subscribes to the target's ASC and exposes its values to the UI. */
 UCLASS(BlueprintType)
 class EWE_API UEWETargetInfoViewModel : public UMVVMViewModelBase
 {

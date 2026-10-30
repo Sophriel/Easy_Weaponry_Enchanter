@@ -34,7 +34,6 @@ void UEWEAttributeBase::PreAttributeChange(const FGameplayAttribute &Attribute, 
 {
     Super::PreAttributeChange(Attribute, NewValue);
 
-    // Clamps the aggregated current value only; base value and modifiers are preserved (non-destructive).
     ClampAttribute(Attribute, NewValue);
 
     // Example: range-clamp a derived stat like MoveSpeed (not defined in this class).
@@ -59,7 +58,6 @@ void UEWEAttributeBase::PostAttributeChange(const FGameplayAttribute &Attribute,
 {
     Super::PostAttributeChange(Attribute, OldValue, NewValue);
 
-    // Correct the dependent attribute's Base when its Max attribute changes.
     // OldValue/NewValue are the Max's Current values (post-clamp).
     FGameplayAttribute Dependent = GetDependentAttribute(Attribute);
     if (!Dependent.IsValid())
@@ -191,8 +189,6 @@ FGameplayAttribute UEWEAttributeBase::GetDependentAttribute(const FGameplayAttri
 void UEWEAttributeBase::PostGameplayEffectExecute(const FGameplayEffectModCallbackData &Data)
 {
     Super::PostGameplayEffectExecute(Data);
-
-    // Side effects such as death handling go here. Clamping is handled by the Pre* hooks.
 
     // Example: Damage meta-attribute drain (Damage attribute not defined yet).
     //

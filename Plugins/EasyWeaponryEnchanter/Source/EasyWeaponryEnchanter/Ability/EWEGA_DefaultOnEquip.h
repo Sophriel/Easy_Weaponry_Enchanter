@@ -13,11 +13,8 @@
 
 #include "EWEGA_DefaultOnEquip.generated.h"
 
-/**
- * Auto-activates on equip and applies OnEquipEffects for the duration of the equip.
- * ServerOnly: the client cannot apply a GE without a prediction key, and the equip GE and
- * attributes are replicated from the server.
- */
+/** Auto-activates on equip and applies OnEquipEffects for the duration of the equip.
+ *  Runs on the server only. */
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEGA_DefaultOnEquip : public UEWEAbilityBase
 {
