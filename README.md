@@ -1,5 +1,11 @@
 # Easy Weaponry Enchanter
 
+[![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.5-313131?style=flat&logo=unrealengine&logoColor=white)](https://www.unrealengine.com)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-Integration-D97757?style=flat&logo=anthropic&logoColor=white)](https://www.anthropic.com/claude-code)
+[![License](https://img.shields.io/badge/License-Apache--2.0-green?style=flat)](LICENSE)
+
+**English** | [한국어](README.ko.md)
+
 C++ Plugin for Unreal Engine 5.5
 
 A GAS-based enchant system that assigns **Trigger → Condition → Function** combinations to weapons.
