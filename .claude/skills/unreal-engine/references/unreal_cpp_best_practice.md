@@ -339,3 +339,28 @@ UMyComponent* GetMyComponent(AActor* TargetActor)
     return TargetActor->FindComponentByClass<UMyComponent>();
 }
 ```
+
+### Declare Before the Condition, Not Inside It
+
+Do not declare variables inside an `if` condition.
+Declare the variable on its own line, then test it.
+
+```cpp
+// ❌ Declaration inside the condition
+if (UAbilitySystemComponent* ASC = WeakASC.Get())
+{
+    ASC->CancelAllAbilities();
+}
+
+// ✅ Declare first, then test
+UAbilitySystemComponent* ASC = WeakASC.Get();
+if (ASC)
+{
+    ASC->CancelAllAbilities();
+}
+```
+
+- If the hoisted checks would nest, flatten them with the early return pattern above.
+- When converting existing code, keep the original check. `if (X)` and `IsValid(X)` are not interchangeable:
+  `IsValid()` also rejects objects marked as garbage (see §1 and `common_pitfalls.md`).
+  `TWeakObjectPtr::Get()` and `TSoftObjectPtr::Get()` already return null for garbage, so a null check is enough there.

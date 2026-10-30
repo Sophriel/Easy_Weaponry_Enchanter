@@ -171,6 +171,7 @@ find Source -name "*Character.h" -o -name "*Character.cpp"
 - **Reflection**: Use `BlueprintReadOnly` by default. Only use `BlueprintReadWrite` when BP truly needs write access.
 - **Tick**: Disabled (`bCanEverTick = false`) by default. Prefer timers or events.
 - **Casting**: Never `Cast<T>()` in hot loops. Cache in `BeginPlay` or `PostInitializeComponents`.
+- **Conditions**: Do not declare variables inside `if` conditions. Declare first, then test (`references/unreal_cpp_best_practice.md` §5).
 - **Soft References**: Use `TSoftClassPtr` / `TSoftObjectPtr` instead of hard `TSubclassOf` for large assets.
 
 ---
@@ -359,6 +360,7 @@ Before finalizing any C++ code:
 - [ ] Are all `UObject*` and `TObjectPtr<>` members wrapped in `UPROPERTY`?
 - [ ] Are hard references (`TSubclassOf`) causing load chains? Can they be `TSoftClassPtr`?
 - [ ] Are `Cast<T>()` calls cached in `BeginPlay`, not repeated in `Tick`?
+- [ ] Are variables declared before `if`, not inside the condition?
 - [ ] Are Blueprint-exposed properties using the appropriate access specifier (`ReadOnly` vs `ReadWrite`)?
 - [ ] Did you clean up delegates in `EndPlay`?
 - [ ] Did you run the build and verify it succeeds? (check CLAUDE.md)
