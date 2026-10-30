@@ -166,7 +166,7 @@ void UEWELocalUIManageSubsystem::AddUIWidgets()
     // arrived here from the callback or directly from PlayerControllerChanged.
     ClearUILoadedSubscription();
 
-    // Create widgets when ASyncLoad is ready (always visible)
+    // Always visible.
     CreateQuickSlotWidget();
     CreateStatusWidget();
 

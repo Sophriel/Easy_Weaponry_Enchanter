@@ -205,7 +205,7 @@ protected:
 
     void NotifyTargetChanged(AActor *NewTarget);
 
-    /** Currently focused target actor. Weak: the character only observes it. */
+    /** Weak: the character only observes it. */
     UPROPERTY(Transient)
     TWeakObjectPtr<AActor> FocusedTarget;
 

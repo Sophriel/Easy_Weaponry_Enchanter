@@ -28,6 +28,7 @@ private:
 	UGameplayAbility*	CachedOwnerAbility;
 	TSubclassOf<AActor> CachedClassToSpawn;
 
+	// TODO: Add a member for each option below and implement its behavior for the spawned actor.
 	//  location from owner
 	//  rotation from owner
 	//  enable physics

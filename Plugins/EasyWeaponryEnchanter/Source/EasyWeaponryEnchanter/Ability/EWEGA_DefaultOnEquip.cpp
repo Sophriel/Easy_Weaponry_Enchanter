@@ -8,7 +8,7 @@
 
 UEWEGA_DefaultOnEquip::UEWEGA_DefaultOnEquip()
 {
-    // Store the active handle so the equip GE can be removed on unequip.
+    // Instanced: the ability holds AppliedEffectHandles so EndAbility can remove the equip GEs.
     InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
     // ServerOnly: the client cannot apply a GE without a prediction key, and the equip GE and
     // attributes are replicated from the server.

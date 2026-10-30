@@ -7,7 +7,7 @@
 
 UEWEAttributeBase::UEWEAttributeBase()
 {
-    // Should be initialized with Default GE.
+    // Placeholders. DefaultAttributeGE sets the real values on possession.
     InitMaxHealth(1.f);
     InitMaxMana(0.f);
     InitHealth(0.f);

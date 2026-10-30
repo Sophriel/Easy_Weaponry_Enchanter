@@ -25,7 +25,7 @@ void UEWEStatusViewModel::SetSource(UAbilitySystemComponent *InASC)
     MaxManaHandle = InASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetMaxManaAttribute())
                         .AddUObject(this, &UEWEStatusViewModel::OnMaxManaChanged);
 
-    // Initial synchronization — read current attribute values.
+    // The delegates fire only on change, so read the current values once.
     SetCurrentHP(FMath::RoundToInt(InASC->GetNumericAttribute(UEWEAttributeBase::GetHealthAttribute())));
     SetMaxHP(FMath::RoundToInt(InASC->GetNumericAttribute(UEWEAttributeBase::GetMaxHealthAttribute())));
     SetCurrentMP(FMath::RoundToInt(InASC->GetNumericAttribute(UEWEAttributeBase::GetManaAttribute())));

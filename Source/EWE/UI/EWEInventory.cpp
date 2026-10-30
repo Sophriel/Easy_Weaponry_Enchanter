@@ -74,7 +74,7 @@ void UEWEInventory::SetWeapons(const TArray<UEWEWeaponData *> &InWeapons)
 {
     Weapons = InWeapons;
 
-    // Update slot UI (implemented in Blueprint)
+    // TODO: Update slot UI (implemented in Blueprint)
 }
 
 void UEWEInventory::SelectItem(int32 Index)
