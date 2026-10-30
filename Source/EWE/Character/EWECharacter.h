@@ -51,10 +51,8 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UInputMappingContext> QuickSlotMappingContext;
 
-    /** Called for movement input */
     void Move(const FInputActionValue &Value);
 
-    /** Called for looking input */
     void Look(const FInputActionValue &Value);
 
     /** Jump Input Action */
@@ -92,13 +90,10 @@ protected:
 #pragma region Camera
 
 public:
-    /** Returns CameraBoom subobject **/
     FORCEINLINE class USpringArmComponent *GetCameraBoom() const { return CameraBoom; }
-    /** Returns FollowCamera subobject **/
     FORCEINLINE class UCameraComponent *GetFollowCamera() const { return FollowCamera; }
 
 protected:
-    /** Called for Change Camera input */
     void ChangeCamera(const FInputActionValue &Value);
     void SetCharacterControl(ECameraType CameraType);
     void SetCharacterControlData(const class UEWEControlData *ControlData);
@@ -193,10 +188,8 @@ protected:
 #pragma region TargetInfo
 
 public:
-    /** Returns the currently focused target actor, if any */
     AActor *GetFocusedTarget() const { return FocusedTarget.Get(); }
 
-    /** Refreshes the target info UI with the current focused target. */
     void RefreshTargetInfo();
 
     /** Trace range for target acquisition */
@@ -208,17 +201,14 @@ public:
     float TargetTraceInterval = 0.1f;
 
 protected:
-    /** Performs a camera trace and updates focused target */
     void UpdateTargetAcquisition(float DeltaTime);
 
-    /** Notifies the player controller about target change */
     void NotifyTargetChanged(AActor *NewTarget);
 
     /** Currently focused target actor. Weak: the character only observes it. */
     UPROPERTY(Transient)
     TWeakObjectPtr<AActor> FocusedTarget;
 
-    /** Accumulator for trace interval */
     float TargetTraceAccumulator = 0.f;
 
 #pragma endregion

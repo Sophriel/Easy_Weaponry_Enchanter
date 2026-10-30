@@ -58,7 +58,7 @@ void UEWEGA_Creation::OnActorSpawnFailed(AActor *SpawnedActor)
 
 void UEWEGA_Creation::SetActorLocation()
 {
-    FTransform SpawnTransform; // Initialize to identity transform
+    FTransform SpawnTransform;
     AActor* OwnerCharacter = GetAvatarActorFromActorInfo();
 
     switch (LocationType)
@@ -84,7 +84,6 @@ void UEWEGA_Creation::SetActorLocation()
 
     case ELocationType::Camera:
     {
-        // Gets the camera position and rotation
         APlayerController* PC = Cast<APlayerController>(GetCurrentActorInfo()->PlayerController.Get());
         if (PC && PC->PlayerCameraManager && OwnerCharacter)
         {

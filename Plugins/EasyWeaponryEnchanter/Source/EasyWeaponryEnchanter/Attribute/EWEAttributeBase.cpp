@@ -103,14 +103,12 @@ bool UEWEAttributeBase::GetClampRange(const FGameplayAttribute &Attribute, float
 {
     if (Attribute == GetMaxHealthAttribute())
     {
-        // MaxHealth: [1, max float].
         OutMin = 1.f;
         OutMax = TNumericLimits<float>::Max();
         return true;
     }
     if (Attribute == GetMaxManaAttribute())
     {
-        // MaxMana: [0, max float].
         OutMin = 0.f;
         OutMax = TNumericLimits<float>::Max();
         return true;
@@ -125,7 +123,6 @@ bool UEWEAttributeBase::GetClampRange(const FGameplayAttribute &Attribute, float
     }
     if (Attribute == GetManaAttribute())
     {
-        // Mana: [0, MaxMana Current].
         OutMin = 0.f;
         OutMax = GetMaxMana();
         return true;

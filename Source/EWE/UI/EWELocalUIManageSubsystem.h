@@ -82,7 +82,6 @@ protected:
     /** Creates the inventory widget if it doesn't exist */
     void CreateInventoryWidget();
 
-    /** Currently active inventory widget instance */
     UPROPERTY(Transient)
     TObjectPtr<class UEWEInventory> InventoryWidget;
 
@@ -119,7 +118,6 @@ protected:
     /** Creates the view model and subscribes to it. Called once from Initialize(). */
     void CreateQuickSlotViewModel();
 
-    /** Creates the quick slot widget */
     void CreateQuickSlotWidget();
 
     /** Forwards the selected weapon to the possessed pawn. */
@@ -141,7 +139,6 @@ protected:
     /** Inventory currently subscribed to. Weak: the pawn may be replaced. */
     TWeakObjectPtr<class UEWEInventoryComponent> BoundInventory;
 
-    /** Currently active quick slot widget instance */
     UPROPERTY(Transient)
     TObjectPtr<class UEWEQuickSlot> QuickSlotWidget;
 
@@ -153,10 +150,8 @@ public:
     void BindStatus();
 
 protected:
-    /** Creates the Status Widget */
     void CreateStatusWidget();
 
-    /** Cached Status Widget instance */
     UPROPERTY(Transient)
     TObjectPtr<class UEWEStatus> StatusWidget;
 
@@ -197,7 +192,6 @@ protected:
     /** Creates the target info widget (initially hidden) */
     void CreateTargetInfoWidget();
 
-    /** Cached target info widget instance */
     UPROPERTY(Transient)
     TObjectPtr<class UEWETargetInfo> TargetInfoWidget;
 

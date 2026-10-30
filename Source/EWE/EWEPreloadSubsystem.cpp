@@ -10,7 +10,6 @@ void UEWEPreloadSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
     Super::Initialize(Collection);
 
-    // Pre-load UIAssets during initialization
     const UEWESettings *Settings = GetDefault<UEWESettings>();
     if (!Settings)
     {

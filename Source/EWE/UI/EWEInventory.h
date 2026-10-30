@@ -44,7 +44,6 @@ public:
 	int32 GetSelectedItemIndex() const { return SelectedItemIndex; }
 
 protected:
-	/** Shows or hides the mouse cursor */
 	void SetMouseCursorVisible(bool bShow);
 
 	UEWEInventory(const FObjectInitializer& ObjectInitializer);

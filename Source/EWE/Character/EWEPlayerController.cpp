@@ -14,7 +14,6 @@ void AEWEPlayerController::AcknowledgePossession(APawn *P)
     ULocalPlayer *LocalPlayer = GetLocalPlayer();
     if (LocalPlayer)
     {
-        // Cache UIManager reference for performance
         CachedUIManager = LocalPlayer->GetSubsystem<UEWELocalUIManageSubsystem>();
     }
 

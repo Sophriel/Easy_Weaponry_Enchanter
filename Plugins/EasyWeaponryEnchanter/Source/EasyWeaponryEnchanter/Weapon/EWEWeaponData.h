@@ -30,7 +30,6 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TObjectPtr<class UTexture2D> WeaponIcon;
 
-    // Runtime caching asset
     UPROPERTY(Transient)
     TObjectPtr<class USkeletalMesh> WeaponMesh;
 

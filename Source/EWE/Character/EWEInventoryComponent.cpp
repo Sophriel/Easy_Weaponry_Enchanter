@@ -8,7 +8,6 @@
 
 UEWEInventoryComponent::UEWEInventoryComponent()
 {
-    // Set this component to be initialized when the game starts.
     // No TickComponent override exists, so ticking is disabled.
     PrimaryComponentTick.bCanEverTick = false;
     bWantsInitializeComponent = true;
@@ -40,7 +39,6 @@ void UEWEInventoryComponent::AcquireWeapon(UEWEWeaponData *NewWeapon)
         return;
     }
 
-    // Check if weapon already exists (prevent duplicates)
     for (const auto &ExistingWeapon : Weapons)
     {
         if (ExistingWeapon == NewWeapon)
@@ -52,7 +50,6 @@ void UEWEInventoryComponent::AcquireWeapon(UEWEWeaponData *NewWeapon)
 
     Weapons.Add(NewWeapon);
 
-    // Broadcast event - subscribers will react
     OnWeaponAcquired.Broadcast(NewWeapon);
 
     EWE_LOG(LogEWEInventory, Log, TEXT("Weapon acquired: %s (Total: %d)"), *NewWeapon->GetName(), Weapons.Num());
@@ -63,7 +60,6 @@ void UEWEInventoryComponent::AddWeaponSilent(UEWEWeaponData *NewWeapon)
     if (NewWeapon == nullptr)
         return;
 
-    // Check if weapon already exists (prevent duplicates)
     for (const auto &ExistingWeapon : Weapons)
     {
         if (ExistingWeapon == NewWeapon)
@@ -84,7 +80,6 @@ void UEWEInventoryComponent::RemoveWeapon(int32 Index)
     UEWEWeaponData *RemovedWeapon = Weapons[Index];
     Weapons.RemoveAt(Index);
 
-    // Broadcast event
     OnWeaponRemoved.Broadcast(RemovedWeapon, Index);
 
     EWE_LOG(LogEWEInventory, Log, TEXT("Weapon removed: %s (Total: %d)"), *RemovedWeapon->GetName(), Weapons.Num());
@@ -123,7 +118,6 @@ void UEWEInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UEWEInventoryComponent::SyncInventoryUI()
 {
-    // Broadcast event to sync all weapons
     OnWeaponsSynced.Broadcast(Weapons, Weapons.Num());
 
     EWE_LOG(LogEWEInventory, Log, TEXT("Weapons synced: Total %d"), Weapons.Num());

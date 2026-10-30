@@ -19,7 +19,6 @@
 #include "AbilitySystemInterface.h"
 #include "View/MVVMView.h"
 
-// Initialize subsystem
 void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
     Super::Initialize(Collection);
@@ -33,7 +32,6 @@ void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection
     CreateQuickSlotViewModel();
 }
 
-// Cleanup on shutdown
 void UEWELocalUIManageSubsystem::Deinitialize()
 {
     // UEWEUIAsset outlives this subsystem, so never leave a subscription behind.
@@ -55,7 +53,6 @@ void UEWELocalUIManageSubsystem::Deinitialize()
     }
     BoundInventory = nullptr;
 
-    // Destroy widgets
     if (InventoryWidget)
     {
         CloseInventory();
@@ -495,7 +492,6 @@ void UEWELocalUIManageSubsystem::CreateStatusWidget()
 
     StatusWidget->AddToViewport();
 
-    // Create the ViewModel instance.
     StatusViewModel = NewObject<UEWEStatusViewModel>(this);
     UMVVMView *MVVMView = StatusWidget->GetExtension<UMVVMView>();
     if (!MVVMView)
@@ -504,7 +500,6 @@ void UEWELocalUIManageSubsystem::CreateStatusWidget()
         return;
     }
 
-    // Inject the ViewModel into the Blueprint widget.
     MVVMView->SetViewModel(FName(TEXT("EWEStatusViewModel")), StatusViewModel);
 
     BindStatus();
@@ -576,7 +571,6 @@ void UEWELocalUIManageSubsystem::CreateTargetInfoWidget()
     TargetInfoWidget->AddToViewport();
     TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
 
-    // Create the ViewModel and inject it into the Blueprint widget.
     TargetInfoViewModel = NewObject<UEWETargetInfoViewModel>(this);
     UMVVMView *MVVMView = TargetInfoWidget->GetExtension<UMVVMView>();
     if (!MVVMView)

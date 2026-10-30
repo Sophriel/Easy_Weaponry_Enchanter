@@ -106,7 +106,6 @@ void UEWEQuickSlotViewModel::SelectSlot(int32 SlotIndex)
     if (SlotIndex == SelectedIndex)
         return;
 
-    // Deselect previous
     if (SlotItems.IsValidIndex(SelectedIndex) && SlotItems[SelectedIndex])
     {
         SlotItems[SelectedIndex]->SetSelected(false);

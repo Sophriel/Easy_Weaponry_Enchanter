@@ -14,13 +14,11 @@ void UEWEGA_Heal::ActivateAbility(
 {
     Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
 
-    // Check server authority
     if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
     {
         return;
     }
 
-    // Validate HealGE
     if (!HealGE)
     {
         EWE_LOG(LogEWE, Error, TEXT("[UEWEGA_Heal] HealGE is not set"));
@@ -28,7 +26,6 @@ void UEWEGA_Heal::ActivateAbility(
         return;
     }
 
-    // Get AbilitySystemComponent from actor info
     UAbilitySystemComponent* ASC = ActorInfo->AbilitySystemComponent.Get();
     if (!ASC)
     {
@@ -37,7 +34,6 @@ void UEWEGA_Heal::ActivateAbility(
         return;
     }
 
-    // Get avatar actor (character) for context
     AActor* AvatarActor = ActorInfo->AvatarActor.Get();
     if (!AvatarActor)
     {
@@ -46,11 +42,9 @@ void UEWEGA_Heal::ActivateAbility(
         return;
     }
 
-    // Create effect context
     FGameplayEffectContextHandle EffectContext = ASC->MakeEffectContext();
     EffectContext.AddInstigator(AvatarActor, AvatarActor);
 
-    // Create GameplayEffectSpec using MakeOutgoingSpec
     FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(HealGE, 1.0f, EffectContext);
     FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 
@@ -60,6 +54,5 @@ void UEWEGA_Heal::ActivateAbility(
         ASC->ApplyGameplayEffectSpecToSelf(*Spec);
     }
 
-    // End ability
     EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 }

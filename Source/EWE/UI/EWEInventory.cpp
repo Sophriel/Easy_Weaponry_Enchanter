@@ -14,10 +14,8 @@ void UEWEInventory::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    // Initialize item slots (default 8 slots)
     const int32 InitialSlotCount = 8;
 
-    // Check validation once before loop (efficiency optimization)
     if (ItemSlotClasses.IsValidIndex(0))
     {
         TObjectPtr<UUserWidget> ItemSlot;
@@ -100,7 +98,6 @@ void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)
 
     UEWEWeaponData *SelectedWeapon = Weapons[SelectedItemIndex];
 
-    // Get the subsystem directly from the owning player
     APlayerController* PC = GetOwningPlayer();
     if (!PC)
     {

@@ -23,7 +23,6 @@ public:
 	TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon, Meta = (AllowPrivateAccess = "true"))
