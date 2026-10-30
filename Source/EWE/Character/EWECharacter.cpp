@@ -147,21 +147,28 @@ void AEWECharacter::NotifyControllerChanged()
     }
 
     // Add Input Mapping Context
-    if (APlayerController *PlayerController = Cast<APlayerController>(Controller))
+    APlayerController *PlayerController = Cast<APlayerController>(Controller);
+    if (!PlayerController)
     {
-        if (UEnhancedInputLocalPlayerSubsystem *Subsystem =
-                ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-        {
-            Subsystem->AddMappingContext(DefaultMappingContext, 0);
-            Subsystem->AddMappingContext(QuickSlotMappingContext, 1);
-        }
+        return;
     }
+
+    UEnhancedInputLocalPlayerSubsystem *Subsystem =
+        ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer());
+    if (!Subsystem)
+    {
+        return;
+    }
+
+    Subsystem->AddMappingContext(DefaultMappingContext, 0);
+    Subsystem->AddMappingContext(QuickSlotMappingContext, 1);
 }
 
 void AEWECharacter::SetupPlayerInputComponent(UInputComponent *PlayerInputComponent)
 {
     // Set up action bindings
-    if (UEnhancedInputComponent *EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+    UEnhancedInputComponent *EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+    if (EnhancedInputComponent)
     {
         // Jumping
         EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);

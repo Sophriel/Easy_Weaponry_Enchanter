@@ -48,7 +48,8 @@ void UEWELocalUIManageSubsystem::Deinitialize()
     }
 
     // Drop the inventory subscription; it must not outlive this subsystem.
-    if (UEWEInventoryComponent *Inventory = BoundInventory.Get())
+    UEWEInventoryComponent *Inventory = BoundInventory.Get();
+    if (Inventory)
     {
         Inventory->OnWeaponsSynced.RemoveDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
     }
@@ -141,7 +142,8 @@ void UEWELocalUIManageSubsystem::ClearUILoadedSubscription()
         return;
     }
 
-    if (UEWEUIAsset *UIConfig = UIConfigAsset.Get())
+    UEWEUIAsset *UIConfig = UIConfigAsset.Get();
+    if (UIConfig)
     {
         UIConfig->OnUILoaded.Remove(UILoadedHandle);
     }
@@ -376,7 +378,8 @@ void UEWELocalUIManageSubsystem::SubscribeToInventory()
         return;
 
     // The pawn may have been replaced. Drop the previous subscription first.
-    if (UEWEInventoryComponent *Previous = BoundInventory.Get())
+    UEWEInventoryComponent *Previous = BoundInventory.Get();
+    if (Previous)
     {
         Previous->OnWeaponsSynced.RemoveDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
     }

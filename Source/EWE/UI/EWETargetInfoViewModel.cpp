@@ -54,7 +54,8 @@ void UEWETargetInfoViewModel::ClearTarget()
 
 void UEWETargetInfoViewModel::Unbind()
 {
-    if (UAbilitySystemComponent *TargetASC = CachedTargetASC.Get())
+    UAbilitySystemComponent *TargetASC = CachedTargetASC.Get();
+    if (TargetASC)
     {
         TargetASC->GetGameplayAttributeValueChangeDelegate(UEWEAttributeBase::GetHealthAttribute())
             .Remove(HealthHandle);

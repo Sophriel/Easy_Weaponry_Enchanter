@@ -65,7 +65,8 @@ void UEWEInventory::CloseInventory()
 
 void UEWEInventory::SetMouseCursorVisible(bool bShow)
 {
-    if (APlayerController* PC = GetOwningPlayer())
+    APlayerController* PC = GetOwningPlayer();
+    if (PC)
     {
         PC->SetShowMouseCursor(bShow);
     }
@@ -100,11 +101,17 @@ void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)
     UEWEWeaponData *SelectedWeapon = Weapons[SelectedItemIndex];
 
     // Get the subsystem directly from the owning player
-    if (APlayerController* PC = GetOwningPlayer())
+    APlayerController* PC = GetOwningPlayer();
+    if (!PC)
     {
-        if (UEWELocalUIManageSubsystem* UIManager = PC->GetLocalPlayer()->GetSubsystem<UEWELocalUIManageSubsystem>())
-        {
-            UIManager->SetQuickSlot(SlotIndex, SelectedWeapon);
-        }
+        return;
     }
+
+    UEWELocalUIManageSubsystem* UIManager = PC->GetLocalPlayer()->GetSubsystem<UEWELocalUIManageSubsystem>();
+    if (!UIManager)
+    {
+        return;
+    }
+
+    UIManager->SetQuickSlot(SlotIndex, SelectedWeapon);
 }
