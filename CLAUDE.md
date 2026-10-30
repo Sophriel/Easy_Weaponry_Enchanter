@@ -20,6 +20,7 @@ Unreal Engine 5 C++ Plugin.
 1. /unreal-engine 스킬 로드 (Pre-Flight Discovery, 레퍼런스 파일 참조)
 2. 이 CLAUDE.md에서 EWE 고유 규칙 확인
 3. 문서 맵에서 해당 작업의 상세 문서 읽기
+4. 주석은 Documents/MDs/guides/code-comment-guide.md 기준으로 작성
 ```
 
 스킬이 커버하는 영역 (CLAUDE.md에서 반복하지 않음):
@@ -93,6 +94,7 @@ Unreal Engine 5 C++ Plugin.
 | TimeStop / Freeze / Teleport / Possess / Weather / StatusEffect | `Documents/MDs/functions/special.md` |
 | 쿨타임, 레코딩, 두루마리, JSON Import/Export | `Documents/MDs/features/cooldown-recording.md` |
 | HUD, 인벤토리, 인챈터 UI | `Documents/MDs/features/ui.md` |
+| 코드 주석 **(C++ 작성·수정 시 반드시)** | `Documents/MDs/guides/code-comment-guide.md` |
 | 커밋 **(커밋 시도 전 반드시)** | `Documents/MDs/guides/commit-guide.md` |
 
 ---
@@ -319,6 +321,21 @@ Claude의 처리 방침:
   pathspec 커밋은 인덱스가 아니라 워크트리를 커밋한다.
   방식과 검사가 어긋나면 검사는 통과하고 마커는 커밋된다.
   상세는 commit-guide.md §1-0 / §4-3.
+```
+
+### 코드 주석 — `code-comment-guide.md` 필수 참조
+```
+C++ 코드를 쓰거나 고칠 때 따른다:
+  → Documents/MDs/guides/code-comment-guide.md
+
+코드가 말할 수 없는 것(이유 · 제약 · 의도된 이상함 · 함정)만 쓴다.
+  // ❌ Clamp Health into the valid range.                      ← 코드 뜻풀이
+  // ✅ The upper bound is the Max's Current value, not its Base,
+  //    so a MaxHealth equip buff raises the recovery cap immediately.
+
+에디터 · BP 에 노출된 선언의 /** */ 툴팁은 예외 — 오히려 장려한다.
+같은 설명은 선언부(관문)에 한 번만. 정의부 · 호출부에서 반복하지 않는다.
+`@@@` 영역은 TODO 추가 요청이 없으면 건드리지 않는다.
 ```
 
 ### 커밋 — `commit-guide.md` 필수 참조

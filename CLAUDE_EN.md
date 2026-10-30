@@ -20,6 +20,7 @@ This project is built on UE5 C++ + GAS. Follow this order for code tasks:
 1. Load /unreal-engine skill (Pre-Flight Discovery, reference files)
 2. Check EWE-specific rules in this CLAUDE.md
 3. Read the detailed document for the task from the Document Map
+4. Write comments by Documents/MDs/guides/code-comment-guide.md
 ```
 
 Areas covered by the skill (not repeated in CLAUDE.md):
@@ -92,6 +93,7 @@ This project does not override the language at the project level.
 | TimeStop / Freeze / Teleport / Possess / Weather / StatusEffect | `Documents/MDs/functions/special.md` |
 | Cooldown, Recording system, Scrolls, JSON Import/Export | `Documents/MDs/features/cooldown-recording.md` |
 | HUD, Inventory, Enchanter UI | `Documents/MDs/features/ui.md` |
+| Code comments **(required when writing or modifying C++)** | `Documents/MDs/guides/code-comment-guide.md` |
 | Committing **(read before any commit attempt)** | `Documents/MDs/guides/commit-guide.md` |
 
 ---
@@ -319,6 +321,21 @@ Commit block:
   A pathspec commit commits the working tree, not the index.
   If the check and the method disagree, the check passes and the
   marker is committed. See commit-guide.md sections 1-0 and 4-3.
+```
+
+### Code Comments — `code-comment-guide.md` Is Required Reading
+```
+Follow this whenever you write or modify C++ code:
+  → Documents/MDs/guides/code-comment-guide.md
+
+Comment only what the code cannot say (reasons, constraints, intentional oddities, pitfalls).
+  // ❌ Clamp Health into the valid range.                      <- narrates the code
+  // ✅ The upper bound is the Max's Current value, not its Base,
+  //    so a MaxHealth equip buff raises the recovery cap immediately.
+
+Exception: /** */ tooltips on editor- or BP-exposed declarations — encouraged.
+Write an explanation once, at the declaration (the gate). Do not repeat it at definitions or call sites.
+Leave `@@@` regions alone unless asked to add a TODO.
 ```
 
 ### Committing — `commit-guide.md` Is Required Reading
