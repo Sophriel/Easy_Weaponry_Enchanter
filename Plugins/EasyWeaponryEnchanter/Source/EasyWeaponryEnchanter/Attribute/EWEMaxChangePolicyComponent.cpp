@@ -17,7 +17,8 @@ void UEWEMaxChangePolicyComponent::OnGameplayEffectExecuted(FActiveGameplayEffec
     UEWEAttributeBase *AttributeSet = nullptr;
     for (const TObjectPtr<UAttributeSet> &SpawnedSet : ASC->GetSpawnedAttributes())
     {
-        if (UEWEAttributeBase *CastSet = Cast<UEWEAttributeBase>(SpawnedSet.Get()))
+        UEWEAttributeBase *CastSet = Cast<UEWEAttributeBase>(SpawnedSet.Get());
+        if (CastSet)
         {
             AttributeSet = CastSet;
             break;

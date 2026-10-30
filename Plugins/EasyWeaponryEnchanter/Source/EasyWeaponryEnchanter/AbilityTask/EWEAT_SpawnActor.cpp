@@ -54,7 +54,8 @@ void UEWEAT_SpawnActor::FinishSpawningActor(UGameplayAbility* OwningAbility, AAc
 	{
 		bool	   bTransformSet = false;
 		FTransform SpawnTransform;
-		if (FGameplayAbilityTargetData* LocationData = CachedTargetDataHandle.Get(0)) // Hardcode to use data 0. It's OK if data isn't useful/valid.
+		FGameplayAbilityTargetData* LocationData = CachedTargetDataHandle.Get(0); // Hardcode to use data 0. It's OK if data isn't useful/valid.
+		if (LocationData)
 		{
 			// Set location. Rotation is unaffected.
 			if (LocationData->HasHitResult())
@@ -70,7 +71,8 @@ void UEWEAT_SpawnActor::FinishSpawningActor(UGameplayAbility* OwningAbility, AAc
 		}
 		if (!bTransformSet)
 		{
-			if (UAbilitySystemComponent* ASC = AbilitySystemComponent.Get())
+			UAbilitySystemComponent* ASC = AbilitySystemComponent.Get();
+			if (ASC)
 			{
 				SpawnTransform = ASC->GetOwner()->GetTransform();
 			}
