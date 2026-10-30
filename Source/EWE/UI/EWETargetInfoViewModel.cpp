@@ -6,7 +6,6 @@
 #include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
 #include "EWE/EWELog.h"
 #include "UObject/Object.h"
-// #include "EWETargetInfo.h" // ViewModel never includes View class
 
 void UEWETargetInfoViewModel::SetTarget(const FText &InTargetName)
 {

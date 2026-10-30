@@ -5,7 +5,6 @@
 #include "GameplayEffectTypes.h"
 #include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
 #include "EWE/EWELog.h"
-// #include "EWEStatus.h" // ViewModel never includes View class
 
 void UEWEStatusViewModel::SetSource(UAbilitySystemComponent *InASC)
 {

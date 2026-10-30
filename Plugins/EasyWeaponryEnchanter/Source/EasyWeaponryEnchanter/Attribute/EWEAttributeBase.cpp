@@ -35,13 +35,6 @@ void UEWEAttributeBase::PreAttributeChange(const FGameplayAttribute &Attribute, 
     Super::PreAttributeChange(Attribute, NewValue);
 
     ClampAttribute(Attribute, NewValue);
-
-    // Example: range-clamp a derived stat like MoveSpeed (not defined in this class).
-    //
-    // else if (Attribute == GetMoveSpeedAttribute())
-    // {
-    //     NewValue = FMath::Clamp(NewValue, 100.f, 1000.f);
-    // }
 }
 
 // Clamp layer design:
@@ -189,15 +182,6 @@ FGameplayAttribute UEWEAttributeBase::GetDependentAttribute(const FGameplayAttri
 void UEWEAttributeBase::PostGameplayEffectExecute(const FGameplayEffectModCallbackData &Data)
 {
     Super::PostGameplayEffectExecute(Data);
-
-    // Example: Damage meta-attribute drain (Damage attribute not defined yet).
-    //
-    // else if (Data.EvaluatedData.Attribute == GetDamageAttribute())
-    // {
-    //     float DamageDealt = GetDamage();
-    //     SetHealth(FMath::Clamp(GetHealth() - DamageDealt, 0.f, GetMaxHealth()));
-    //     SetDamage(0.f);
-    // }
 }
 
 void UEWEAttributeBase::OnRep_Health(const FGameplayAttributeData &OldValue)

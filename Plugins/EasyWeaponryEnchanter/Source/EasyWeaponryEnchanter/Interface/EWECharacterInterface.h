@@ -26,5 +26,4 @@ class EASYWEAPONRYENCHANTER_API IEWECharacterInterface
 public:
 	virtual void AcquireWeapon(class UEWEWeaponData* Weapon) = 0;
 	virtual void EquipWeapon(class UEWEWeaponData* Weapon) = 0;
-	//virtual TObjectPtr<class UAbilitySystemComponent> GetAbilitySystemComponent() = 0;
 };

@@ -107,11 +107,7 @@ void UEWEGA_Creation::SetActorLocation()
 
     case ELocationType::AnchorObject:
     {
-        // AnchorObject: To be implemented with anchor actor reference
-        // if (AnchorActor)
-        // 	SpawnTransform = AnchorActor->GetActorTransform();
-        // else
-        // 	SpawnTransform = TargetLocation; // fallback
+        // TODO: Not implemented. Use the anchor actor's transform once an anchor reference exists.
         break;
     }
     }
