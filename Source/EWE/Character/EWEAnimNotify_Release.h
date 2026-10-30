@@ -6,9 +6,7 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "EWEAnimNotify_Release.generated.h"
 
-/**
- * 
- */
+/** Animation notify that releases the hold ability. */
 UCLASS()
 class EWE_API UEWEAnimNotify_Release : public UAnimNotify
 {

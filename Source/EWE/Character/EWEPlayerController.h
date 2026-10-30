@@ -26,7 +26,6 @@ protected:
 
 #pragma region Inventory
 public:
-    /** Delegates to UEWELocalUIManageSubsystem::ToggleInventory */
     UFUNCTION(BlueprintCallable, Category = Inventory)
     void ToggleInventory();
 

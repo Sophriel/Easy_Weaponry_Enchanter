@@ -100,7 +100,6 @@ void UEWEGA_Creation::SetActorLocation()
 
     case ELocationType::Target:
     {
-        // Target: Set by Blueprint or Ability system
         SpawnTransform = TargetLocation;
         break;
     }

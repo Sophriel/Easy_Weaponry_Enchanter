@@ -6,9 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "EWEWeaponData.generated.h"
 
-/**
- *
- */
+/** Weapon definition: icon, mesh, and the ability arrays for hold, hit, and on-equip. */
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEWeaponData : public UPrimaryDataAsset
 {
@@ -26,7 +24,7 @@ protected:
     void OnWeaponMeshLoaded();
 
 public:
-    // Editor assign asset
+    /** Icon shown in the inventory and quick slot UI. */
     UPROPERTY(EditDefaultsOnly, Category = "UI")
     TObjectPtr<class UTexture2D> WeaponIcon;
 
@@ -39,8 +37,7 @@ public:
     UPROPERTY(EditAnywhere, Category = Weapon)
     TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
 
-    // Granted on equip, reclaimed by ClearAllAbilities on unequip. Only the
-    // UEWEGA_DefaultOnEquip family auto-activates (via OnAvatarSet).
+    /** Granted while the weapon is equipped. Only the UEWEGA_DefaultOnEquip family auto-activates. */
     UPROPERTY(EditAnywhere, Category = Weapon)
     TArray<TSubclassOf<class UGameplayAbility>> OnEquipAbilities;
 

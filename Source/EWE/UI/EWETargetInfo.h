@@ -6,10 +6,10 @@
 #include "Blueprint/UserWidget.h"
 #include "EWETargetInfo.generated.h"
 
-/*
+/**
  * Target info widget — implements visual processing only. No knowledge of data required.
  * Data binding is handled on the BP side via UEWETargetInfoViewModel.
-*/
+ */
 UCLASS()
 class EWE_API UEWETargetInfo : public UUserWidget
 {

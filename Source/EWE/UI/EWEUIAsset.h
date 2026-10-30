@@ -8,9 +8,7 @@
 
 DECLARE_MULTICAST_DELEGATE(FOnUIAssetsLoaded);
 
-/**
- *
- */
+/** UI widget class configuration. */
 UCLASS()
 class EWE_API UEWEUIAsset : public UDataAsset
 {
@@ -26,16 +24,19 @@ protected:
     void OnWidgetLoaded();
 
 public:
-    // Hardcoded for Essential Widgets
+    /** Inventory widget, created on demand. */
     UPROPERTY(EditDefaultsOnly, Category = "Inventory")
     TSoftClassPtr<class UUserWidget> InventoryWidgetClass;
 
+    /** Quick slot bar. */
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSoftClassPtr<class UUserWidget> QuickSlotWidgetClass;
 
+    /** Status (HP/MP) display. */
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSoftClassPtr<class UUserWidget> StatusWidgetClass;
 
+    /** Target info display. */
     UPROPERTY(EditDefaultsOnly, Category = "HUD")
     TSoftClassPtr<class UUserWidget> TargetInfoWidgetClass;
 

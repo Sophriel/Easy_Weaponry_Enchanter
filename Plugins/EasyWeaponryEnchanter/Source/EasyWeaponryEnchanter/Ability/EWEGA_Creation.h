@@ -8,16 +8,19 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCreationComplete, AActor*, SpawnedActor);
 
-/**
- *
- */
+/** Where a spawned actor is placed. */
 UENUM(BlueprintType)
 enum class ELocationType : uint8
 {
+	/** Character transform plus the TargetLocation offset. */
 	Character	 UMETA(DisplayName = "Character Location"),
+	/** 200 units in front of the character, along its forward vector. */
 	View		 UMETA(DisplayName = "Character View (Forward)"),
+	/** Along the camera direction at TargetDistance from the character. */
 	Camera		 UMETA(DisplayName = "Camera Location"),
+	/** The TargetLocation transform itself. */
 	Target		 UMETA(DisplayName = "Target Actor/Point"),
+	/** Not implemented yet. */
 	AnchorObject UMETA(DisplayName = "Placed Anchor Object")
 };
 
@@ -61,6 +64,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creation")
 	ELocationType LocationType;
 
+	/** Character: offset added to the character's transform.
+	 *  Target: the spawn transform itself, set at runtime by Blueprint or the ability
+	 *  (hidden in the editor for this mode). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Creation", meta = (AllowPrivateAccess = "true", EditCondition = "LocationType == ELocationType::Character", EditConditionHides))
 	FTransform TargetLocation;
 

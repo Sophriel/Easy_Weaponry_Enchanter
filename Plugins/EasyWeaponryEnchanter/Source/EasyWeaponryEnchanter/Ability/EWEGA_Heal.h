@@ -21,11 +21,11 @@ public:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData*			 TriggerEventData) override;
 
-	// GameplayEffect to apply for healing
+	/** GameplayEffect to apply for healing */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heal", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UGameplayEffect> HealGE;
 
-	// Optional override for heal amount magnitude (0 = use GE default)
+	/** Optional override for heal amount magnitude (0 = use GE default) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heal")
 	float HealAmount;
 };

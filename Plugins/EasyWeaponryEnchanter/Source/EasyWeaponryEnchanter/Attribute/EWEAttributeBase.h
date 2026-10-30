@@ -13,10 +13,11 @@
     GAMEPLAYATTRIBUTE_VALUE_SETTER(PropertyName) \
     GAMEPLAYATTRIBUTE_VALUE_INITTER(PropertyName)
 
-// Policy for how a dependent attribute's Base is corrected when its Max attribute changes.
-// Clamp: the dependent Base is only reduced when it exceeds the new Max; it is not raised when Max rises.
-// KeepRatio: the dependent Base keeps its ratio to the old Max (50/100 -> 75/150 -> 50/100);
-//            if the old Max is <= 0, the dependent is filled to the new Max.
+/** Policy for how a dependent attribute's Base is corrected when its Max attribute changes.
+ * Clamp: the dependent Base is only reduced when it exceeds the new Max; it is not raised when Max rises.
+ * KeepRatio: the dependent Base keeps its ratio to the old Max (50/100 -> 75/150 -> 50/100);
+ *            if the old Max is <= 0, the dependent is filled to the new Max.
+ */
 UENUM(BlueprintType)
 enum class EEWEMaxChangePolicy : uint8
 {
@@ -24,7 +25,7 @@ enum class EEWEMaxChangePolicy : uint8
     KeepRatio,
 };
 
-// A single Max-attribute -> policy binding, editable on a GE's Max Change Policy component.
+/** A single Max-attribute -> policy binding, editable on a GE's Max Change Policy component. */
 USTRUCT(BlueprintType)
 struct EASYWEAPONRYENCHANTER_API FEWEMaxChangePolicyEntry
 {
@@ -37,9 +38,7 @@ struct EASYWEAPONRYENCHANTER_API FEWEMaxChangePolicyEntry
     EEWEMaxChangePolicy Policy = EEWEMaxChangePolicy::Clamp;
 };
 
-/**
- *
- */
+/** Vital attributes (Health, MaxHealth, Mana, MaxMana) with range clamping and Max-change policies. */
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEAttributeBase : public UAttributeSet
 {

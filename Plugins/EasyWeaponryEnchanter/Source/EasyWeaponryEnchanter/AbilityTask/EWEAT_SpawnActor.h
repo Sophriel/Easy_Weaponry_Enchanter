@@ -6,9 +6,7 @@
 #include "Abilities/Tasks/AbilityTask_SpawnActor.h"
 #include "EWEAT_SpawnActor.generated.h"
 
-/**
- *
- */
+/** Ability task that spawns an actor at a target location. */
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEAT_SpawnActor : public UAbilityTask_SpawnActor
 {

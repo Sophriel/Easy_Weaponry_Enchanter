@@ -6,9 +6,7 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "EWEAnimNotify_Hold.generated.h"
 
-/**
- * 
- */
+/** Animation notify that triggers the hold ability. */
 UCLASS()
 class EWE_API UEWEAnimNotify_Hold : public UAnimNotify
 {

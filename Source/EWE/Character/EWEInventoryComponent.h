@@ -74,11 +74,11 @@ protected:
 protected:
     TScriptInterface<class IEWECharacterInterface> OwnerCharacter;
 
-    // Added from Savedata or Editor
+    /** Initial loadout, loaded asynchronously at start. Empty entries are skipped. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
     TArray<TSoftObjectPtr<class UEWEWeaponData>> InitialWeapons;
 
-    // Loaded Weapon Data
+    /** Weapons acquired at runtime. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
     TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
 

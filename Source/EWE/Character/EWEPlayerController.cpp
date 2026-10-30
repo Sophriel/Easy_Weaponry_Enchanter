@@ -27,6 +27,7 @@ void AEWEPlayerController::AcknowledgePossession(APawn *P)
 
 #pragma region Inventory
 
+// Delegates to UEWELocalUIManageSubsystem::ToggleInventory.
 void AEWEPlayerController::ToggleInventory()
 {
     if (CachedUIManager)

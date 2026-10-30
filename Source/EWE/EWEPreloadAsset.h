@@ -6,9 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "EWEPreloadAsset.generated.h"
 
-/**
- *
- */
+/** Asset classes preloaded at startup. */
 UCLASS()
 class EWE_API UEWEPreloadAsset : public UDataAsset
 {

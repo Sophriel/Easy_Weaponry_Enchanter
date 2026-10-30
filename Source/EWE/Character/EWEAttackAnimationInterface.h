@@ -13,9 +13,6 @@ class UEWEAttackAnimationInterface : public UInterface
 	GENERATED_BODY()
 };
 
-/**
- * 
- */
 class EWE_API IEWEAttackAnimationInterface
 {
 	GENERATED_BODY()

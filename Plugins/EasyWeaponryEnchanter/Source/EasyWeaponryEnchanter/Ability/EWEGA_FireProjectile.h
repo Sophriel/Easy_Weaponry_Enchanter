@@ -13,9 +13,7 @@ enum class EFireType : uint8
 	SpawnFromCreation UMETA(DisplayName = "Use Creation Ability and Fire")
 };
 
-/**
- *
- */
+/** Fires a projectile, spawned from a class or a Creation ability. */
 UCLASS()
 class EASYWEAPONRYENCHANTER_API UEWEGA_FireProjectile : public UEWEAbilityBase
 {

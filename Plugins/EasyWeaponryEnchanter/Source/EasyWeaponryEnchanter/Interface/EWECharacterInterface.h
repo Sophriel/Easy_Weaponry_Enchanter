@@ -16,9 +16,6 @@ class UEWECharacterInterface : public UInterface
 	GENERATED_BODY()
 };
 
-/**
- * 
- */
 class EASYWEAPONRYENCHANTER_API IEWECharacterInterface
 {
 	GENERATED_BODY()

@@ -6,9 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "EWEControlData.generated.h"
 
-/**
- *
- */
+/** Character control and camera settings. */
 UCLASS()
 class EWE_API UEWEControlData : public UPrimaryDataAsset
 {

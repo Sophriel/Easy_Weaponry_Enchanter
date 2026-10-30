@@ -43,11 +43,11 @@ protected:
     virtual void NotifyControllerChanged() override;
     virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
 
-    /** MappingContext */
+    /** Default input mapping context. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UInputMappingContext> DefaultMappingContext;
 
-    /** MappingContext */
+    /** Quick slot input mapping context. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UInputMappingContext> QuickSlotMappingContext;
 

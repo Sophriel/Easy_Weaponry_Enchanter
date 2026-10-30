@@ -6,9 +6,7 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "EWEAnimNotify_Hit.generated.h"
 
-/**
- * 
- */
+/** Animation notify that triggers the hit ability. */
 UCLASS()
 class EWE_API UEWEAnimNotify_Hit : public UAnimNotify
 {
