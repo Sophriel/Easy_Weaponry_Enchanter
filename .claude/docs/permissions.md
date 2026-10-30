@@ -1,9 +1,8 @@
-# Claude Code 설정 — EWE
+# 권한 및 경로 규칙
 
-> 🌐 [English version](README.md)
+> 상위 문서: [README.md](../README.md)
 
-이 폴더는 git으로 추적되어 팀 전체가 동일한 Claude Code 설정을 공유합니다.
-**첫 세션을 시작하기 전에 아래 설정 안내를 반드시 읽어주세요.**
+`.claude/settings.local.json` 의 권한 규칙과, 그 규칙이 쓰는 경로 문법을 설명한다.
 
 ---
 
@@ -50,21 +49,6 @@ Claude Code는 `Bash(...)` / `PowerShell(...)` 규칙을 **명령 문자열 글�
 `/path`가 실행 디렉토리를 기준으로 하므로, **항상 저장소 루트에서 Claude Code를
 실행하세요.** 하위 폴더에서 실행하면 `Read(/Source/**)` 같은 규칙이 엉뚱한 곳을
 가리킵니다.
-
----
-
-## 폴더 구성
-
-| 파일 | 추적 | 용도 |
-| :--- | :---: | :--- |
-| `settings.json` | O | 공유 프로젝트 설정. 현재 `PostToolUse` 훅을 담고 있음 |
-| `settings.local.json` | O | 권한 규칙. "Yes, don't ask again" 선택 시 Claude Code가 자동으로 추가함 |
-| `hooks/normalize-eol.ps1` | O | `Write` / `Edit` 직후 파일을 CRLF로 재작성 |
-| `skills/` | O | 프로젝트 전용 스킬 |
-
-> **참고:** JSON은 주석을 지원하지 않고 Claude Code는 JSONC도 받지 않습니다.
-> 따라서 설정 파일은 엄격한 JSON을 유지해야 하며, 모든 설명은 이 README에
-> 대신 기록합니다.
 
 ---
 
@@ -176,19 +160,6 @@ Edit(/Saved/**)
 ```
 
 빌드 산출물입니다. 편집해봐야 의미가 없고 빌드를 깨뜨릴 수 있습니다.
-
----
-
-## 줄바꿈 정책
-
-`.gitattributes`가 저장소에는 LF로 저장하고 작업 트리에는 CRLF로 체크아웃합니다.
-추가로 `PostToolUse` 훅이 Claude가 건드린 파일을 CRLF로 재작성해서, 디스크
-상태가 Visual Studio / Rider가 기대하는 형식과 일치하도록 맞춥니다.
-
-훅은 실패해도 아무 동작을 하지 않습니다. 도구 호출을 막지 않습니다.
-
-동작 확인 방법: Claude Code를 재시작한 뒤 아무 `.cpp` 파일이나 수정시키고,
-파일이 여전히 CRLF인지 확인하면 됩니다.
 
 ---
 

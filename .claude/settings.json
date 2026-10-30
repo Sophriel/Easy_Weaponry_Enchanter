@@ -10,6 +10,21 @@
           }
         ]
       }
+    ],
+    "FileChanged": [
+      {
+        "matcher": "plan_request.md",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "asyncRewake": true,
+            "statusMessage": "플랜 검증 요청 확인 중...",
+            "timeout": 60,
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/on-plan-request.ps1"
+          }
+        ]
+      }
     ]
   }
 }
