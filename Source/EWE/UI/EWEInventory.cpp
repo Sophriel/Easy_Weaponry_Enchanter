@@ -104,12 +104,14 @@ void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)
     APlayerController* PC = GetOwningPlayer();
     if (!PC)
     {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Cannot assign quick slot: no owning player"));
         return;
     }
 
-    UEWELocalUIManageSubsystem* UIManager = PC->GetLocalPlayer()->GetSubsystem<UEWELocalUIManageSubsystem>();
+    UEWELocalUIManageSubsystem* UIManager = ULocalPlayer::GetSubsystem<UEWELocalUIManageSubsystem>(PC->GetLocalPlayer());
     if (!UIManager)
     {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Cannot assign quick slot: UI manage subsystem not found"));
         return;
     }
 
