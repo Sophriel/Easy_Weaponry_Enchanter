@@ -17,6 +17,7 @@ AGENTS.md
 # Only runtime/cache artifacts are ignored.
 .claude/batches/
 .claude/projects/
+.claude/plans/
 .claude/todos/
 .claude/shell-snapshots/
 .claude/statsig/
@@ -115,7 +116,3 @@ Content/Weapons/InfinityBladeWeapons
 *.pyc
 *.docx
 *.txt
-
-# Cowork temporary outputs
-Documents/scratch/
-Documents/MDs/plans

@@ -76,7 +76,7 @@ Task 툴로 plan-verifier 서브에이전트를 띄워 이 플랜을 검증하�
 서브에이전트에게 넘길 프롬프트: "$rel 파일의 플랜을 검증하라."
 
 주의: 서브에이전트는 .claude/plan-verify/ 아래에 아무것도 쓰면 안 됩니다.
-개정판 플랜은 Documents/MDs/plans/ 에만 작성합니다.
+개정판 플랜은 .claude/plans/<YYMMDD>-<작업-슬러그>/ 에만 작성합니다 (plans/ 루트 금지).
 "@
 
 [Console]::Error.WriteLine($msg)

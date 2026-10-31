@@ -25,7 +25,7 @@ Plan Verifier 세션 (로컬, 상시 대기)
 plan-verifier 서브에이전트 (Task 툴)
   CRITERIA.md 기준으로 검증
     · PASS   → 판정만 보고. 구현 여부는 사용자가 결정
-    · REVISE → Documents/MDs/plans/ 에 개정판(-v2, -v3) 작성
+    · REVISE → .claude/plans/<YYMMDD>-<작업-슬러그>/ 에 개정판(-v2, -v3) 작성
 ```
 
 ## 구성 요소
@@ -58,7 +58,7 @@ plan-verifier 서브에이전트 (Task 툴)
 
 | # | 장치 | 막는 것 |
 | :---: | :--- | :--- |
-| 1 | **경로 분리** | 감시 대상은 `plan_request.md` **한 파일**. 산출물은 `Documents/MDs/plans/` — 감시 대상이 아니다. 구조적으로 재발화가 불가능하다 |
+| 1 | **경로 분리** | 감시 대상은 `plan_request.md` **한 파일**. 산출물은 `.claude/plans/` — 감시 대상이 아니다. 구조적으로 재발화가 불가능하다 |
 | 2 | **IDLE 판정** | 되돌린 쓰기로 훅이 다시 불려도 내용이 `IDLE` 이면 즉시 종료 |
 | 3 | **해시 중복 차단** | 같은 내용이 다시 들어오면 무시 |
 | 4 | **10초 쿨다운** | 연쇄 발화 차단 |
