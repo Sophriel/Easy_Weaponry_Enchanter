@@ -18,6 +18,7 @@ AGENTS.md
 .claude/batches/
 .claude/projects/
 .claude/plans/
+.claude/scratch/
 .claude/todos/
 .claude/shell-snapshots/
 .claude/statsig/
