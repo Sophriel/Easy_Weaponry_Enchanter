@@ -72,8 +72,7 @@ Unreal Engine 5 C++ Plugin.
     ├── core/                           ← 시스템 구조·설계
     ├── functions/                      ← Function 카탈로그
     ├── features/                       ← 부가 시스템
-    ├── guides/                         ← 작업 프로세스
-    └── plans/                          ← 작업 플랜 (gitignore)
+    └── guides/                         ← 작업 프로세스
 ```
 
 ---
@@ -103,7 +102,7 @@ Unreal Engine 5 C++ Plugin.
 
 ### md 파일 위치
 
-**저장소 루트에 두는 md 는 아래 4개뿐이다. 그 외 모든 md 는 `Documents/MDs/` 하위에 만든다.**
+**저장소 루트에 두는 md 는 아래 4개뿐이다. 그 외 모든 md 는 `Documents/MDs/` 하위에 만든다. (예외: 작업 플랜은 `.claude/plans/`)**
 
 | 파일 | 용도 |
 |------|------|
@@ -123,26 +122,40 @@ Unreal Engine 5 C++ Plugin.
 | `functions/` | Function 카탈로그 |
 | `features/` | 부가 시스템 — 쿨타임/레코딩, UI |
 | `guides/` | 작업 프로세스 — 커밋 가이드 등 |
-| `plans/` | 작업 플랜 (아래 참조) |
 
 - 어느 폴더에도 맞지 않으면 **새 폴더를 임의로 만들지 말고 먼저 사용자에게 물을 것**
 - 문서를 추가·이동하면 위 **문서 맵** 표와 `CLAUDE_EN.md` / `AGENTS.md` 를 함께 갱신한다
 
-### 작업 플랜 — `plans/` 전용
+### 작업 플랜 — `.claude/plans/` 전용
 
 코드 적용 계획, 리팩터링 계획, 버그 수정 계획 등
-**"앞으로 할 작업"을 기술하는 md 는 예외 없이 `Documents/MDs/plans/` 에 만든다.**
+**"앞으로 할 작업"을 기술하는 md 는 예외 없이 `.claude/plans/<YYMMDD>-<작업-슬러그>/` 에 만든다.**
 
 ```
 ❌ Documents/plan.md
 ❌ Documents/MDs/quickslot-plan.md
 ❌ Documents/MDs/core/quickslot-viewmodel.md
-✅ Documents/MDs/plans/quickslot-viewmodel.md
+❌ .claude/plans/quickslot-viewmodel.md                      ← plans/ 루트에 직접 두지 않는다
+❌ .claude/plans/quickslot-viewmodel/quickslot-viewmodel.md  ← 폴더명에 날짜 접두사 누락
+✅ .claude/plans/261031-quickslot-viewmodel/quickslot-viewmodel.md
+✅ .claude/plans/261031-quickslot-viewmodel/quickslot-viewmodel-v2.md
 ```
+
+- **폴더 단위**: 작업 1건 = 하위 폴더 1개. **새 작업의 플랜은 새 폴더를 만들어 그 안에 둔다.**
+  `.claude/plans/` 루트에는 md 를 직접 두지 않는다
+- **폴더명 = `YYMMDD-작업-슬러그`**: 폴더를 만드는 날짜(로컬 기준, 연도 2자리) + 작업 슬러그 (`261031-fix-inventory-load-race/`)
+  - 작업 슬러그는 첫 플랜의 파일명에서 `.md` 와 `-vN` 을 뗀 것. **파일명에는 날짜를 붙이지 않는다**
+  - 날짜는 폴더를 만들 때 한 번 정하고, 개정판을 추가해도 바꾸지 않는다
+- **같은 폴더에 두는 것**: 개정판(`-v2`, `-v3`), 검증 부록, 같은 작업에서 갈라진 파생 플랜
+  (`-docs`, `-todo` 등). 파생 플랜이라도 새 폴더를 만들지 않는다
+- **새 폴더를 만드는 것**: 이전 작업에서 파생됐더라도 **별개의 작업**인 후속 플랜.
+  `관련 문서` 절에 이전 플랜 경로를 적어 연결한다
+- 새 플랜을 만들기 전에 `.claude/plans/` 의 기존 폴더를 확인해 같은 작업의 폴더가 있는지 먼저 본다.
+  날짜 접두사는 무시하고 슬러그로 찾는다
 
 - **파일명**: kebab-case 영어. 작업 대상이 드러나게 (`fix-inventory-load-race.md`)
 - **개정**: 이전 판을 지우지 않고 `-v2`, `-v3` 접미사로 남긴다 (판단 이력 보존)
-- **`plans/` 는 `.gitignore` 처리됨 — 커밋되지 않는 로컬 전용이다.**
+- **`.claude/plans/` 는 `.gitignore` 처리됨 — 커밋되지 않는 로컬 전용이다.**
   플랜 내용을 영구 보존하려면 완료 후 해당 설계 문서(`core/` 등)에 반영할 것
 - 플랜은 md 이므로 한국어로 작성한다. "코드에 한글 금지" 규칙 대상이 아니다
 

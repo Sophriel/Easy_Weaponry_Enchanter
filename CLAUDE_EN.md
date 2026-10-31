@@ -72,8 +72,7 @@ This project does not override the language at the project level.
     ├── core/                           ← System structure & design
     ├── functions/                      ← Function catalog
     ├── features/                       ← Auxiliary systems
-    ├── guides/                         ← Workflow processes
-    └── plans/                          ← Work plans (gitignored)
+    └── guides/                         ← Workflow processes
 ```
 
 ---
@@ -102,7 +101,7 @@ This project does not override the language at the project level.
 
 ### Markdown file locations
 
-**Only the four files below belong at the repository root. Every other markdown file goes under `Documents/MDs/`.**
+**Only the four files below belong at the repository root. Every other markdown file goes under `Documents/MDs/` (exception: work plans go in `.claude/plans/`).**
 
 | File | Purpose |
 |------|---------|
@@ -122,26 +121,40 @@ The top level of `Documents/` is reserved for non-markdown deliverables (docx / 
 | `functions/` | Function catalog |
 | `features/` | Auxiliary systems — cooldown/recording, UI |
 | `guides/` | Workflow processes — commit guide, etc. |
-| `plans/` | Work plans (see below) |
 
 - If nothing fits, **do not invent a new folder — ask the user first**
 - When adding or moving a document, update the **Document Map** above along with `CLAUDE.md` / `AGENTS.md`
 
-### Work plans — `plans/` only
+### Work plans — `.claude/plans/` only
 
 Any markdown describing **work to be done** — code application plans, refactoring plans,
-bug fix plans — goes in `Documents/MDs/plans/` without exception.
+bug fix plans — goes in `.claude/plans/<YYMMDD>-<work-slug>/` without exception.
 
 ```
 ❌ Documents/plan.md
 ❌ Documents/MDs/quickslot-plan.md
 ❌ Documents/MDs/core/quickslot-viewmodel.md
-✅ Documents/MDs/plans/quickslot-viewmodel.md
+❌ .claude/plans/quickslot-viewmodel.md                      ← never directly in the plans/ root
+❌ .claude/plans/quickslot-viewmodel/quickslot-viewmodel.md  ← folder name missing the date prefix
+✅ .claude/plans/261031-quickslot-viewmodel/quickslot-viewmodel.md
+✅ .claude/plans/261031-quickslot-viewmodel/quickslot-viewmodel-v2.md
 ```
+
+- **One folder per work item**: **a plan for new work gets a new subfolder.**
+  Never put markdown directly in the `.claude/plans/` root
+- **Folder name = `YYMMDD-work-slug`**: the folder's creation date (local time, 2-digit year) + the work slug (`261031-fix-inventory-load-race/`)
+  - The work slug is the first plan's filename without `.md` and `-vN`. **Filenames do not get the date**
+  - The date is fixed when the folder is created and does not change when revisions are added
+- **Same folder**: revisions (`-v2`, `-v3`), verification appendices, and plans split off from the same work
+  (`-docs`, `-todo`, etc.). A split-off plan does not get its own folder
+- **New folder**: a follow-up plan that is **separate work**, even if it came out of an earlier plan.
+  Link it by listing the earlier plan's path in its related-documents section
+- Before creating a plan, check the existing folders in `.claude/plans/` for one belonging to the same work.
+  Match by slug, ignoring the date prefix
 
 - **Filename**: kebab-case English, naming the target of the work (`fix-inventory-load-race.md`)
 - **Revisions**: keep prior versions with `-v2`, `-v3` suffixes instead of deleting them
-- **`plans/` is gitignored — local only, never committed.**
+- **`.claude/plans/` is gitignored — local only, never committed.**
   To preserve a plan's content, fold it into the relevant design document (`core/`, etc.) once done
 - Plans are markdown, so write them in Korean. The "no Korean in code" rule does not apply
 
