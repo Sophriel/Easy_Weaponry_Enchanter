@@ -1,9 +1,4 @@
-/.claude/projects
-/.claude/todos
-/.claude/shell-snapshots
-/.claude/statsig
-/.claude/debug
-/.claude/*.log
+/.agents
 /.git
 /.github
 /.vs
@@ -13,10 +8,13 @@
 /Content
 /DerivedDataCache
 /Documents
+/EWE
 /Intermediate
 /Saved
 !/Saved/Logs
 /Plugins/*/Binaries
 /Plugins/*/Content
 /Plugins/*/Intermediate
+/Plugins/*/Resources
+/*.sln
 /LICENSE
