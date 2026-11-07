@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
+#include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
 #include "EWEInventory.generated.h"
 
 UCLASS()
@@ -29,7 +29,7 @@ public:
 	bool IsInventoryOpen() const { return bIsInventoryOpen; }
 
 	UFUNCTION(BlueprintCallable, Category = Inventory)
-	void SetWeapons(const TArray<class UEWEWeaponData*>& Weapons);
+	void SetWeapons(const TArray<class UEWEWeaponInstance*>& Weapons);
 
 	UFUNCTION(BlueprintCallable, Category = Inventory)
 	void SelectItem(int32 Index);
@@ -38,13 +38,16 @@ public:
 	void AssignToQuickSlot(int32 SlotIndex);
 
 	UFUNCTION(BlueprintCallable, Category = Inventory)
-	TArray<class UEWEWeaponData*> GetWeapons() const { return Weapons; }
+	TArray<class UEWEWeaponInstance*> GetWeapons() const { return Weapons; }
 
 	UFUNCTION(BlueprintCallable, Category = Inventory)
 	int32 GetSelectedItemIndex() const { return SelectedItemIndex; }
 
 protected:
 	void SetMouseCursorVisible(bool bShow);
+
+	/** The inventory Model of the owning player's character (nullptr if none). */
+	class UEWEInventoryComponent *GetOwningInventoryModel();
 
 	UEWEInventory(const FObjectInitializer& ObjectInitializer);
 	virtual void NativeConstruct() override;
@@ -56,7 +59,7 @@ protected:
 	TArray<TObjectPtr<UUserWidget>> ItemSlots;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory)
-	TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
+	TArray<TObjectPtr<class UEWEWeaponInstance>> Weapons;
 
 	bool bIsInventoryOpen = false;
 	int32 SelectedItemIndex = -1;

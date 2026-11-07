@@ -11,6 +11,7 @@ class UEWEQuickSlotViewModel;
 class UEWEStatusViewModel;
 class UEWETargetInfoViewModel;
 class UEWEInventoryComponent;
+class UEWEWeaponInstance;
 
 /**
  * Manages all UI widgets for local player.
@@ -70,10 +71,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI|Inventory")
     bool IsInventoryOpen() const;
 
-    /** Syncs weapons list to inventory UI */
-    UFUNCTION(BlueprintCallable, Category = "UI|Inventory")
-    void SyncInventoryWeapons(const TArray<class UEWEWeaponData *> &Weapons);
-
     /** Gets the inventory widget instance (may be nullptr) */
     UFUNCTION(BlueprintCallable, Category = "UI|Inventory")
     UEWEInventory *GetInventoryWidget() const { return InventoryWidget; }
@@ -91,53 +88,30 @@ protected:
 public:
     UEWEQuickSlotViewModel *GetQuickSlotViewModel() const { return QuickSlotViewModel; }
 
-    /** Restores the initial slot assignment from the owning pawn's inventory. */
-    void BindQuickSlot();
-
-    /** Adds a weapon to the first available quick slot */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void AddWeaponToQuickSlot(class UEWEWeaponData *Weapon);
-
-    /** Sets a weapon at the specified quick slot index */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void SetQuickSlot(int32 SlotIndex, class UEWEWeaponData *Weapon);
-
-    /** Selects the specified quick slot */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void SelectQuickSlot(int32 SlotIndex);
-
-    /** Scrolls to the next/previous quick slot */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void ScrollQuickSlot(float ScrollDirection);
-
     /** Gets the quick slot widget instance (may be nullptr) */
     UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
     UEWEQuickSlot *GetQuickSlotWidget() const { return QuickSlotWidget; }
 
 protected:
-    /** Creates the view model and subscribes to it. Called once from Initialize(). */
+    /** Creates the view model. Called once from Initialize(). */
     void CreateQuickSlotViewModel();
 
     void CreateQuickSlotWidget();
 
-    /** Forwards the selected weapon to the possessed pawn. */
-    void HandleSlotSelected(int32 SlotIndex, class UEWEWeaponData *Weapon);
+    /**
+     * Subscribes to the new player controller's Model-change relay and pulls the current
+     * Model. Drops the previous controller's subscription first.
+     */
+    void BindInventoryModel(APlayerController *NewPlayerController);
 
-    /** Subscribes to the pawn's inventory so a late load still reaches the view model. */
-    void SubscribeToInventory();
-
-    /** Fills the view model from the bound inventory. Safe to call more than once. */
-    void SeedQuickSlotFromInventory();
-
-    /** Reacts to the inventory sync broadcast: seeds the slots and ensures a selection. */
-    UFUNCTION()
-    void HandleWeaponsSynced(const TArray<class UEWEWeaponData *> &InWeapons, int32 NewCount);
+    /** Forwards the Model change to the quick slot view model and re-drives the widget. */
+    void HandleInventoryModelChanged(class UEWEInventoryComponent *Old, class UEWEInventoryComponent *New);
 
     UPROPERTY(Transient)
     TObjectPtr<class UEWEQuickSlotViewModel> QuickSlotViewModel;
 
-    /** Inventory currently subscribed to. Weak: the pawn may be replaced. */
-    TWeakObjectPtr<class UEWEInventoryComponent> BoundInventory;
+    /** Handle for the player controller's OnInventoryModelChanged subscription. */
+    FDelegateHandle InventoryModelChangedHandle;
 
     UPROPERTY(Transient)
     TObjectPtr<class UEWEQuickSlot> QuickSlotWidget;

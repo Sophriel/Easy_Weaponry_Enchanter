@@ -6,25 +6,21 @@
 #include "GameFramework/Actor.h"
 #include "EWEWeaponBase.generated.h"
 
+/**
+ * Base for weapons spawned by gameplay abilities (projectiles, etc.). The mesh is the root
+ * so a physics-driven weapon follows its simulated position.
+ */
 UCLASS()
 class EASYWEAPONRYENCHANTER_API AEWEWeaponBase : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	AEWEWeaponBase();
+	AEWEWeaponBase(const FObjectInitializer& ObjectInitializer);
 
 	FORCEINLINE class USkeletalMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon)
-	TArray<TSubclassOf<class UGameplayAbility>> HoldAbilities;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon)
-	TArray<TSubclassOf<class UGameplayAbility>> HitAbilities;
-
 protected:
-	virtual void BeginPlay() override;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Weapon, Meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class USkeletalMeshComponent> WeaponMesh;
 };

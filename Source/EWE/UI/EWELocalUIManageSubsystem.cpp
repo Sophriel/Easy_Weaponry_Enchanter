@@ -14,7 +14,9 @@
 #include "EWEQuickSlotViewModel.h"
 #include "EWE/Character/EWECharacter.h"
 #include "EWE/Character/EWEInventoryComponent.h"
+#include "EWE/Character/EWEPlayerController.h"
 #include "EasyWeaponryEnchanter/Interface/EWECharacterInterface.h"
+#include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "View/MVVMView.h"
@@ -37,21 +39,21 @@ void UEWELocalUIManageSubsystem::Deinitialize()
     // UEWEUIAsset outlives this subsystem, so never leave a subscription behind.
     ClearUILoadedSubscription();
 
-    // Tear the view model down before the widget, so the widget's injected
-    // reference is still valid while we unsubscribe.
+    // Drop the player controller's Model relay subscription; it must not outlive this
+    // subsystem.
+    AEWEPlayerController *PC = Cast<AEWEPlayerController>(CurrentPlayerController.Get());
+    if (PC)
+    {
+        PC->OnInventoryModelChanged.Remove(InventoryModelChangedHandle);
+    }
+    InventoryModelChangedHandle.Reset();
+
+    // Unbind the view model from its Model before tearing it down.
     if (QuickSlotViewModel)
     {
-        QuickSlotViewModel->OnSlotSelected.RemoveAll(this);
+        QuickSlotViewModel->BindModel(nullptr, nullptr);
         QuickSlotViewModel = nullptr;
     }
-
-    // Drop the inventory subscription; it must not outlive this subsystem.
-    UEWEInventoryComponent *Inventory = BoundInventory.Get();
-    if (Inventory)
-    {
-        Inventory->OnWeaponsSynced.RemoveDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
-    }
-    BoundInventory = nullptr;
 
     if (InventoryWidget)
     {
@@ -95,6 +97,11 @@ void UEWELocalUIManageSubsystem::Deinitialize()
 
 void UEWELocalUIManageSubsystem::PlayerControllerChanged(APlayerController *NewPlayerController)
 {
+    // Relay the inventory Model to the quick slot view model. This runs before the
+    // widget-creation early returns below, so a late controller still reaches the view
+    // model even when the essential HUD is already on screen.
+    BindInventoryModel(NewPlayerController);
+
     CurrentPlayerController = NewPlayerController;
 
     // This fires more than once per session (possession, respawn, non-seamless travel).
@@ -225,17 +232,6 @@ bool UEWELocalUIManageSubsystem::IsInventoryOpen() const
     return InventoryWidget && InventoryWidget->IsInventoryOpen();
 }
 
-void UEWELocalUIManageSubsystem::SyncInventoryWeapons(const TArray<class UEWEWeaponData *> &Weapons)
-{
-    if (!InventoryWidget)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("InventoryWidget not created, cannot sync weapons"));
-        return;
-    }
-
-    InventoryWidget->SetWeapons(Weapons);
-}
-
 void UEWELocalUIManageSubsystem::CreateInventoryWidget()
 {
     if (InventoryWidget)
@@ -271,39 +267,9 @@ void UEWELocalUIManageSubsystem::CreateQuickSlotViewModel()
     if (QuickSlotViewModel)
         return;
 
+    // The view model is an observer: it binds to the inventory Model through
+    // BindInventoryModel, not here. The slot array stays empty until a Model is bound.
     QuickSlotViewModel = NewObject<UEWEQuickSlotViewModel>(this);
-
-    // Subscribe exactly once, at creation. Never inside BindQuickSlot(), which runs
-    // more than once and returns early on several paths.
-    QuickSlotViewModel->OnSlotSelected.AddUObject(
-        this, &UEWELocalUIManageSubsystem::HandleSlotSelected);
-
-    // The slot array stays empty until the widget attaches and sizes it.
-}
-
-void UEWELocalUIManageSubsystem::HandleSlotSelected(int32 SlotIndex, UEWEWeaponData *Weapon)
-{
-    if (!IsValid(CurrentPlayerController))
-        return;
-
-    APawn *CurrentPawn = CurrentPlayerController->GetPawn();
-    if (!CurrentPawn)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("HandleSlotSelected: no pawn possessed"));
-        return;
-    }
-
-    // EquipWeapon is a pure virtual on IEWECharacterInterface. Do not cast to the
-    // concrete AEWECharacter here.
-    IEWECharacterInterface *CharacterInterface = Cast<IEWECharacterInterface>(CurrentPawn);
-    if (!CharacterInterface)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("HandleSlotSelected: pawn does not implement IEWECharacterInterface"));
-        return;
-    }
-
-    // Weapon may be nullptr — selecting an empty slot unequips. See EquipWeapon().
-    CharacterInterface->EquipWeapon(Weapon);
 }
 
 void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
@@ -331,136 +297,58 @@ void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
 
     QuickSlotWidget->AddToViewport();
 
+    // The view model may already be bound to a Model (the possession path can run before
+    // the widget exists). SetViewModel is idempotent and re-drives slot creation.
     QuickSlotWidget->SetViewModel(QuickSlotViewModel);
-
-    BindQuickSlot();
 }
 
-void UEWELocalUIManageSubsystem::BindQuickSlot()
+void UEWELocalUIManageSubsystem::BindInventoryModel(APlayerController *NewPlayerController)
 {
-    // No QuickSlotWidget check on purpose. The view model outlives the widget and
-    // must be able to hold data before any widget exists.
-    if (!IsValid(CurrentPlayerController) || !QuickSlotViewModel)
-        return;
-
-    // Subscribe first. The guards below return early on several paths, and a
-    // subscription placed after them would silently never happen.
-    SubscribeToInventory();
-
-    // The widget owns the slot count, so there is nothing to fill until it attaches.
-    // This is expected on the possession path and must not log as a warning.
-    if (QuickSlotViewModel->GetSlotCount() == 0)
+    // Drop the previous controller's subscription first.
+    AEWEPlayerController *PreviousPC = Cast<AEWEPlayerController>(CurrentPlayerController.Get());
+    if (PreviousPC)
     {
-        EWE_LOG(LogEWE, Verbose, TEXT("BindQuickSlot: slots not sized yet, deferring"));
+        PreviousPC->OnInventoryModelChanged.Remove(InventoryModelChangedHandle);
+    }
+    InventoryModelChangedHandle.Reset();
+
+    if (!NewPlayerController)
+    {
         return;
     }
 
-    SeedQuickSlotFromInventory();
-}
-
-void UEWELocalUIManageSubsystem::SubscribeToInventory()
-{
-    APawn *CurrentPawn = CurrentPlayerController->GetPawn();
-    if (!CurrentPawn)
-        return;
-
-    UEWEInventoryComponent *Inventory = CurrentPawn->FindComponentByClass<UEWEInventoryComponent>();
-    if (!Inventory)
+    // The Model relay lives on the EWE controller, not the engine base.
+    AEWEPlayerController *EWEPC = Cast<AEWEPlayerController>(NewPlayerController);
+    if (!EWEPC)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("SubscribeToInventory: inventory component not found on pawn"));
         return;
     }
 
-    if (BoundInventory.Get() == Inventory)
-        return;
+    InventoryModelChangedHandle = EWEPC->OnInventoryModelChanged.AddUObject(
+        this, &UEWELocalUIManageSubsystem::HandleInventoryModelChanged);
 
-    // The pawn may have been replaced. Drop the previous subscription first.
-    UEWEInventoryComponent *Previous = BoundInventory.Get();
-    if (Previous)
+    // Pull the current Model for a late subscriber. The PC fires OnInventoryModelChanged
+    // only on possession, so a controller that already possesses a pawn must be pulled.
+    UEWEInventoryComponent *Model = EWEPC->GetInventoryModel();
+    if (Model)
     {
-        Previous->OnWeaponsSynced.RemoveDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
-    }
-
-    Inventory->OnWeaponsSynced.AddDynamic(this, &UEWELocalUIManageSubsystem::HandleWeaponsSynced);
-    BoundInventory = Inventory;
-}
-
-void UEWELocalUIManageSubsystem::SeedQuickSlotFromInventory()
-{
-    if (!QuickSlotViewModel || QuickSlotViewModel->GetSlotCount() == 0)
-        return;
-
-    UEWEInventoryComponent *Inventory = BoundInventory.Get();
-    if (!Inventory)
-        return;
-
-    // Seed only when nothing has been assigned yet. A rebuild must not overwrite
-    // an arrangement the player already changed.
-    if (QuickSlotViewModel->IsEmpty())
-    {
-        QuickSlotViewModel->SeedFromInventory(Inventory->GetAllWeapons());
-    }
-
-    // Ensure a slot is selected — whether the data arrived through the seed
-    // above or through the AddWeapon() relay. Selecting an empty slot
-    // broadcasts nullptr (unarmed), which is correct while the inventory is
-    // still empty.
-    if (QuickSlotViewModel->GetSelectedIndex() == INDEX_NONE)
-    {
-        QuickSlotViewModel->SelectSlot(0);
+        HandleInventoryModelChanged(nullptr, Model);
     }
 }
 
-void UEWELocalUIManageSubsystem::HandleWeaponsSynced(const TArray<UEWEWeaponData *> &InWeapons, int32 NewCount)
+void UEWELocalUIManageSubsystem::HandleInventoryModelChanged(UEWEInventoryComponent *Old, UEWEInventoryComponent *New)
 {
-    // The widget may still be missing. CreateQuickSlotWidget() calls BindQuickSlot()
-    // afterwards, so that path picks the data up instead.
-    SeedQuickSlotFromInventory();
-}
+    if (QuickSlotViewModel)
+    {
+        QuickSlotViewModel->BindModel(Old, New);
 
-void UEWELocalUIManageSubsystem::AddWeaponToQuickSlot(UEWEWeaponData *Weapon)
-{
-    if (!Weapon)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("AddWeaponToQuickSlot: Weapon is null"));
-        return;
+        // The slot count is known only once the view model is bound. Re-drive the widget
+        // so it creates its slot widgets now (a no-op if it already has them).
+        if (QuickSlotWidget)
+        {
+            QuickSlotWidget->SetViewModel(QuickSlotViewModel);
+        }
     }
-    if (!QuickSlotViewModel)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("AddWeaponToQuickSlot: view model not created"));
-        return;
-    }
-    QuickSlotViewModel->AddWeapon(Weapon);
-}
-
-void UEWELocalUIManageSubsystem::SetQuickSlot(int32 SlotIndex, UEWEWeaponData *Weapon)
-{
-    if (!QuickSlotViewModel)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("SetQuickSlot: view model not created"));
-        return;
-    }
-    QuickSlotViewModel->SetSlot(SlotIndex, Weapon);
-}
-
-void UEWELocalUIManageSubsystem::SelectQuickSlot(int32 SlotIndex)
-{
-    if (!QuickSlotViewModel)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("SelectQuickSlot: view model not created"));
-        return;
-    }
-    QuickSlotViewModel->SelectSlot(SlotIndex);
-}
-
-void UEWELocalUIManageSubsystem::ScrollQuickSlot(float ScrollDirection)
-{
-    if (!QuickSlotViewModel)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("ScrollQuickSlot: view model not created"));
-        return;
-    }
-    QuickSlotViewModel->ScrollSlot(ScrollDirection);
 }
 
 #pragma endregion

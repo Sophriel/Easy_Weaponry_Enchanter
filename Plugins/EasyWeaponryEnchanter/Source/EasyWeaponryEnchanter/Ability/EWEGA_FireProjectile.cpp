@@ -70,7 +70,10 @@ void UEWEGA_FireProjectile::FireProjectile(AActor* ProjectileActor)
 
 	UPrimitiveComponent* RootComp = Cast<UPrimitiveComponent>(ProjectileActor->GetRootComponent());
 	if (!RootComp || !RootComp->IsSimulatingPhysics())
+	{
+		EWE_LOG(LogEWE, Warning, TEXT("EWEGA_FireProjectile: '%s' root is not a physics-simulating primitive; cannot fire"), *ProjectileActor->GetName());
 		return;
+	}
 
 	FVector Forward = ProjectileActor->GetActorForwardVector();
 	FVector Impulse = Forward * ProjectileSpeed;

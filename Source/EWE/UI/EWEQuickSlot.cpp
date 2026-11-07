@@ -25,9 +25,16 @@ void UEWEQuickSlot::SetViewModel(UEWEQuickSlotViewModel *InViewModel)
 	if (!InViewModel)
 		return;
 
-	// The widget owns the slot count and sizes the view model to match.
-	InViewModel->InitializeSlots(MaxSlotSize);
-	InitWeaponSlots(MaxSlotSize);
+	// The slot count comes from the Model (via the view model). Until the view model is
+	// bound to a Model it is unsized; defer silently and re-drive SetViewModel once bound.
+	const int32 SlotCount = InViewModel->GetSlotCount();
+	if (SlotCount == 0)
+	{
+		EWE_LOG(LogEWE, Verbose, TEXT("SetViewModel: slots not sized yet, deferring"));
+		return;
+	}
+
+	InitWeaponSlots(SlotCount);
 
 	for (int32 i = 0; i < WeaponSlots.Num(); ++i)
 	{

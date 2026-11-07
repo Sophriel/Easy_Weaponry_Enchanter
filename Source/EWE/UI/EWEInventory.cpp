@@ -2,7 +2,8 @@
 
 #include "EWEInventory.h"
 #include "EWE/EWELog.h"
-#include "EWE/UI/EWELocalUIManageSubsystem.h"
+#include "EWE/Character/EWECharacter.h"
+#include "EWE/Character/EWEInventoryComponent.h"
 
 UEWEInventory::UEWEInventory(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -39,8 +40,21 @@ void UEWEInventory::OpenInventory()
 
     bIsInventoryOpen = true;
     SetVisibility(ESlateVisibility::Visible);
-    K2_OnInventoryOpened();
     SetMouseCursorVisible(true);
+
+    // Pull the current weapon list from the Model so the display is fresh on open.
+    UEWEInventoryComponent *Model = GetOwningInventoryModel();
+    if (Model)
+    {
+        Weapons.Reset();
+        for (UEWEWeaponInstance *Instance : Model->GetAllWeapons())
+        {
+            Weapons.Add(Instance);
+        }
+    }
+
+    // Fire the open event after the list is fresh, so listeners see the current weapons.
+    K2_OnInventoryOpened();
 
     EWE_LOG(LogEWEInventory, Log, TEXT("Inventory Opened"));
 }
@@ -70,7 +84,7 @@ void UEWEInventory::SetMouseCursorVisible(bool bShow)
     }
 }
 
-void UEWEInventory::SetWeapons(const TArray<UEWEWeaponData *> &InWeapons)
+void UEWEInventory::SetWeapons(const TArray<UEWEWeaponInstance *> &InWeapons)
 {
     Weapons = InWeapons;
 
@@ -88,6 +102,19 @@ void UEWEInventory::SelectItem(int32 Index)
     EWE_LOG(LogEWEInventory, Log, TEXT("Selected Item: %s"), *Weapons[Index]->GetName());
 }
 
+UEWEInventoryComponent *UEWEInventory::GetOwningInventoryModel()
+{
+    APlayerController *PC = GetOwningPlayer();
+    if (!PC)
+        return nullptr;
+
+    AEWECharacter *Character = Cast<AEWECharacter>(PC->GetPawn());
+    if (!Character)
+        return nullptr;
+
+    return Character->GetInventoryComponent();
+}
+
 void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)
 {
     if (SelectedItemIndex < 0 || !Weapons.IsValidIndex(SelectedItemIndex))
@@ -96,21 +123,21 @@ void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)
         return;
     }
 
-    UEWEWeaponData *SelectedWeapon = Weapons[SelectedItemIndex];
-
-    APlayerController* PC = GetOwningPlayer();
-    if (!PC)
+    UEWEWeaponInstance *SelectedInstance = Weapons[SelectedItemIndex];
+    if (!SelectedInstance)
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Cannot assign quick slot: no owning player"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Selected item is not a valid instance"));
         return;
     }
 
-    UEWELocalUIManageSubsystem* UIManager = ULocalPlayer::GetSubsystem<UEWELocalUIManageSubsystem>(PC->GetLocalPlayer());
-    if (!UIManager)
+    // The assignment converges on the Model's server gate. The widget does not own the
+    // slot contents; it only requests the change.
+    UEWEInventoryComponent *Model = GetOwningInventoryModel();
+    if (!Model)
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Cannot assign quick slot: UI manage subsystem not found"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Cannot assign quick slot: no inventory model"));
         return;
     }
 
-    UIManager->SetQuickSlot(SlotIndex, SelectedWeapon);
+    Model->Server_AssignToSlot(SelectedInstance, SlotIndex);
 }

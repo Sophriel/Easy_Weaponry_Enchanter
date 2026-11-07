@@ -6,45 +6,37 @@
 #include "MVVMViewModelBase.h"
 #include "EWEQuickSlotViewModel.generated.h"
 
-class UEWEWeaponData;
+class UEWEInventoryComponent;
+class UEWEWeaponInstance;
 class UEWEQuickSlotItemViewModel;
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnQuickSlotSelectedEvent, int32 /*SlotIndex*/,
-                                     class UEWEWeaponData * /*Weapon*/);
-
-/** View model for the entire quick slot bar. */
+/**
+ * View model for the entire quick slot bar.
+ *
+ * Observer, not owner: the inventory component (Model) owns the slot contents and the
+ * selected index. This view model subscribes to the Model's broadcasts and mirrors them
+ * into per-slot item view models. Client requests (select / scroll / assign / clear) are
+ * forwarded to the Model's Server_* RPCs; the server is the single writer.
+ */
 UCLASS(BlueprintType)
 class EWE_API UEWEQuickSlotViewModel : public UMVVMViewModelBase
 {
     GENERATED_BODY()
 
 public:
-    /** Allocates the fixed slot array. Safe to call again with the same size.
-     *  Until the widget calls this, the view model is unsized: slot writes and
-     *  selection are deferred silently, not treated as errors. */
-    void InitializeSlots(int32 InSlotCount);
+    /**
+     * Binds to a new inventory Model. Unsubscribes the currently bound Model, subscribes
+     * the new one, and refreshes every slot. Safe to call more than once; a null New
+     * simply unbinds (Verbose).
+     */
+    void BindModel(class UEWEInventoryComponent *Old, class UEWEInventoryComponent *New);
 
-    /** Assigns a weapon to an explicit slot. Out-of-range logs and returns.
-     *  All slot-content writes must go through this (or the methods that do),
-     *  so the re-equip broadcast below stays reachable. */
-    void SetSlot(int32 SlotIndex, class UEWEWeaponData *Weapon);
-
-    /** Places a weapon in the first empty slot. Returns the slot used, or INDEX_NONE. */
-    int32 AddWeapon(class UEWEWeaponData *Weapon);
-
-    /** Clears the slot. No caller yet — kept as the readable form of
-     *  SetSlot(Index, nullptr) for the upcoming inventory "clear slot" action. */
-    void ClearSlot(int32 SlotIndex);
+    // Client requests. Each forwards to the bound Model's Server_* RPC; the server runs
+    // the gate and the result comes back through the Model's replication.
     void SelectSlot(int32 SlotIndex);
-
-    /** Wraps around both ends. */
     void ScrollSlot(float Direction);
-
-    /** True when no weapon has been assigned to any slot yet. */
-    bool IsEmpty() const;
-
-    /** Seeds the slots from an inventory weapon list. No-op if already seeded. */
-    void SeedFromInventory(const TArray<class UEWEWeaponData *> &InWeapons);
+    void AssignToSlot(class UEWEWeaponInstance *Instance, int32 SlotIndex);
+    void ClearSlot(int32 SlotIndex);
 
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSelectedIndex() const { return SelectedIndex; }
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSlotCount() const { return SlotItems.Num(); }
@@ -52,15 +44,26 @@ public:
     UFUNCTION(BlueprintPure)
     UEWEQuickSlotItemViewModel *GetSlotItem(int32 SlotIndex) const;
 
-    /** Broadcast when a slot is selected. Subscribers own the equip side effect. */
-    FOnQuickSlotSelectedEvent OnSlotSelected;
-
 protected:
+    /** Model broadcast: the slot contents changed. Refreshes every slot. */
+    void OnModelQuickSlotsChanged();
+
+    /** Model broadcast: the selected index changed. Refreshes the selection highlight. */
+    void OnModelSelectedSlotChanged(int32 SlotIndex);
+
+    /** Sizes the item array to the Model and mirrors its contents and selection. */
+    void UpdateFromModel();
+
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     TArray<TObjectPtr<UEWEQuickSlotItemViewModel>> SlotItems;
 
-    /** INDEX_NONE until the first selection, so SelectSlot(0) at startup is not swallowed
-     *  by the same-index guard. */
+    /** INDEX_NONE until the Model reports a selection. */
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     int32 SelectedIndex = INDEX_NONE;
+
+    /** The inventory Model being observed. Weak: the pawn may be replaced. */
+    TWeakObjectPtr<class UEWEInventoryComponent> BoundModel;
+
+    FDelegateHandle QuickSlotsChangedHandle;
+    FDelegateHandle SelectedSlotChangedHandle;
 };

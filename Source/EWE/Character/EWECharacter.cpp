@@ -13,10 +13,15 @@
 #include "EWEControlData.h"
 #include "EWEPlayerController.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/GameplayAbility.h"
+#include "GameplayAbilitySpec.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectTypes.h"
+#include "Net/UnrealNetwork.h"
 #include "EWE/EWELog.h"
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
+#include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
+#include "EWEWeaponMeshComponent.h"
 #include "EasyWeaponryEnchanter/Attribute/EWEAttributeBase.h"
 #include "EWEInventoryComponent.h"
 
@@ -30,6 +35,10 @@ AEWECharacter::AEWECharacter()
     bUseControllerRotationRoll = false;
 
     CurrentCameraType = ECameraType::Shoulder;
+
+    // The inventory component registers weapon instances as replicated sub-objects.
+    // The owner actor must use the registered sub-object list for them to replicate.
+    bReplicateUsingRegisteredSubObjectList = true;
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
     GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
@@ -58,11 +67,13 @@ AEWECharacter::AEWECharacter()
 
     InventoryComponent = CreateDefaultSubobject<UEWEInventoryComponent>(TEXT("Inventory Component"));
 
-    WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
-    WeaponMesh->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
-
     SubWeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SubWeaponMesh"));
     SubWeaponMesh->SetupAttachment(GetMesh(), TEXT("SubWeaponSocket"));
+
+    // Display-only hand weapon: no collision, attached to the hand socket.
+    WeaponMesh = CreateDefaultSubobject<UEWEWeaponMeshComponent>(TEXT("WeaponMesh"));
+    WeaponMesh->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
+    WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     WeaponAbilityComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("Ability System Component"));
     WeaponAbilityComponent->SetIsReplicated(true);
@@ -88,6 +99,13 @@ void AEWECharacter::PossessedBy(AController *NewController)
     }
 
     SetOwner(NewController);
+
+    // Initial equip gate: the character is now possessed (server-only path). The inventory
+    // checks its own gates (initial seed done, possession done) and no-ops if unmet.
+    if (InventoryComponent)
+    {
+        InventoryComponent->TryInitialEquip_ServerOnly();
+    }
 }
 
 void AEWECharacter::BeginPlay()
@@ -106,10 +124,10 @@ void AEWECharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     ClearInventorySubscriptions();
 
-    WeaponMesh->SetSkeletalMesh(nullptr);
     SubWeaponMesh->SetSkeletalMesh(nullptr);
 
-    CurrentWeapon = nullptr;
+    ClearPendingEquipSubscription();
+    EquippedWeaponInstance = nullptr;
 
     Super::EndPlay(EndPlayReason);
 }
@@ -292,8 +310,8 @@ void AEWECharacter::SetupInventorySubscriptions()
         return;
     }
 
-    InventoryComponent->OnWeaponAcquired.AddDynamic(this, &AEWECharacter::HandleWeaponAcquired);
-    InventoryComponent->OnWeaponsSynced.AddDynamic(this, &AEWECharacter::HandleWeaponsSynced);
+    // The quick slot view model and the inventory widget observe the inventory Model
+    // directly (see UEWELocalUIManageSubsystem). The character only keeps the removal log.
     InventoryComponent->OnWeaponRemoved.AddDynamic(this, &AEWECharacter::HandleWeaponRemoved);
 
     EWE_LOG(LogEWECharacter, Log, TEXT("Inventory subscriptions setup complete"));
@@ -303,33 +321,13 @@ void AEWECharacter::ClearInventorySubscriptions()
 {
     if (InventoryComponent)
     {
-        InventoryComponent->OnWeaponAcquired.RemoveAll(this);
-        InventoryComponent->OnWeaponsSynced.RemoveAll(this);
         InventoryComponent->OnWeaponRemoved.RemoveAll(this);
 
         EWE_LOG(LogEWECharacter, Log, TEXT("Inventory subscriptions cleared"));
     }
 }
 
-void AEWECharacter::HandleWeaponAcquired(UEWEWeaponData *Weapon)
-{
-    AEWEPlayerController *PlayerController = Cast<AEWEPlayerController>(Controller);
-    if (PlayerController)
-    {
-        PlayerController->AddWeapon(Weapon);
-    }
-}
-
-void AEWECharacter::HandleWeaponsSynced(const TArray<UEWEWeaponData *> &Weapons, int32 Count)
-{
-    AEWEPlayerController *PlayerController = Cast<AEWEPlayerController>(Controller);
-    if (PlayerController)
-    {
-        PlayerController->SyncInventoryWeapons(Weapons);
-    }
-}
-
-void AEWECharacter::HandleWeaponRemoved(UEWEWeaponData *Weapon, int32 Index)
+void AEWECharacter::HandleWeaponRemoved(UEWEWeaponInstance *Weapon, int32 Index)
 {
     EWE_LOG(LogEWECharacter, Log, TEXT("Weapon removed: %s at index %d"), *Weapon->GetName(), Index);
 }
@@ -346,127 +344,218 @@ void AEWECharacter::ToggleInventory()
     PlayerController->ToggleInventory();
 }
 
-void AEWECharacter::AcquireWeapon(UEWEWeaponData *NewWeapon)
+void AEWECharacter::EquipWeapon_ServerOnly(UEWEWeaponInstance *Instance)
 {
-    // Intentionally empty. Required by IEWECharacterInterface.
-    // Acquisition is owned by UEWEInventoryComponent::AcquireWeapon, which
-    // broadcasts OnWeaponAcquired. This character reacts through that event
-    // (see HandleWeaponAcquired), not through this entry point.
-}
+    if (!HasAuthority())
+    {
+        UE_LOG(LogEWECharacter, Warning, TEXT("EquipWeapon: no authority"));
+        return;
+    }
 
-void AEWECharacter::EquipWeapon(UEWEWeaponData *Weapon)
-{
+    if (!WeaponAbilityComponent)
+    {
+        return;
+    }
+
     // Removes weapon abilities. OnEquip GAs (UEWEGA_DefaultOnEquip) remove their GEs in
     // EndAbility, which the engine triggers via OnRemoveAbility when ClearAllAbilities runs.
     WeaponAbilityComponent->ClearAllAbilities();
 
-    if (Weapon == nullptr)
+    // Drop any pending deferred-grant subscription from a previous equip target.
+    ClearPendingEquipSubscription();
+
+    if (!Instance)
     {
-        // Unequip. Clear CurrentWeapon so AttackHold()/AttackHit() don't iterate
-        // abilities that no longer exist.
-        CurrentWeapon = nullptr;
-        WeaponMesh->SetSkeletalMesh(nullptr);
+        // Unequip: no new grant.
         return;
     }
 
-    CurrentWeapon = Weapon;
-
-    if (!Weapon->WeaponMesh)
+    if (Instance->IsLoadFinished())
     {
-        Weapon->LoadWeaponAssets();
+        GrantWeaponAbilities(Instance);
+    }
+    else
+    {
+        // The target is still loading. Subscribe to its load-finished notification; the grant
+        // happens in OnPendingEquipLoadFinished if it is still the equipped instance then.
+        PendingEquipInstance = Instance;
+        PendingEquipHandle = Instance->OnLoadFinished.AddUObject(this, &AEWECharacter::OnPendingEquipLoadFinished);
+    }
+}
+
+void AEWECharacter::SetEquippedWeaponInstance_ServerOnly(UEWEWeaponInstance *Instance)
+{
+    if (!HasAuthority())
+    {
+        UE_LOG(LogEWECharacter, Warning, TEXT("SetEquippedWeaponInstance: no authority"));
+        return;
     }
 
-    WeaponMesh->SetSkeletalMesh(Weapon->WeaponMesh);
+    EquippedWeaponInstance = Instance;
 
-    int32 HoldAbilityIndex = CHoldAbilityIndex;
-    for (const auto &Ability : CurrentWeapon->HoldAbilities)
+    // Refresh the hand visual on the server / listening host.
+    WeaponMesh->SetInstance(Instance);
+}
+
+UEWEWeaponInstance *AEWECharacter::GetEquippedWeaponInstance() const
+{
+    return EquippedWeaponInstance;
+}
+
+void AEWECharacter::OnRep_EquippedWeaponInstance()
+{
+    // The replicated value is already in EquippedWeaponInstance — just apply it to the hand.
+    WeaponMesh->SetInstance(EquippedWeaponInstance);
+}
+
+void AEWECharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME(AEWECharacter, EquippedWeaponInstance);
+}
+
+void AEWECharacter::GrantWeaponAbilities(UEWEWeaponInstance *Instance)
+{
+    if (!WeaponAbilityComponent || !Instance)
     {
-        FGameplayAbilitySpec AbilitySpec(Ability, 0, HoldAbilityIndex);
-        WeaponAbilityComponent->GiveAbility(AbilitySpec);
-        ++HoldAbilityIndex;
+        return;
     }
 
-    int32 HitAbilityIndex = CHitAbilityIndex;
-    for (const auto &Ability : CurrentWeapon->HitAbilities)
+    const TArray<TSubclassOf<UGameplayAbility>> &HoldAbilities = Instance->GetHoldAbilities();
+    const TArray<TSubclassOf<UGameplayAbility>> &HitAbilities = Instance->GetHitAbilities();
+    const TArray<TSubclassOf<UGameplayAbility>> &OnEquipAbilities = Instance->GetOnEquipAbilities();
+
+    if (HoldAbilities.Num() + HitAbilities.Num() + OnEquipAbilities.Num() == 0)
     {
-        FGameplayAbilitySpec AbilitySpec(Ability, 0, HitAbilityIndex);
-        WeaponAbilityComponent->GiveAbility(AbilitySpec);
-        ++HitAbilityIndex;
+        UE_LOG(LogEWECharacter, Warning, TEXT("EquipWeapon: instance %s has no loaded abilities"), *Instance->GetName());
+        return;
     }
 
-    // OnEquip GAs: level 0 (consistent with Hold/Hit), InputID INDEX_NONE to avoid colliding
-    // with the Hold/Hit input indices, SourceObject = the weapon.
-    for (const auto &Ability : CurrentWeapon->OnEquipAbilities)
+    // Per-category InputID so the activation side (AttackHold / AttackHitCheck /
+    // AttackReleaseCheck) presses and releases each GA by its own index. Level 0 matches
+    // the original grant; the instance is the source object so the grant tracks it for
+    // deferred load finish and removal.
+    for (int32 i = 0; i < HoldAbilities.Num(); ++i)
     {
-        FGameplayAbilitySpec AbilitySpec(Ability, 0, INDEX_NONE, Weapon);
-        WeaponAbilityComponent->GiveAbility(AbilitySpec);
+        if (!HoldAbilities[i])
+        {
+            continue;
+        }
+        FGameplayAbilitySpec Spec(HoldAbilities[i], 0, CHoldAbilityIndex + i, Instance);
+        WeaponAbilityComponent->GiveAbility(Spec);
     }
+
+    for (int32 i = 0; i < HitAbilities.Num(); ++i)
+    {
+        if (!HitAbilities[i])
+        {
+            continue;
+        }
+        FGameplayAbilitySpec Spec(HitAbilities[i], 0, CHitAbilityIndex + i, Instance);
+        WeaponAbilityComponent->GiveAbility(Spec);
+    }
+
+    for (int32 i = 0; i < OnEquipAbilities.Num(); ++i)
+    {
+        if (!OnEquipAbilities[i])
+        {
+            continue;
+        }
+        FGameplayAbilitySpec Spec(OnEquipAbilities[i], 0, INDEX_NONE, Instance);
+        WeaponAbilityComponent->GiveAbility(Spec);
+    }
+}
+
+void AEWECharacter::ClearPendingEquipSubscription()
+{
+    UEWEWeaponInstance *Pending = PendingEquipInstance.Get();
+    if (Pending)
+    {
+        Pending->OnLoadFinished.Remove(PendingEquipHandle);
+    }
+    PendingEquipInstance = nullptr;
+    PendingEquipHandle.Reset();
+}
+
+void AEWECharacter::OnPendingEquipLoadFinished(UEWEWeaponInstance *FinishedInstance)
+{
+    // Only grant if this is still the equipped instance. If the selection changed in the
+    // meantime, the new equip path already handled the grant (or subscribed itself).
+    if (FinishedInstance != EquippedWeaponInstance.Get())
+    {
+        return;
+    }
+
+    ClearPendingEquipSubscription();
+    GrantWeaponAbilities(FinishedInstance);
 }
 
 void AEWECharacter::SelectWeapon(const uint8 SlotIndex)
 {
-    AEWEPlayerController *PlayerController = Cast<AEWEPlayerController>(Controller);
-    ensure(PlayerController);
-
-    PlayerController->SelectSlot(SlotIndex);
+    // Slot selection is server-authoritative. Local input sends the request to the server
+    // through the inventory's RPC; the result comes back via OnRep_SelectedSlotIndex.
+    if (InventoryComponent)
+    {
+        InventoryComponent->Server_SelectSlot(SlotIndex);
+    }
 }
 
 void AEWECharacter::ScrollWeapon(const FInputActionValue &Value)
 {
-    AEWEPlayerController *PlayerController = Cast<AEWEPlayerController>(Controller);
-    ensure(PlayerController);
-
-    float ScrollDirection = -Value.Get<float>();
-    PlayerController->ScrollSlot(ScrollDirection);
+    const float ScrollDirection = -Value.Get<float>();
+    if (InventoryComponent)
+    {
+        InventoryComponent->Server_ScrollSlot(ScrollDirection);
+    }
 }
 
 void AEWECharacter::Attack(const FInputActionValue &Value) { K2_Attack(); }
 
 void AEWECharacter::AttackHold()
 {
-    if (!WeaponAbilityComponent || !CurrentWeapon)
+    if (!WeaponAbilityComponent || !EquippedWeaponInstance)
     {
         return;
     }
 
-    int32 HoldAbilityCount = CurrentWeapon->HoldAbilities.Num();
-    for (int32 AbilityIndex = CHoldAbilityIndex; AbilityIndex < HoldAbilityCount; ++AbilityIndex)
+    const int32 HoldAbilityCount = EquippedWeaponInstance->GetHoldAbilities().Num();
+    for (int32 i = 0; i < HoldAbilityCount; ++i)
     {
-        WeaponAbilityComponent->AbilityLocalInputPressed(AbilityIndex);
+        WeaponAbilityComponent->AbilityLocalInputPressed(CHoldAbilityIndex + i);
     }
 }
 
 void AEWECharacter::AttackHitCheck()
 {
-    if (!WeaponAbilityComponent || !CurrentWeapon)
+    if (!WeaponAbilityComponent || !EquippedWeaponInstance)
     {
         return;
     }
 
-    int32 HoldAbilityCount = CurrentWeapon->HoldAbilities.Num();
-    for (int32 AbilityIndex = CHoldAbilityIndex; AbilityIndex < HoldAbilityCount; ++AbilityIndex)
+    const int32 HoldAbilityCount = EquippedWeaponInstance->GetHoldAbilities().Num();
+    for (int32 i = 0; i < HoldAbilityCount; ++i)
     {
-        WeaponAbilityComponent->AbilityLocalInputReleased(AbilityIndex);
+        WeaponAbilityComponent->AbilityLocalInputReleased(CHoldAbilityIndex + i);
     }
 
-    int32 HitAbilityCount = CurrentWeapon->HitAbilities.Num();
-    for (int32 AbilityIndex = CHitAbilityIndex; AbilityIndex < CHitAbilityIndex + HitAbilityCount; ++AbilityIndex)
+    const int32 HitAbilityCount = EquippedWeaponInstance->GetHitAbilities().Num();
+    for (int32 i = 0; i < HitAbilityCount; ++i)
     {
-        WeaponAbilityComponent->AbilityLocalInputPressed(AbilityIndex);
+        WeaponAbilityComponent->AbilityLocalInputPressed(CHitAbilityIndex + i);
     }
 }
 
 void AEWECharacter::AttackReleaseCheck()
 {
-    if (!WeaponAbilityComponent || !CurrentWeapon)
+    if (!WeaponAbilityComponent || !EquippedWeaponInstance)
     {
         return;
     }
 
-    int32 HitAbilityCount = CurrentWeapon->HitAbilities.Num();
-    for (int32 AbilityIndex = 0; AbilityIndex < HitAbilityCount; ++AbilityIndex)
+    const int32 HitAbilityCount = EquippedWeaponInstance->GetHitAbilities().Num();
+    for (int32 i = 0; i < HitAbilityCount; ++i)
     {
-        WeaponAbilityComponent->AbilityLocalInputReleased(AbilityIndex);
+        WeaponAbilityComponent->AbilityLocalInputReleased(CHitAbilityIndex + i);
     }
 }
 

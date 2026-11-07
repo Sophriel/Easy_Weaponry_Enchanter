@@ -11,6 +11,7 @@
 #include "EWECharacter.generated.h"
 
 struct FInputActionValue;
+class UEWEWeaponMeshComponent;
 
 UENUM(BlueprintType)
 enum class ECameraType : uint8
@@ -118,10 +119,15 @@ protected:
 public:
     virtual class UAbilitySystemComponent *GetAbilitySystemComponent() const override;
 
-    virtual void AcquireWeapon(class UEWEWeaponData *NewWeapon) override;
+    /** Server-only equip gate. See IEWECharacterInterface. */
+    virtual void EquipWeapon_ServerOnly(class UEWEWeaponInstance *Instance) override;
 
-    UFUNCTION(BlueprintCallable, Category = QuickSlot, Meta = (DisplayName = "EquipWeapon"))
-    virtual void EquipWeapon(class UEWEWeaponData *Weapon) override;
+    virtual void SetEquippedWeaponInstance_ServerOnly(class UEWEWeaponInstance *Instance) override;
+
+    virtual class UEWEWeaponInstance *GetEquippedWeaponInstance() const override;
+
+    /** The inventory component (the quick slot Model). Set in the constructor. */
+    class UEWEInventoryComponent *GetInventoryComponent() const { return InventoryComponent; }
 
 protected:
     void SelectWeapon(const uint8 SlotIndex);
@@ -135,17 +141,28 @@ protected:
     virtual void AttackHitCheck() override;
     virtual void AttackReleaseCheck() override;
 
+    /** Grants the instance's loaded ability classes (SourceObject = instance). */
+    void GrantWeaponAbilities(class UEWEWeaponInstance *Instance);
+
+    /** Drops the pending deferred-grant subscription, if any. */
+    void ClearPendingEquipSubscription();
+
+    /** Reacts to a pending equip target finishing loading: grants GAs only if it is still equipped. */
+    void OnPendingEquipLoadFinished(class UEWEWeaponInstance *FinishedInstance);
+
+    /**
+     * RepNotify: the equipped instance changed. Refreshes the hand visual on this machine.
+     */
+    UFUNCTION()
+    void OnRep_EquippedWeaponInstance();
+
     /** Toggle Inventory UI */
     UFUNCTION(BlueprintCallable, Category = Inventory)
     void ToggleInventory();
 
     // Inventory Event Handlers
     UFUNCTION()
-    void HandleWeaponAcquired(class UEWEWeaponData *Weapon);
-    UFUNCTION()
-    void HandleWeaponsSynced(const TArray<class UEWEWeaponData *> &Weapons, int32 Count);
-    UFUNCTION()
-    void HandleWeaponRemoved(class UEWEWeaponData *Weapon, int32 Index);
+    void HandleWeaponRemoved(class UEWEWeaponInstance *Weapon, int32 Index);
 
     void SetupInventorySubscriptions();
     void ClearInventorySubscriptions();
@@ -155,13 +172,27 @@ protected:
     bool IsAttack;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<USkeletalMeshComponent> WeaponMesh;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<USkeletalMeshComponent> SubWeaponMesh;
 
+    /** Displays the equipped weapon's mesh on the hand. Display-only (no collision). */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
-    TObjectPtr<class UEWEWeaponData> CurrentWeapon;
+    TObjectPtr<UEWEWeaponMeshComponent> WeaponMesh;
+
+    /**
+     * The equipped weapon instance. Replicated to all clients: the server equip gate is the
+     * single writer (via SetEquippedWeaponInstance_ServerOnly), clients only receive it. nullptr = unarmed.
+     */
+    UPROPERTY(ReplicatedUsing = OnRep_EquippedWeaponInstance, VisibleAnywhere, BlueprintReadOnly, Category = Weapon,
+              meta = (AllowPrivateAccess = "true"))
+    TObjectPtr<class UEWEWeaponInstance> EquippedWeaponInstance;
+
+    /**
+     * The equip target whose load is still pending (not yet Ready/Failed). Weak: the instance
+     * is owned by the inventory and outlives this reference. Cleared on re-equip or load finish.
+     */
+    TWeakObjectPtr<class UEWEWeaponInstance> PendingEquipInstance;
+
+    FDelegateHandle PendingEquipHandle;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Weapon, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UEWEInventoryComponent> InventoryComponent;

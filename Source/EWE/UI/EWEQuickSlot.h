@@ -31,11 +31,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = QuickSlot, Meta = (AllowPrivateAccess = "true"))
 	TArray<TObjectPtr<UUserWidget>> WeaponSlots;
 
-	/** Number of quick slots to create. Drives the view model's slot array size. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = QuickSlot,
-	          Meta = (AllowPrivateAccess = "true", ClampMin = "1", UIMin = "1"))
-	int32 MaxSlotSize = 5;
-
 private:
 	void InitWeaponSlots(int32 SlotCount);
 };

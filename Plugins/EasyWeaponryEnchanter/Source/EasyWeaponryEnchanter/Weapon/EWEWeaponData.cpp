@@ -5,35 +5,44 @@
 
 UEWEWeaponData::UEWEWeaponData() {}
 
-void UEWEWeaponData::PostLoad()
+TSharedPtr<FStreamableHandle> UEWEWeaponData::RequestSubAssetLoad(FStreamableDelegate OnLoaded)
 {
-    Super::PostLoad();
+    TArray<FSoftObjectPath> Paths;
 
-    LoadWeaponAssets();
-}
-
-void UEWEWeaponData::LoadWeaponAssets()
-{
-    if (!WeaponMeshAsset.IsPending())
+    if (!WeaponMeshAsset.IsNull())
     {
-        if (WeaponMeshAsset.IsValid())
+        Paths.Add(WeaponMeshAsset.ToSoftObjectPath());
+    }
+
+    if (!WeaponIcon.IsNull())
+    {
+        Paths.Add(WeaponIcon.ToSoftObjectPath());
+    }
+
+    // Collect the ability class paths. A local lambda keeps this helper out of the unity
+    // build's global namespace, where a same-named helper in another TU would collide.
+    auto AddAbilityPaths = [](const TArray<TSoftClassPtr<UGameplayAbility>> &Abilities, TArray<FSoftObjectPath> &OutPaths)
+    {
+        for (const TSoftClassPtr<UGameplayAbility> &Ability : Abilities)
         {
-            WeaponMesh = WeaponMeshAsset.Get();
+            if (!Ability.IsNull())
+            {
+                OutPaths.Add(Ability.ToSoftObjectPath());
+            }
         }
-        return;
+    };
+
+    AddAbilityPaths(HoldAbilities, Paths);
+    AddAbilityPaths(HitAbilities, Paths);
+    AddAbilityPaths(OnEquipAbilities, Paths);
+
+    if (Paths.IsEmpty())
+    {
+        // Nothing to stream. Finish loading immediately so the caller does not hang.
+        OnLoaded.ExecuteIfBound();
+        return nullptr;
     }
 
     FStreamableManager &StreamableManager = UAssetManager::GetStreamableManager();
-    StreamableManager.RequestAsyncLoad(WeaponMeshAsset.ToSoftObjectPath(),
-                                       FStreamableDelegate::CreateUObject(this, &UEWEWeaponData::OnWeaponMeshLoaded));
-}
-
-void UEWEWeaponData::OnWeaponMeshLoaded()
-{
-    if (!WeaponMeshAsset.IsValid())
-    {
-        return;
-    }
-
-    WeaponMesh = WeaponMeshAsset.Get();
+    return StreamableManager.RequestAsyncLoad(Paths, OnLoaded);
 }
