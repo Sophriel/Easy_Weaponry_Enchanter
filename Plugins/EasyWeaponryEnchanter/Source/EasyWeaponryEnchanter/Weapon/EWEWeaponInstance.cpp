@@ -23,7 +23,7 @@ void UEWEWeaponInstance::InitializeWeaponData(TSoftObjectPtr<UEWEWeaponData> InW
 {
     if (!WeaponData.IsNull())
     {
-        UE_LOG(LogEWE, Warning, TEXT("Weapon instance already has weapon data; ignoring re-initialization."));
+        EWE_LOG(LogEWE, Warning, TEXT("Weapon instance already has weapon data; ignoring re-initialization."));
         return;
     }
 
@@ -39,7 +39,7 @@ void UEWEWeaponInstance::BeginLoad()
 
     if (WeaponData.IsNull())
     {
-        UE_LOG(LogEWE, Warning, TEXT("Weapon instance has no weapon data; finishing loading as failed."));
+        EWE_LOG(LogEWE, Warning, TEXT("Weapon instance has no weapon data; finishing loading as failed."));
         FinishLoad(EEWEWeaponLoadState::Failed);
         return;
     }
@@ -56,7 +56,7 @@ void UEWEWeaponInstance::OnWeaponDataLoaded()
 
     if (!LoadedWeaponData)
     {
-        UE_LOG(LogEWE, Warning, TEXT("Weapon data load failed: %s"), *WeaponData.ToString());
+        EWE_LOG(LogEWE, Warning, TEXT("Weapon data load failed: %s"), *WeaponData.ToString());
         FinishLoad(EEWEWeaponLoadState::Failed);
         return;
     }
@@ -76,7 +76,7 @@ void UEWEWeaponInstance::OnSubAssetsLoaded()
         WeaponMesh = MeshAsset.Get();
         if (!WeaponMesh)
         {
-            UE_LOG(LogEWE, Warning, TEXT("Weapon mesh load failed: %s"), *MeshAsset.ToString());
+            EWE_LOG(LogEWE, Warning, TEXT("Weapon mesh load failed: %s"), *MeshAsset.ToString());
             bAnyFailed = true;
         }
     }
@@ -87,7 +87,7 @@ void UEWEWeaponInstance::OnSubAssetsLoaded()
         WeaponIcon = IconAsset.Get();
         if (!WeaponIcon)
         {
-            UE_LOG(LogEWE, Warning, TEXT("Weapon icon load failed: %s"), *IconAsset.ToString());
+            EWE_LOG(LogEWE, Warning, TEXT("Weapon icon load failed: %s"), *IconAsset.ToString());
             bAnyFailed = true;
         }
     }
@@ -125,7 +125,7 @@ bool UEWEWeaponInstance::LoadAbilities(const TArray<TSoftClassPtr<UGameplayAbili
             continue;
         }
 
-        UE_LOG(LogEWE, Warning, TEXT("%s ability load failed: %s"), Category, *Ability.ToString());
+        EWE_LOG(LogEWE, Warning, TEXT("%s ability load failed: %s"), Category, *Ability.ToString());
         bAnyFailed = true;
     }
 
