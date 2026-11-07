@@ -2,7 +2,7 @@
 
 #include "EWEInventory.h"
 #include "EWE/EWELog.h"
-#include "EWE/Character/EWECharacter.h"
+#include "EWE/Character/EWEPlayerController.h"
 #include "EWE/Character/EWEInventoryComponent.h"
 
 UEWEInventory::UEWEInventory(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -46,11 +46,7 @@ void UEWEInventory::OpenInventory()
     UEWEInventoryComponent *Model = GetOwningInventoryModel();
     if (Model)
     {
-        Weapons.Reset();
-        for (UEWEWeaponInstance *Instance : Model->GetAllWeapons())
-        {
-            Weapons.Add(Instance);
-        }
+        Weapons = Model->GetAllWeapons();
     }
 
     // Fire the open event after the list is fresh, so listeners see the current weapons.
@@ -104,15 +100,11 @@ void UEWEInventory::SelectItem(int32 Index)
 
 UEWEInventoryComponent *UEWEInventory::GetOwningInventoryModel()
 {
-    APlayerController *PC = GetOwningPlayer();
+    AEWEPlayerController *PC = Cast<AEWEPlayerController>(GetOwningPlayer());
     if (!PC)
         return nullptr;
 
-    AEWECharacter *Character = Cast<AEWECharacter>(PC->GetPawn());
-    if (!Character)
-        return nullptr;
-
-    return Character->GetInventoryComponent();
+    return PC->GetInventoryModel();
 }
 
 void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)

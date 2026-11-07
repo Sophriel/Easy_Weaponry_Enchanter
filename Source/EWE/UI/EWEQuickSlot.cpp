@@ -67,6 +67,13 @@ void UEWEQuickSlot::InitWeaponSlots(int32 SlotCount)
 		return;
 	}
 
+	// Already sized to this slot count — re-driving SetViewModel (possession / respawn /
+	// travel) must not tear down and recreate the slot widgets.
+	if (WeaponSlots.Num() == SlotCount)
+	{
+		return;
+	}
+
 	// Clear existing slots if reinitializing
 	Slots->ClearChildren();
 	WeaponSlots.Reset();
