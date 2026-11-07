@@ -83,7 +83,7 @@ Unreal Engine 5 C++ Plugin.
 
 | 작업 | 참조 문서 |
 |------|-----------|
-| 모듈 구조, GAS 컴포넌트, 무기 교체 흐름 | `Documents/MDs/core/architecture.md` |
+| 모듈 구조, GAS 컴포넌트, 무기 인스턴스 · 인벤토리 Model · 퀵슬롯, 무기 교체 흐름 | `Documents/MDs/core/architecture.md` |
 | **UI 계층 (MVVM), ViewModel 소유·초기화 순서** | `Documents/MDs/core/architecture.md` → "UI 계층 (MVVM)" |
 | DataAsset, GA/AT 클래스, GA 생명주기, 실행 흐름 | `Documents/MDs/core/enchant-system.md` |
 | Trigger 타입, Condition 판별, 조합 규칙 | `Documents/MDs/core/trigger-condition.md` |
@@ -199,7 +199,7 @@ C++ 파일(.h 또는 .cpp)을 수정한 후, 다음 작업으로 넘어가기 �
 - **모듈 분리:** `EWERuntime` / `EWEEditor` (`WITH_EDITOR` 엄격 분리)
   (현재 런타임 모듈 = `EasyWeaponryEnchanter`. Editor 모듈은 아직 없음)
 - **HUD 는 MVVM.** 위젯은 데이터를 소유하지 않는다. → `architecture.md` "UI 계층"
-- **초기화 순서를 가정하지 않는다.** 인벤토리 로드 · 폰 빙의 · 위젯 부착은 독립된 축이다.
+- **초기화 순서를 가정하지 않는다.** 인벤토리 Model 복제 도착 · 폰 빙의 · 위젯 부착은 독립된 축이다.
   준비되면 알리고, 받는 쪽이 조건을 판정한다. → 아래 "UI 계층 규칙"
 
 ---
@@ -259,20 +259,6 @@ Bind*() 는 몇 번 불려도 안전해야 한다. 이미 채워졌으면 덮어
 
 BP 프로퍼티 바인딩 금지 (DefaultEditor.ini: PropertyBindingRule=Prevent).
 반드시 ViewModel 바인딩을 쓴다.
-```
-
-### 퀵슬롯 ViewModel — SetSlot 단일 관문
-
-```
-슬롯 내용을 바꾸는 모든 경로는 UEWEQuickSlotViewModel::SetSlot() 을 거친다.
-  SeedFromInventory / AddWeapon / ClearSlot → 전부 SetSlot 경유
-
-SlotItem->SetWeapon() 직접 호출 금지.
-SetSlot() 이 "선택 중인 슬롯의 내용이 바뀌면 재장착 브로드캐스트" 를 담당하므로,
-우회하면 그 보호가 조용히 사라진다.
-
-// ❌ SlotItems[i]->SetWeapon(Weapon);
-// ✅ SetSlot(i, Weapon);
 ```
 
 ### Function 확장 — IEnchantFunction 필수
@@ -380,8 +366,11 @@ C++ 코드를 쓰거나 고칠 때 따른다:
 ## 📐 핵심 클래스
 
 ```
-UEWEWeaponData          무기 정의 (WeaponIcon, WeaponMeshAsset, Hold / Hit / OnEquip GA 배열)
-AEWECharacter           ASC / AttributeSet 소유 캐릭터. EquipWeapon 으로 무기 GA 부여
+UEWEWeaponData          불변 정의 (소프트 참조: WeaponIcon · WeaponMeshAsset · Hold / Hit / OnEquip GA 배열)
+UEWEWeaponInstance      한 자루의 상태 · 자체 로드
+UEWEInventoryComponent  Model — Items · QuickSlots · 선택 인덱스. 서버 관문
+UEWEWeaponMeshComponent 손의 표현
+AEWECharacter           ASC / AttributeSet 소유 캐릭터. EquipWeapon_ServerOnly 로 무기 GA 부여, EquippedWeaponInstance 복제
 UEWEAttributeBase       AttributeSet (Health / MaxHealth / Mana / MaxMana, 클램프, Max 변화 정책)
 UEWEMaxChangePolicyComponent  Max 변화 정책(Clamp / KeepRatio) 등록 GE 컴포넌트 (Instant GE 전용)
 UEWEAbilityBase         모든 무기 GA 의 베이스 클래스
@@ -397,11 +386,11 @@ FEnchantContext         실행 컨텍스트 (시전자, 부모 무기 참조)
 ### UI 계층
 
 ```
-UEWELocalUIManageSubsystem      ViewModel 소유 · 위젯 생성 · 게임플레이 명령 중계
+UEWELocalUIManageSubsystem      VM 생성 · 주입, Model 바인딩 (PC 릴레이), UI 명령 중계 (인벤토리 토글 · 타겟 정보)
 UEWEStatusViewModel             ASC 구독 → HP / MP
 UEWETargetInfoViewModel         타겟 ASC 구독
-UEWEQuickSlotViewModel          슬롯 배열 · 선택 인덱스 · OnSlotSelected
-UEWEQuickSlotItemViewModel      슬롯 1칸 (Weapon / bSelected / SlotIndex)
+UEWEQuickSlotViewModel          인벤토리 Model 관찰 (BindModel)
+UEWEQuickSlotItemViewModel      슬롯 1칸 (Instance / bSelected / SlotIndex)
 UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
 ```
 
@@ -426,6 +415,17 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
 | 구조체 | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
 | 로그 카테고리 | `LogEWE` | - | - |
 
+**실행 위치 접미사** — 일반 함수의 실행 위치를 나타낸다.
+
+| 접미사 | 의미 |
+|--------|------|
+| `_ServerOnly` | 서버(권한 측)에서만 호출해야 하는 일반 함수 |
+| `_LocalOnly` | 로컬 클라이언트(`IsLocallyControlled` 측)에서만 호출해야 하는 일반 함수 |
+
+- RPC 접두사 `Server_` / `Client_` / `Multicast_` 와 구분한다. RPC 에는 접미사를 붙이지 않는다. 예: `Server_AssignToSlot()` → 내부에서 `AssignToSlot_ServerOnly()`
+- 붙이지 않는 경우: 엔진 · 부모 가상 함수 오버라이드 (`PossessedBy`, `BeginPlay`, `GetLifetimeReplicatedProps` 등), `OnRep_` 함수, 서버 · 클라이언트 양쪽에서 실행되는 함수 (예: `UEWEWeaponMeshComponent::SetInstance`, Instance 로드 절차), 로컬 전용 클래스(위젯 · ViewModel · LocalPlayer 서브시스템)의 함수
+- UHT 예약 접미사 (`_Implementation`, `_Validate`) 와 겹치지 않는다
+
 **파일명**: 클래스명에서 `U` / `A` 제거. 예: `UEWEGA_Creation` → `EWEGA_Creation.h`
 
 ---
@@ -442,21 +442,10 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
     → 추가 예외 케이스 발생 시 functions/basic.md 업데이트
 
 [ ] 인벤토리 위젯 MVVM 미전환
-    → UEWEInventory 는 퀵슬롯 배정 시에만 서브시스템을 조회한다
-      (무기 목록은 SetWeapons() push 로만 받는다 — pull 경로 없음)
-    → 퀵슬롯 배정 경로가 둘 (EWEInventory 직접 / PC::AssignSelectedInventoryItemToSlot)
-    → 인벤토리 UI 작업 시 단일화
-
-[ ] 입력 라우팅 3-hop 체인
-    → AEWECharacter → PC → Subsystem → ViewModel
-    → 포워딩 함수 자체는 유지하기로 결정 (근거: architecture.md "UI 계층")
-    → 체인 길이는 별도 검토 사항
-
-[x] architecture.md 앞부분이 목표 구조와 실제 구조를 섞어 서술
-    → 해소: "현재 구조" / "목표 구조" 로 분리하고 목표 설계 절에 배너 표시 (2026-10-16)
+    → UEWEInventory 는 ViewModel 없이 Model 에 직접 접근한다 (SetWeapons push · OpenInventory 시 GetAllWeapons pull · 배정은 Server_AssignToSlot)
 
 [ ] GA 별 NetExecutionPolicy 전환
     → 현재 모든 GA 는 엔진 기본값 LocalPredicted 로 개발 중
-    → 서버 경로 작업 (EquipWeapon 서버 RPC 등) 완료 후, ServerOnly 가 필요한 GA 를 하나씩 전환
+    → ServerOnly 가 필요한 GA 를 하나씩 전환
     → 정책 기준: network.md "GA 실행 정책"
 ```

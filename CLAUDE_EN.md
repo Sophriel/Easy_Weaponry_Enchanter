@@ -83,7 +83,7 @@ This project does not override the language at the project level.
 
 | Task | Reference Document |
 |------|--------------------|
-| Module structure, GAS components, weapon swap flow | `Documents/MDs/core/architecture.md` |
+| Module structure, GAS components, weapon instance · inventory Model · quick slot, weapon swap flow | `Documents/MDs/core/architecture.md` |
 | DataAsset, GA/AT classes, GA lifecycle, execution flow | `Documents/MDs/core/enchant-system.md` |
 | Trigger types, Condition evaluation, combination rules | `Documents/MDs/core/trigger-condition.md` |
 | RPC, server authority, replication policies | `Documents/MDs/core/network.md` |
@@ -199,7 +199,7 @@ Do not modify many files at once — build once per logical unit of change.
 - **Module split:** `EWERuntime` / `EWEEditor` (strict `WITH_EDITOR` separation)
   (current runtime module = `EasyWeaponryEnchanter`. No Editor module yet)
 - **The HUD is MVVM.** Widgets never own data. → `architecture.md` "UI 계층"
-- **Never assume initialization order.** Inventory load, pawn possession and widget
+- **Never assume initialization order.** Inventory Model replication arrival, pawn possession and widget
   attachment are independent axes. Each announces when ready; the receiver decides.
 
 ---
@@ -226,20 +226,6 @@ Bind*() must be safe to call repeatedly. Never overwrite what is already filled.
 
 Blueprint property binding is disabled (DefaultEditor.ini: PropertyBindingRule=Prevent).
 Always use ViewModel bindings.
-```
-
-### Quick Slot ViewModel — SetSlot Is the Only Gate
-
-```
-Every path that writes slot contents goes through UEWEQuickSlotViewModel::SetSlot().
-  SeedFromInventory / AddWeapon / ClearSlot -> all route through SetSlot
-
-Never call SlotItem->SetWeapon() directly.
-SetSlot() owns the "re-equip when the held slot's contents change" broadcast,
-so bypassing it silently drops that protection.
-
-// BAD  SlotItems[i]->SetWeapon(Weapon);
-// GOOD SetSlot(i, Weapon);
 ```
 
 ### Attribute Modification — GE Only
@@ -381,8 +367,11 @@ Key rules (see commit-guide.md for details):
 ## 📐 Core Classes
 
 ```
-UEWEWeaponData          Defines a weapon (WeaponIcon, WeaponMeshAsset, Hold / Hit / OnEquip GA arrays)
-AEWECharacter           Character owning ASC / AttributeSet. Grants weapon GAs via EquipWeapon
+UEWEWeaponData          Immutable definition (soft refs: WeaponIcon · WeaponMeshAsset · Hold / Hit / OnEquip GA arrays)
+UEWEWeaponInstance      One weapon's state · self-loading
+UEWEInventoryComponent  Model — Items · QuickSlots · selected index. Server gate
+UEWEWeaponMeshComponent Hand visual
+AEWECharacter           Character owning ASC / AttributeSet. Grants weapon GAs via EquipWeapon_ServerOnly, replicates EquippedWeaponInstance
 UEWEAttributeBase       AttributeSet (Health / MaxHealth / Mana / MaxMana, clamping, Max change policy)
 UEWEMaxChangePolicyComponent  GE component registering Max change policies (Clamp / KeepRatio), Instant GE only
 UEWEAbilityBase         Base class for all weapon GAs
@@ -398,11 +387,11 @@ FEnchantContext         Execution context (caster, parent weapon reference)
 ### UI Layer
 
 ```
-UEWELocalUIManageSubsystem      Owns ViewModels, creates widgets, relays gameplay commands
+UEWELocalUIManageSubsystem      Creates/injects VMs, Model binding (PC relay), UI command relay (inventory toggle · target info)
 UEWEStatusViewModel             Subscribes to the ASC -> HP / MP
 UEWETargetInfoViewModel         Subscribes to the target's ASC
-UEWEQuickSlotViewModel          Slot array, selected index, OnSlotSelected
-UEWEQuickSlotItemViewModel      One slot (Weapon / bSelected / SlotIndex)
+UEWEQuickSlotViewModel          Observes the inventory Model (BindModel)
+UEWEQuickSlotItemViewModel      One slot (Instance / bSelected / SlotIndex)
 UEWEQuickSlot / UEWEStatus / UEWETargetInfo   Views. They own no data
 ```
 
@@ -427,6 +416,17 @@ Full class map and file locations → `architecture.md`
 | Structs | `FEWE` / `FEnchant*` | `FEnchantContext` | - |
 | Log category | `LogEWE` | - | - |
 
+**Execution-location suffixes** — indicate where a regular function must run.
+
+| Suffix | Meaning |
+|--------|---------|
+| `_ServerOnly` | Regular function that must only be called on the server (authority side) |
+| `_LocalOnly` | Regular function that must only be called on the local client (`IsLocallyControlled` side) |
+
+- Distinct from the RPC prefixes `Server_` / `Client_` / `Multicast_`. RPCs do not take a suffix. e.g. `Server_AssignToSlot()` → internally calls `AssignToSlot_ServerOnly()`
+- Do not attach: engine / parent virtual function overrides (`PossessedBy`, `BeginPlay`, `GetLifetimeReplicatedProps`, etc.), `OnRep_` functions, functions that run on both server and client (e.g. `UEWEWeaponMeshComponent::SetInstance`, the Instance load procedure), functions of local-only classes (widgets · ViewModels · LocalPlayer subsystems)
+- Do not collide with UHT reserved suffixes (`_Implementation`, `_Validate`)
+
 **Filename rule**: Drop the `U` / `A` prefix from the class name. e.g. `UEWEGA_Creation` → `EWEGA_Creation.h`
 
 ---
@@ -442,8 +442,11 @@ Full class map and file locations → `architecture.md`
     → Without DestroyConditions, no destruction other than Lifetime (current policy)
     → Update functions/basic.md if new edge cases arise
 
+[ ] Inventory widget MVVM not converted
+    → UEWEInventory accesses the Model directly without a ViewModel (SetWeapons push · GetAllWeapons pull on OpenInventory · assignment via Server_AssignToSlot)
+
 [ ] Per-GA NetExecutionPolicy migration
     → All GAs are currently developed with the engine default LocalPredicted
-    → After the server path work (EquipWeapon server RPC, etc.), switch GAs that need ServerOnly one at a time
+    → Switch GAs that need ServerOnly one at a time
     → Policy criteria: network.md "GA Execution Policy"
 ```

@@ -9,12 +9,13 @@
 ### 퀵슬롯 구조
 
 ```
-슬롯 수: 가변 — WBP_QuickSlot::MaxSlotSize 가 결정 (C++ 기본값 5, BP 에서 조정)
+슬롯 수: UEWEInventoryComponent::QuickSlotCount (기본 5, 개발자 설정)
 전 슬롯: 일반 무기
 
 전환 방식:
   마우스 휠 스크롤
   숫자키 1 ~ 0
+  선택은 서버 권한 — 입력 → RPC → OnRep_SelectedSlotIndex
 ```
 
 > "슬롯 0: 레코딩 북 고정" 은 아래 레코딩 북 UI 섹션의 **미구현 설계 정책**이다.
@@ -73,6 +74,7 @@ UMG 위젯에서 ASC를 직접 참조하지 말 것.
 3. UEWELocalUIManageSubsystem 에 Create / Bind 추가
      Create<X>Widget()  — 위젯 생성 → UMVVMView 에 VM 주입 → Bind<X>()
      Bind<X>()          — 데이터 소스 연결. 여러 번 불려도 안전할 것
+     퀵슬롯은 Bind<X> 대신 PC OnInventoryModelChanged → BindInventoryModel 로 Model 을 바인딩한다
 
 4. WBP Class Settings 에서 ViewModel 등록
      Creation Type = Manual, 이름은 C++ SetViewModel() 의 FName 과 일치
@@ -144,6 +146,7 @@ HUD 퀵슬롯에 장착 가능한 아이템(무기, 두루마리 등)을 보관.
 ```
 1. 인벤토리에서 아이템 클릭 → 선택 상태
 2. 숫자키 입력 → 해당 퀵슬롯에 지정
+   배정은 Server_AssignToSlot 로 Model 관문에 모인다
 ```
 
 ### 인벤토리 입력 차단 조건
@@ -194,8 +197,8 @@ Possess Object 빙의 중:
 ### 인챈터 UI 구현 시 주의사항
 
 ```
-DataAsset 변경은 반드시 서버를 통해 처리.
-클라이언트에서 UEWEWeaponData을 직접 수정하면 안 됨.
+수정 대상은 UEWEWeaponInstance (런타임 상태). UEWEWeaponData 는 런타임 불변.
+클라이언트에서 직접 수정하면 안 됨.
 → Server RPC로 변경 요청 → 서버에서 처리 → 복제로 클라이언트 반영.
 ```
 

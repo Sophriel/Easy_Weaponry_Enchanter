@@ -19,7 +19,7 @@ Plugins/EasyWeaponryEnchanter/
     ├── AbilityTask/                   ← UEWEAT_*
     ├── Attribute/                     ← UEWEAttributeBase, UEWEMaxChangePolicyComponent
     ├── Interface/                     ← IEWECharacterInterface
-    ├── Weapon/                        ← UEWEWeaponData, AEWEWeaponBase (액터, 현재 미사용)
+    ├── Weapon/                        ← UEWEWeaponData, UEWEWeaponInstance, AEWEWeaponBase (GA 가 스폰하는 무기 액터(투사체 등)의 베이스)
     ├── Public/ · Private/             ← 모듈 진입점, LogEWE / EWE_LOG
     └── EasyWeaponryEnchanter.Build.cs
 ```
@@ -209,6 +209,20 @@ Current 는 Max 가 바뀌어도 스스로 재계산되지 않는다. 그래서 
 
 ---
 
+## 무기 3단 구조
+
+무기는 세 계층으로 나뉜다.
+
+| 계층 | 클래스 | 역할 |
+|------|--------|------|
+| 정의 | `UEWEWeaponData` | 불변 정의 (소프트 참조). 런타임에 쓰지 않는다 |
+| 상태 | `UEWEWeaponInstance` | 한 자루의 상태. 자체 로드 (`BeginLoad` · `FinishLoad` · `IsLoadFinished` · `OnLoadFinished`) |
+| 표현 | `UEWEWeaponMeshComponent` | 캐릭터 손의 메시. Instance 를 받아 표시 |
+
+로드 실패는 로그만 남기고 진행한다. 메시가 없으면 손이 비워지고, GA 클래스가 없으면 부여되지 않는다.
+
+---
+
 ## 무기 장착/교체 흐름
 
 > **GA 동적 Grant/Revoke 일반 패턴**은
@@ -216,79 +230,96 @@ Current 는 Max 가 바뀌어도 스스로 재계산되지 않는다. 그래서 
 
 ### 현재 구현 — 교체 트리거
 
-입력에서 장착까지의 경로다. UI 계층이 담당하며 아래 "UI 계층 (MVVM)" 절이 상세를 다룬다.
+입력에서 장착까지의 경로다.
 
 ```
 숫자키 / 마우스 휠
   → AEWECharacter::SelectWeapon / ScrollWeapon
-    → AEWEPlayerController::SelectSlot / ScrollSlot
-      → UEWELocalUIManageSubsystem::SelectQuickSlot / ScrollQuickSlot
-        → UEWEQuickSlotViewModel::SelectSlot          ← 선택 상태를 소유
-          → OnSlotSelected 브로드캐스트
-            → UEWELocalUIManageSubsystem::HandleSlotSelected
-              → IEWECharacterInterface::EquipWeapon   ← 실제 장착
+    → UEWEInventoryComponent::Server_SelectSlot / Server_ScrollSlot
+      → SelectSlot_ServerOnly / ScrollSlot_ServerOnly
+        → ApplyEquipTransition_ServerOnly
 ```
 
-**ViewModel 은 무기를 장착하지 않는다.** 선택이 바뀌었다고 알릴 뿐이고,
-장착은 그 이벤트를 구독한 서브시스템이 폰에게 시킨다.
-게임플레이 효과를 UI 계층 밖에 두기 위한 분리다.
+**장착은 서버의 인벤토리 Model 관문이 결정한다.** ViewModel 은 Model 을 관찰만 한다.
 
-> `EquipWeapon(nullptr)` 은 **언장착(맨손)** 을 뜻한다. 빈 슬롯을 선택하면 이 경로를 탄다.
-> `CurrentWeapon` 을 반드시 함께 비워야 한다 — 어빌리티는 이미 제거된 상태이므로
-> `CurrentWeapon` 이 남으면 `AttackHold()` 가 없는 어빌리티를 활성화하려 든다.
+`ApplyEquipTransition_ServerOnly` (인벤토리) 는 3단계를 따른다.
+① Instance 서브오브젝트 조건 전환 → ② `SetEquippedWeaponInstance_ServerOnly` (손 표현 포함) → ③ `EquipWeapon_ServerOnly` (GA 부여).
+② · ③ 은 **캐릭터** 함수이며, 인벤토리는 `IEWECharacterInterface` 로 호출한다.
 
-### 설계 — 서버 확인 (미구현)
+> `EquippedWeaponInstance` 가 null 이면 **맨손(언장착)** 이다. 빈 슬롯을 선택하면 이 상태가 된다.
+> `EquipWeapon_ServerOnly(nullptr)` 는 기존 무기 GA 를 제거하고 (`ClearAllAbilities`) 신규 부여를 하지 않는다.
 
-아래는 `network.md` 의 Server Confirm 정책에 따른 **목표 흐름**이다.
-현재 코드는 로컬에서 즉시 장착하며, RPC 왕복은 아직 없다.
+### 서버 권한 흐름
+
+교체 요청이 서버 관문을 거치는 현재 흐름이다.
 
 ```
-클라이언트: 무기 교체 요청 RPC → 서버
+클라이언트: Server_SelectSlot / Server_ScrollSlot / Server_AssignToSlot / Server_ClearSlot RPC → 서버
                 │
                 ▼
-서버: 유효성 검증
+서버: 관문 검증
+  Server_SelectSlot = 인덱스 검증
+  Server_ScrollSlot = 방향 0 · 빈 슬롯이면 무시, 선택 없음이면 0번 선택, 그 외 다음 인덱스 계산 → SelectSlot_ServerOnly 경유
+  Server_AssignToSlot = 인덱스 · null · 미소유 Instance 거부
+  Server_ClearSlot = 인덱스 검증, 이미 비어 있으면 무시
                 │
-                ├─ 거부 → 클라이언트에 거부 응답
+                ▼
+ApplyEquipTransition_ServerOnly
+  ① Instance 서브오브젝트 조건 전환 (장착 COND_None, 해제 COND_OwnerOnly)
+  ② SetEquippedWeaponInstance_ServerOnly (손 표현 포함)
+  ③ EquipWeapon_ServerOnly — 그 안에서 ClearAllAbilities → GrantWeaponAbilities
                 │
-                └─ 승인 →
-                    1. 현재 발동 중인 GA 전부 CancelAbility
-                    2. 기존 무기 GA ASC에서 해제
-                    3. 장착 GA 해제·부여로 장착 GE 교체 (Max 변화 → 정책 보정)
-                    4. 신규 무기 GA를 ASC에 등록
-                    5. 클라이언트에 Confirm 브로드캐스트
+                ▼
+결과 전달:
+  소유자 → OnRep_SelectedSlotIndex · OnRep_QuickSlots
+  모든 클라이언트 → OnRep_EquippedWeaponInstance
+  (별도 Confirm 브로드캐스트 없음)
 ```
 
-### GA 등록/해제 — `AEWECharacter::EquipWeapon` (현재 구현)
+**미구현:**
+- 거부 시 클라이언트 응답 — 현재는 서버 Warning 로그만
+- 활성 GA 가 있을 때의 교체 차단 (`ui.md` "슬롯 교체 제한")
+
+### GA 등록/해제 — `AEWECharacter::EquipWeapon_ServerOnly` (현재 구현)
 
 ```cpp
-void AEWECharacter::EquipWeapon(UEWEWeaponData* Weapon)
+void AEWECharacter::EquipWeapon_ServerOnly(UEWEWeaponInstance *Instance)
 {
     WeaponAbilityComponent->ClearAllAbilities();   // 이전 무기 GA 전부 제거
+    ClearPendingEquipSubscription();               // 이전 pending equip 구독 해제
 
-    if (Weapon == nullptr) { CurrentWeapon = nullptr; /* 메시 해제 */ return; }
-    CurrentWeapon = Weapon;
-    // ... 메시 로드·설정 ...
+    if (!Instance) return;                          // 맨손: 신규 부여 없음
 
-    // Hold / Hit: 레벨 0, InputID = CHoldAbilityIndex / CHitAbilityIndex 부터 순번
-    for (auto& Ability : Weapon->HoldAbilities)
-        WeaponAbilityComponent->GiveAbility(FGameplayAbilitySpec(Ability, 0, HoldAbilityIndex++));
-    for (auto& Ability : Weapon->HitAbilities)
-        WeaponAbilityComponent->GiveAbility(FGameplayAbilitySpec(Ability, 0, HitAbilityIndex++));
+    if (Instance->IsLoadFinished())
+        GrantWeaponAbilities(Instance);
+    else {                                          // 로드 중: 완료 시 부여
+        PendingEquipInstance = Instance;
+        PendingEquipHandle = Instance->OnLoadFinished.AddUObject(this, &ThisClass::OnPendingEquipLoadFinished);
+    }
+}
 
-    // OnEquip: 레벨 0, InputID INDEX_NONE (입력 인덱스 충돌 방지), SourceObject = 무기
-    for (auto& Ability : Weapon->OnEquipAbilities)
-        WeaponAbilityComponent->GiveAbility(FGameplayAbilitySpec(Ability, 0, INDEX_NONE, Weapon));
+void AEWECharacter::GrantWeaponAbilities(UEWEWeaponInstance *Instance)
+{
+    // 세 카테고리 모두: 레벨 0, SourceObject = Instance
+    // InputID = CHoldAbilityIndex + i / CHitAbilityIndex + i / OnEquip INDEX_NONE
+    for (int32 i = 0; i < HoldAbilities.Num(); ++i)
+        WeaponAbilityComponent->GiveAbility(FGameplayAbilitySpec(HoldAbilities[i], 0, CHoldAbilityIndex + i, Instance));
+    for (int32 i = 0; i < HitAbilities.Num(); ++i)
+        WeaponAbilityComponent->GiveAbility(FGameplayAbilitySpec(HitAbilities[i], 0, CHitAbilityIndex + i, Instance));
+    for (int32 i = 0; i < OnEquipAbilities.Num(); ++i)
+        WeaponAbilityComponent->GiveAbility(FGameplayAbilitySpec(OnEquipAbilities[i], 0, INDEX_NONE, Instance));
 }
 ```
 
 - `OnEquipAbilities` 의 GA(`UEWEGA_DefaultOnEquip` 파생)는 부여되는 순간 `OnAvatarSet` 에서 스스로 활성화해 장착 GE 를 건다.
   상세는 `enchant-system.md` "무기 GA 계층".
 - 핸들 목록을 따로 들고 있지 않는다. 무기 GA 만 이 ASC 에 있으므로 `ClearAllAbilities` 로 일괄 제거한다.
+- **로드 중 장착:** 대상이 로드 중이면 완료 시 부여 — `PendingEquipInstance` + `OnLoadFinished` 구독. `OnPendingEquipLoadFinished` 에서 여전히 장착된 Instance 인지 확인 후 부여한다.
 
 **해제 체인 — 장착 GE 가 빠지는 경로**
 
 ```
-EquipWeapon(다음 무기 또는 nullptr)
+EquipWeapon_ServerOnly(다음 Instance 또는 nullptr)
   → ClearAllAbilities
     → (엔진) OnRemoveAbility → 활성 인스턴스 EndAbility
       → UEWEGA_DefaultOnEquip::EndAbility
@@ -297,9 +328,46 @@ EquipWeapon(다음 무기 또는 nullptr)
             → UEWEAttributeBase::PostAttributeChange → 정책대로 Health Base 보정
 ```
 
-**제약:** 장착 GA 는 ServerOnly + `IsNetAuthority` 가드라 **Standalone / 리슨 서버 호스트**에서만 활성화된다.
-`EquipWeapon` 은 아직 로컬 호출이므로, 원격 클라이언트에서는 장착 GE 가 걸리지 않는다.
-서버 RPC 경로(위 "설계 — 서버 확인") 완료 후 해소된다.
+### 인벤토리 Model — 퀵슬롯 쓰기는 서버 관문 경유
+
+`QuickSlots` · `SelectedSlotIndex` 를 바꾸는 **런타임** 경로는 모두 아래 관문을 거친다.
+클라이언트는 `Server_*` RPC 로 요청한다.
+
+- `AssignToSlot_ServerOnly` — 슬롯에 Instance 배정 (이전 슬롯에서 이동)
+- `ClearSlot_ServerOnly` — 슬롯 비우기
+- `SelectSlot_ServerOnly` — 슬롯 선택
+- `ScrollSlot_ServerOnly` — 슬롯 스크롤
+
+**예외:** 초기 시딩 `CreateInitialWeaponInstances_ServerOnly` 는 1회성 초기화로 `QuickSlots` 를 직접 채운다.
+
+**불변식:** "장착된 Instance = 선택 슬롯의 내용" 을 관문이 지킨다.
+선택 중인 슬롯의 내용이 바뀌면 관문이 `ApplyEquipTransition_ServerOnly` 를 호출하므로,
+배열을 직접 쓰면 재장착 · 해제가 조용히 빠진다.
+
+`RemoveWeapon_ServerOnly` 는 슬롯을 비울 때 `ClearSlot_ServerOnly` 를 거친다.
+
+```cpp
+// ❌ QuickSlots[i] = Instance;
+// ✅ AssignToSlot_ServerOnly(Instance, i);
+```
+
+### 손의 표현
+
+캐릭터 `WeaponMesh` (`UEWEWeaponMeshComponent`, `WeaponSocket` 부착, `NoCollision`).
+
+- 서버: `SetEquippedWeaponInstance_ServerOnly` 에서 `WeaponMesh->SetInstance(...)`
+- 클라이언트: `OnRep_EquippedWeaponInstance` 에서 `WeaponMesh->SetInstance(...)`
+
+**메시 컴포넌트 동작:**
+- 같은 유효 Instance 는 no-op
+- null 은 항상 비움
+- 로드 중에는 이전 메시 유지
+- 로드 완료 후에도 `OnLoadFinished` 구독 유지 (런타임 재로드 시 재구성)
+- 메시가 null 이면 비움
+- 소켓 정렬 없음
+
+**`AEWEPlayerWeapon`:** 현재 스폰되지 않는다. 장착 무기 드랍 · 획득 기능용.
+정책 코드(숨김 · 관련성 · 이동 복제 off · Scene 루트)는 그 기능 설계 시 재검토.
 
 ---
 
@@ -315,7 +383,8 @@ HUD 는 **MVVM(Model-View-ViewModel)** 으로 구성한다.
 UEWELocalUIManageSubsystem            ▼
   (LocalPlayerSubsystem)      UEWE*ViewModel  ◄── 참조 ──  UEWE* / WBP_* (View)
         │                             │
-        └─ 명령 중계 ─► AEWECharacter │
+        ├─ Model 바인딩               │
+        └─ UI 명령 중계               │
                                       ▼
                               인벤토리 · ASC (Model)
 ```
@@ -325,93 +394,65 @@ ViewModel 은 View 를 참조하지 않는다. 위젯이 사라져도 ViewModel 
 
 | 계층 | 클래스 | 책임 |
 |------|--------|------|
-| Model | `UEWEInventoryComponent`, `UAbilitySystemComponent` | 진짜 데이터 |
+| Model | `UEWEInventoryComponent` (서버 권한, 소유자 전용 복제), `UAbilitySystemComponent` | 진짜 데이터 |
 | ViewModel | `UEWEStatusViewModel`, `UEWETargetInfoViewModel`, `UEWEQuickSlotViewModel`, `UEWEQuickSlotItemViewModel` | 표시 상태 + 변경 알림 |
 | View | `UEWEStatus`, `UEWETargetInfo`, `UEWEQuickSlot` + 각 WBP | 바인딩만 |
-| 소유·중재 | `UEWELocalUIManageSubsystem` | VM 생성·주입, 게임플레이 명령 중계 |
+| 소유·중재 | `UEWELocalUIManageSubsystem` | VM 생성 · 주입, Model 바인딩 (PC 릴레이), UI 명령 중계 (인벤토리 토글 · 타겟 정보) |
 
 ### ViewModel 은 서브시스템이 소유한다
 
 ```cpp
 // UEWELocalUIManageSubsystem::Initialize
 QuickSlotViewModel = NewObject<UEWEQuickSlotViewModel>(this);
-QuickSlotViewModel->OnSlotSelected.AddUObject(this, &ThisClass::HandleSlotSelected);
 ```
 
-- **생성과 구독은 `Initialize()` 에서 1회.** `Bind*()` 안에 두지 않는다 —
-  `Bind*()` 는 여러 경로에서 호출되고 조기 반환 분기가 많아, 구독이 아예 일어나지 않거나
+- **생성은 `Initialize()` 에서 1회.** `Bind*()` 안에 두지 않는다 —
+  `Bind*()` 는 여러 경로에서 호출되고 조기 반환 분기가 많아, 생성이 아예 일어나지 않거나
   두 번 일어나는 창이 생긴다.
-- VM 은 **위젯보다 오래 산다.** 위젯을 재생성해도 슬롯 배정이 보존된다.
-- 서브시스템은 VM 을 밖으로 넘기지 않는다. → 아래 "포워딩 함수를 유지하는 이유"
+- VM 은 **위젯보다 오래 산다.** 위젯을 재생성해도 VM 의 Model 바인딩이 유지된다.
+
+**Model 바인딩:** PC `OnInventoryModelChanged(Old, New)` → `BindInventoryModel` → `UEWEQuickSlotViewModel::BindModel`.
+`BindModel` 이 `OnQuickSlotsChanged` · `OnSelectedSlotChanged` 를 구독하고 `UpdateFromModel` 로 초기 상태를 채운다.
 
 ### create-then-bind 패턴
 
 세 위젯이 같은 형태를 따른다. 어느 쪽이 먼저 준비되든 결과가 같다.
 
 ```
-Initialize()             →  VM 생성 + 구독
+Initialize()             →  VM 생성
 Create<X>Widget()        →  VM 주입 → Bind<X>()      ← 위젯이 준비된 경로
 AcknowledgePossession()  →  Bind<X>()                ← 폰이 준비된 경로
+                         →  PC OnInventoryModelChanged → BindInventoryModel → BindModel
 ```
 
 `Bind*()` 는 **몇 번 불려도 안전**해야 한다. 이미 채워졌으면 덮어쓰지 않는다.
 
 ### 초기화 순서 무관성 (변경 금지)
 
-인벤토리 로드 · 폰 빙의 · 위젯 부착은 **서로 순서가 보장되지 않는 세 개의 축**이다.
+인벤토리 Model 복제 도착 · 폰 빙의 · 위젯 부착은 **서로 순서가 보장되지 않는 세 개의 축**이다.
 어느 축도 다른 축의 순서를 가정하지 않는다.
 
 ```
-각 축은 준비되면 알린다        인벤토리 → OnWeaponsSynced
-받는 쪽이 조건을 판정한다      서브시스템 → GetSlotCount() / IsEmpty() / GetSelectedIndex()
+각 축은 준비되면 알린다        인벤토리 Model → OnQuickSlotsChanged · OnSelectedSlotChanged
+                              PC → OnInventoryModelChanged
+받는 쪽이 조건을 판정한다      UEWEQuickSlotViewModel::BindModel → UpdateFromModel 로 현재 상태 당겨 옴
+                              위젯 → VM GetSlotCount() 로 슬롯 생성
 ```
 
 **"타이밍이 아니라 조건으로 게이팅한다."** 이 원칙을 깨는 수정은 하지 말 것 —
 이 저장소에서 같은 부류의 버그가 네 번 재발했다.
 
-### 퀵슬롯 ViewModel 불변 — 모든 슬롯 쓰기는 `SetSlot()` 을 거친다
+### 슬롯 개수는 인벤토리 Model 이 소유한다
 
-```cpp
-SeedFromInventory()  ─┐
-AddWeapon()          ─┼─►  SetSlot()  ─►  SlotItem->SetWeapon()
-ClearSlot()          ─┘         │
-                                └─ SlotIndex == SelectedIndex 이면 OnSlotSelected 재발화
-```
-
-선택 중인 슬롯의 **내용**이 바뀌면 재장착이 필요한데, `SelectSlot()` 은 인덱스가 그대로라
-아무것도 하지 않는다. 그 구멍을 `SetSlot()` 이 막는다.
-
-`SlotItem->SetWeapon()` 을 직접 부르는 새 경로를 만들면 이 보호가 조용히 사라진다.
-
-### 슬롯 개수는 위젯이 소유한다
-
-`UEWEQuickSlot::MaxSlotSize`(BP 편집 가능)가 부착 시 VM 을 사이징한다.
-위젯이 붙기 전까지 VM 은 **unsized**(0슬롯)이며, 이는 에러가 아니라 기대 상태다 —
-VM 의 슬롯 조작 메서드는 unsized 를 `Verbose` no-op 으로 처리한다.
-
-> **수용한 트레이드오프:** 위젯이 안 뜨면 슬롯·시딩·장착이 전부 사라진다.
-> 게임플레이 효과가 프레젠테이션 에셋의 성공에 결합된다.
-> BP 워크플로(디자이너가 슬롯 수를 조정)를 지키기 위해 받아들였다.
-> 대안이던 "위젯 CDO 에서 조기 사이징"은 클래스 로드 타이밍이라는 변수를 새로 들이므로 거절했다.
-
-### 포워딩 함수를 유지하는 이유 (결정)
-
-서브시스템의 `AddWeaponToQuickSlot` / `SetQuickSlot` / `SelectQuickSlot` / `ScrollQuickSlot`
-넷을 삭제하고 `GetQuickSlotViewModel()` 만 노출하자는 안이 있었다. **채택하지 않는다.**
-
-- **널 가드가 1곳에서 N곳으로 흩어진다.** 지금은 포워더 4개에 모여 있다.
-- **소유권 캡슐화가 깨진다.** VM 은 `Deinitialize()` 에서 `nullptr` 이 되는데,
-  생 포인터를 나눠주면 호출자가 캐싱할 수 있다.
-
-> 진짜 개선 여지는 포워더가 아니라 `Character → PC → Subsystem → VM` 3-hop 체인이다.
-> 입력 라우팅 설계 전반의 문제라 별도 검토 사항으로 남긴다.
+슬롯 수는 `UEWEInventoryComponent::QuickSlotCount` (개발자 설정, 복제하지 않음).
+위젯은 VM 의 슬롯 수로 슬롯을 만든다.
 
 ### View 측 규칙
 
 - **BP 프로퍼티 바인딩은 금지되어 있다.** `Config/DefaultEditor.ini` 의
   `PropertyBindingRule=Prevent`. 반드시 ViewModel 바인딩을 쓴다.
 - 자식 위젯은 부모가 호출해주는 게 아니라 **자기 Entry VM 을 관찰**한다.
-  `BP_ItemSlot` 이 `UEWEQuickSlotItemViewModel::IsSelected` 에 바인딩하는 식.
+  `BP_ItemSlot` 이 `UEWEQuickSlotItemViewModel` 의 `IsEmpty` · `IsSelected` · `GetWeaponName` · 아이콘 · `GetSlotIndex` 에 바인딩한다.
 - ViewModel 주입 이름은 위젯 안에 격리한다. 서브시스템은 BP 측 이름을 몰라야 한다.
 
 > `IsSelected` 바인딩은 슬롯 변경 1회당 **두 번** 발화한다 (이전 슬롯 false, 새 슬롯 true).
@@ -440,13 +481,18 @@ Plugins/EasyWeaponryEnchanter/Source/EasyWeaponryEnchanter/
 ├── Public/
 │   └── EasyWeaponryEnchanter.h         ← 모듈 + LogEWE
 └── Weapon/
-    ├── EWEWeaponData.h                 ← 무기 DataAsset
-    └── EWEWeaponBase.h                 ← 액터 (현재 미사용)
+    ├── EWEWeaponData.h                 ← 무기 DataAsset (불변 정의, 소프트 참조)
+    ├── EWEWeaponInstance.h             ← 한 자루의 상태 (자체 로드 BeginLoad · FinishLoad · IsLoadFinished · OnLoadFinished)
+    └── EWEWeaponBase.h                 ← GA 가 스폰하는 무기 액터(투사체 등)의 베이스
 
 Source/EWE/Character/
-├── EWECharacter.h                      ← ASC / AttributeSet 소유, EquipWeapon
+├── EWECharacter.h                      ← ASC / AttributeSet 소유, EquipWeapon_ServerOnly · EquippedWeaponInstance · WeaponMesh
 ├── EWEPlayerController.h
-└── EWEInventoryComponent.h
+├── EWEInventoryComponent.h             ← Model (Items · QuickSlots · SelectedSlotIndex, 서버 관문 · Server_* RPC)
+└── EWEWeaponMeshComponent.h            ← 손의 표현 (WeaponSocket 부착, NoCollision)
+
+Source/EWE/Weapon/
+└── EWEPlayerWeapon.h                   ← 현재 스폰되지 않음 (장착 무기 드랍 · 획득용 보존)
 ```
 
 ### 목표 구조
@@ -496,8 +542,8 @@ Source/EWE/UI/
 ├── EWETargetInfoViewModel.h/.cpp      ← 타겟 ASC 구독
 │
 ├── EWEQuickSlot.h/.cpp                ← View (슬롯 위젯 생성 · Entry VM 주입)
-├── EWEQuickSlotViewModel.h/.cpp       ← 슬롯 배열 · 선택 인덱스 · OnSlotSelected
-├── EWEQuickSlotItemViewModel.h/.cpp   ← 슬롯 1칸 (Weapon / bSelected / SlotIndex)
+├── EWEQuickSlotViewModel.h/.cpp       ← 인벤토리 Model 관찰 (BindModel)
+├── EWEQuickSlotItemViewModel.h/.cpp   ← Instance 1개 표시 (SetInstance, 로드 완료 구독)
 │
 └── EWEInventory.h/.cpp                ← 인벤토리 위젯 (MVVM 미전환)
 
