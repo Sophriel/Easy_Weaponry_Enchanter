@@ -351,6 +351,13 @@ Write an explanation once, at the declaration (the gate). Do not repeat it at de
 Leave `@@@` regions alone unless asked to add a TODO.
 ```
 
+### `.ignore` — Do Not Modify Without Approval
+```
+Do not modify .ignore without the user's approval. If a change looks necessary,
+propose it and stop.
+To narrow a single search, use rg -g / --glob.
+```
+
 ### Committing — `commit-guide.md` Is Required Reading
 ```
 When asked to commit, read this before doing any work:
