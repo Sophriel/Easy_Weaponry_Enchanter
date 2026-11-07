@@ -208,10 +208,10 @@ void AEWECharacter::SetupPlayerInputComponent(UInputComponent *PlayerInputCompon
     }
     else
     {
-        UE_LOG(LogEWECharacter, Error,
-               TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input "
-                    "system. If you intend to use the legacy system, then you will need to update this C++ file."),
-               *GetNameSafe(this));
+        EWE_LOG(LogEWECharacter, Error,
+                TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input "
+                     "system. If you intend to use the legacy system, then you will need to update this C++ file."),
+                *GetNameSafe(this));
     }
 }
 
@@ -348,7 +348,7 @@ void AEWECharacter::EquipWeapon_ServerOnly(UEWEWeaponInstance *Instance)
 {
     if (!HasAuthority())
     {
-        UE_LOG(LogEWECharacter, Warning, TEXT("EquipWeapon: no authority"));
+        EWE_LOG(LogEWECharacter, Warning, TEXT("EquipWeapon: no authority"));
         return;
     }
 
@@ -387,7 +387,7 @@ void AEWECharacter::SetEquippedWeaponInstance_ServerOnly(UEWEWeaponInstance *Ins
 {
     if (!HasAuthority())
     {
-        UE_LOG(LogEWECharacter, Warning, TEXT("SetEquippedWeaponInstance: no authority"));
+        EWE_LOG(LogEWECharacter, Warning, TEXT("SetEquippedWeaponInstance: no authority"));
         return;
     }
 
@@ -427,7 +427,7 @@ void AEWECharacter::GrantWeaponAbilities(UEWEWeaponInstance *Instance)
 
     if (HoldAbilities.Num() + HitAbilities.Num() + OnEquipAbilities.Num() == 0)
     {
-        UE_LOG(LogEWECharacter, Warning, TEXT("EquipWeapon: instance %s has no loaded abilities"), *Instance->GetName());
+        EWE_LOG(LogEWECharacter, Warning, TEXT("EquipWeapon: instance %s has no loaded abilities"), *Instance->GetName());
         return;
     }
 
