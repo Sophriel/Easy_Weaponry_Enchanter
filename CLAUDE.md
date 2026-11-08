@@ -422,7 +422,7 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
 | `_ServerOnly` | 서버(권한 측)에서만 호출해야 하는 일반 함수 |
 | `_LocalOnly` | 로컬 클라이언트(`IsLocallyControlled` 측)에서만 호출해야 하는 일반 함수 |
 
-- RPC 접두사 `Server_` / `Client_` / `Multicast_` 와 구분한다. RPC 에는 접미사를 붙이지 않는다. 예: `Server_AssignToSlot()` → 내부에서 `AssignToSlot_ServerOnly()`
+- RPC 접두사 `Server_` / `Client_` / `Multicast_` 와 구분한다. RPC 에는 접미사를 붙이지 않는다. 예: `Server_AssignToQuickSlot()` → 내부에서 `AssignToQuickSlot_ServerOnly()`
 - 붙이지 않는 경우: 엔진 · 부모 가상 함수 오버라이드 (`PossessedBy`, `BeginPlay`, `GetLifetimeReplicatedProps` 등), `OnRep_` 함수, 서버 · 클라이언트 양쪽에서 실행되는 함수 (예: `UEWEWeaponMeshComponent::SetInstance`, Instance 로드 절차), 로컬 전용 클래스(위젯 · ViewModel · LocalPlayer 서브시스템)의 함수
 - UHT 예약 접미사 (`_Implementation`, `_Validate`) 와 겹치지 않는다
 
@@ -442,7 +442,7 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
     → 추가 예외 케이스 발생 시 functions/basic.md 업데이트
 
 [ ] 인벤토리 위젯 MVVM 미전환
-    → UEWEInventory 는 ViewModel 없이 Model 에 직접 접근한다 (SetWeapons push · OpenInventory 시 GetAllWeapons pull · 배정은 Server_AssignToSlot)
+    → UEWEInventory 는 ViewModel 없이 Model 에 직접 접근한다 (SetWeapons push · OpenInventory 시 GetAllWeapons pull · 배정은 Server_AssignToQuickSlot)
 
 [ ] GA 별 NetExecutionPolicy 전환
     → 현재 모든 GA 는 엔진 기본값 LocalPredicted 로 개발 중

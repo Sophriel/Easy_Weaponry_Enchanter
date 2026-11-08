@@ -131,5 +131,5 @@ void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)
         return;
     }
 
-    Model->Server_AssignToSlot(SelectedInstance, SlotIndex);
+    Model->Server_AssignToQuickSlot(SelectedInstance, SlotIndex);
 }

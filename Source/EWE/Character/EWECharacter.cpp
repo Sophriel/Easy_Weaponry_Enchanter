@@ -493,10 +493,10 @@ void AEWECharacter::OnPendingEquipLoadFinished(UEWEWeaponInstance *FinishedInsta
 void AEWECharacter::SelectWeapon(const uint8 SlotIndex)
 {
     // Slot selection is server-authoritative. Local input sends the request to the server
-    // through the inventory's RPC; the result comes back via OnRep_SelectedSlotIndex.
+    // through the inventory's RPC; the result comes back via OnRep_SelectedQuickSlotIndex.
     if (InventoryComponent)
     {
-        InventoryComponent->Server_SelectSlot(SlotIndex);
+        InventoryComponent->Server_SelectQuickSlot(SlotIndex);
     }
 }
 
@@ -505,7 +505,7 @@ void AEWECharacter::ScrollWeapon(const FInputActionValue &Value)
     const float ScrollDirection = -Value.Get<float>();
     if (InventoryComponent)
     {
-        InventoryComponent->Server_ScrollSlot(ScrollDirection);
+        InventoryComponent->Server_ScrollQuickSlot(ScrollDirection);
     }
 }
 

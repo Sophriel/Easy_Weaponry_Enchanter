@@ -18,7 +18,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponRemovedEvent, UEWEWeaponIn
 
 // Quick slot Model broadcasts. Native: only C++ (the view model) subscribes.
 DECLARE_MULTICAST_DELEGATE(FOnQuickSlotsChangedEvent);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectedSlotChangedEvent, int32 /*SlotIndex*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectedQuickSlotChangedEvent, int32 /*SlotIndex*/);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class EWE_API UEWEInventoryComponent : public UActorComponent
@@ -51,27 +51,27 @@ public:
 
     // Quick slot Model access (read-only). The view model observes these.
     const TArray<TObjectPtr<class UEWEWeaponInstance>> &GetQuickSlots() const { return QuickSlots; }
-    int32 GetSelectedSlotIndex() const { return SelectedSlotIndex; }
+    int32 GetSelectedQuickSlotIndex() const { return SelectedQuickSlotIndex; }
     int32 GetQuickSlotCount() const { return QuickSlotCount; }
 
     // Model broadcasts. The quick slot view model subscribes (native, C++ only).
     FOnQuickSlotsChangedEvent OnQuickSlotsChanged;
-    FOnSelectedSlotChangedEvent OnSelectedSlotChanged;
+    FOnSelectedQuickSlotChangedEvent OnSelectedQuickSlotChanged;
 
     /**
      * Server single gate for slot content. Assigns the instance to the slot (moving it out of
      * any other slot, D4). Re-equips if the selected slot's content changed.
      */
-    void AssignToSlot_ServerOnly(class UEWEWeaponInstance *Instance, int32 SlotIndex);
+    void AssignToQuickSlot_ServerOnly(class UEWEWeaponInstance *Instance, int32 SlotIndex);
 
     /** Server single gate: clears the slot. Re-equips (unequips) if it was the selected slot. */
-    void ClearSlot_ServerOnly(int32 SlotIndex);
+    void ClearQuickSlot_ServerOnly(int32 SlotIndex);
 
     /** Server single gate: selects the slot and equips its content (or unequips if empty). */
-    void SelectSlot_ServerOnly(int32 SlotIndex);
+    void SelectQuickSlot_ServerOnly(int32 SlotIndex);
 
     /** Server single gate: scrolls the selection. The index is computed here (server-side). */
-    void ScrollSlot_ServerOnly(float Direction);
+    void ScrollQuickSlot_ServerOnly(float Direction);
 
     /**
      * Server-only equip transition. Every path that changes the equipped instance (select,
@@ -89,16 +89,16 @@ public:
 
     // Client requests. The owning client sends these to the server, which runs the gates.
     UFUNCTION(Server, Reliable, Category = "Inventory|QuickSlot")
-    void Server_AssignToSlot(class UEWEWeaponInstance *Instance, int32 SlotIndex);
+    void Server_AssignToQuickSlot(class UEWEWeaponInstance *Instance, int32 SlotIndex);
 
     UFUNCTION(Server, Reliable, Category = "Inventory|QuickSlot")
-    void Server_ClearSlot(int32 SlotIndex);
+    void Server_ClearQuickSlot(int32 SlotIndex);
 
     UFUNCTION(Server, Reliable, Category = "Inventory|QuickSlot")
-    void Server_SelectSlot(int32 SlotIndex);
+    void Server_SelectQuickSlot(int32 SlotIndex);
 
     UFUNCTION(Server, Reliable, Category = "Inventory|QuickSlot")
-    void Server_ScrollSlot(float Direction);
+    void Server_ScrollQuickSlot(float Direction);
 
     // Event Delegates (BlueprintAssignable for Blueprint connection)
     UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
@@ -137,7 +137,7 @@ protected:
 
     /** RepNotify: the owner's selected slot index changed. Broadcasts the new index. */
     UFUNCTION()
-    void OnRep_SelectedSlotIndex();
+    void OnRep_SelectedQuickSlotIndex();
 
 protected:
     TScriptInterface<class IEWECharacterInterface> OwnerCharacter;
@@ -168,9 +168,9 @@ protected:
     TArray<TObjectPtr<class UEWEWeaponInstance>> QuickSlots;
 
     /** Selected quick slot index. INDEX_NONE until the first selection. Owner-only. */
-    UPROPERTY(ReplicatedUsing = OnRep_SelectedSlotIndex, VisibleAnywhere, BlueprintReadOnly,
+    UPROPERTY(ReplicatedUsing = OnRep_SelectedQuickSlotIndex, VisibleAnywhere, BlueprintReadOnly,
               Category = "Inventory|QuickSlot", meta = (AllowPrivateAccess = "true"))
-    int32 SelectedSlotIndex = INDEX_NONE;
+    int32 SelectedQuickSlotIndex = INDEX_NONE;
 
     /** Logs and returns false when the index does not address a weapon. */
     bool IsValidWeaponIndex(int32 Index) const;

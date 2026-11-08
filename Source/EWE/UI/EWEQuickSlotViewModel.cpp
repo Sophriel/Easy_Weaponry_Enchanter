@@ -14,10 +14,10 @@ void UEWEQuickSlotViewModel::BindModel(UEWEInventoryComponent *Old, UEWEInventor
     if (Current)
     {
         Current->OnQuickSlotsChanged.Remove(QuickSlotsChangedHandle);
-        Current->OnSelectedSlotChanged.Remove(SelectedSlotChangedHandle);
+        Current->OnSelectedQuickSlotChanged.Remove(SelectedQuickSlotChangedHandle);
     }
     QuickSlotsChangedHandle.Reset();
-    SelectedSlotChangedHandle.Reset();
+    SelectedQuickSlotChangedHandle.Reset();
 
     BoundModel = New;
 
@@ -28,7 +28,7 @@ void UEWEQuickSlotViewModel::BindModel(UEWEInventoryComponent *Old, UEWEInventor
     }
 
     QuickSlotsChangedHandle = New->OnQuickSlotsChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelQuickSlotsChanged);
-    SelectedSlotChangedHandle = New->OnSelectedSlotChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelSelectedSlotChanged);
+    SelectedQuickSlotChangedHandle = New->OnSelectedQuickSlotChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelSelectedQuickSlotChanged);
 
     UpdateFromModel();
 }
@@ -41,7 +41,7 @@ void UEWEQuickSlotViewModel::SelectSlot(int32 SlotIndex)
         EWE_LOG(LogEWE, Verbose, TEXT("SelectSlot: no model bound"));
         return;
     }
-    Model->Server_SelectSlot(SlotIndex);
+    Model->Server_SelectQuickSlot(SlotIndex);
 }
 
 void UEWEQuickSlotViewModel::ScrollSlot(float Direction)
@@ -52,7 +52,7 @@ void UEWEQuickSlotViewModel::ScrollSlot(float Direction)
         EWE_LOG(LogEWE, Verbose, TEXT("ScrollSlot: no model bound"));
         return;
     }
-    Model->Server_ScrollSlot(Direction);
+    Model->Server_ScrollQuickSlot(Direction);
 }
 
 void UEWEQuickSlotViewModel::AssignToSlot(UEWEWeaponInstance *Instance, int32 SlotIndex)
@@ -63,7 +63,7 @@ void UEWEQuickSlotViewModel::AssignToSlot(UEWEWeaponInstance *Instance, int32 Sl
         EWE_LOG(LogEWE, Verbose, TEXT("AssignToSlot: no model bound"));
         return;
     }
-    Model->Server_AssignToSlot(Instance, SlotIndex);
+    Model->Server_AssignToQuickSlot(Instance, SlotIndex);
 }
 
 void UEWEQuickSlotViewModel::ClearSlot(int32 SlotIndex)
@@ -74,7 +74,7 @@ void UEWEQuickSlotViewModel::ClearSlot(int32 SlotIndex)
         EWE_LOG(LogEWE, Verbose, TEXT("ClearSlot: no model bound"));
         return;
     }
-    Model->Server_ClearSlot(SlotIndex);
+    Model->Server_ClearQuickSlot(SlotIndex);
 }
 
 void UEWEQuickSlotViewModel::OnModelQuickSlotsChanged()
@@ -83,7 +83,7 @@ void UEWEQuickSlotViewModel::OnModelQuickSlotsChanged()
     UpdateFromModel();
 }
 
-void UEWEQuickSlotViewModel::OnModelSelectedSlotChanged(int32 SlotIndex)
+void UEWEQuickSlotViewModel::OnModelSelectedQuickSlotChanged(int32 SlotIndex)
 {
     UpdateFromModel();
 }
@@ -123,7 +123,7 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
     }
 
     // Mirror the selection.
-    const int32 Selected = Model->GetSelectedSlotIndex();
+    const int32 Selected = Model->GetSelectedQuickSlotIndex();
     for (int32 i = 0; i < SlotItems.Num(); ++i)
     {
         UEWEQuickSlotItemViewModel *SlotItem = SlotItems[i];

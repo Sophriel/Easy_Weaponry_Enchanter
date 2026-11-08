@@ -15,7 +15,7 @@
 전환 방식:
   마우스 휠 스크롤
   숫자키 1 ~ 0
-  선택은 서버 권한 — 입력 → RPC → OnRep_SelectedSlotIndex
+  선택은 서버 권한 — 입력 → RPC → OnRep_SelectedQuickSlotIndex
 ```
 
 > "슬롯 0: 레코딩 북 고정" 은 아래 레코딩 북 UI 섹션의 **미구현 설계 정책**이다.
@@ -146,7 +146,7 @@ HUD 퀵슬롯에 장착 가능한 아이템(무기, 두루마리 등)을 보관.
 ```
 1. 인벤토리에서 아이템 클릭 → 선택 상태
 2. 숫자키 입력 → 해당 퀵슬롯에 지정
-   배정은 Server_AssignToSlot 로 Model 관문에 모인다
+   배정은 Server_AssignToQuickSlot 로 Model 관문에 모인다
 ```
 
 ### 인벤토리 입력 차단 조건

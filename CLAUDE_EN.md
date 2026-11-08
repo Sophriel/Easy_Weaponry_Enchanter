@@ -423,7 +423,7 @@ Full class map and file locations → `architecture.md`
 | `_ServerOnly` | Regular function that must only be called on the server (authority side) |
 | `_LocalOnly` | Regular function that must only be called on the local client (`IsLocallyControlled` side) |
 
-- Distinct from the RPC prefixes `Server_` / `Client_` / `Multicast_`. RPCs do not take a suffix. e.g. `Server_AssignToSlot()` → internally calls `AssignToSlot_ServerOnly()`
+- Distinct from the RPC prefixes `Server_` / `Client_` / `Multicast_`. RPCs do not take a suffix. e.g. `Server_AssignToQuickSlot()` → internally calls `AssignToQuickSlot_ServerOnly()`
 - Do not attach: engine / parent virtual function overrides (`PossessedBy`, `BeginPlay`, `GetLifetimeReplicatedProps`, etc.), `OnRep_` functions, functions that run on both server and client (e.g. `UEWEWeaponMeshComponent::SetInstance`, the Instance load procedure), functions of local-only classes (widgets · ViewModels · LocalPlayer subsystems)
 - Do not collide with UHT reserved suffixes (`_Implementation`, `_Validate`)
 
@@ -443,7 +443,7 @@ Full class map and file locations → `architecture.md`
     → Update functions/basic.md if new edge cases arise
 
 [ ] Inventory widget MVVM not converted
-    → UEWEInventory accesses the Model directly without a ViewModel (SetWeapons push · GetAllWeapons pull on OpenInventory · assignment via Server_AssignToSlot)
+    → UEWEInventory accesses the Model directly without a ViewModel (SetWeapons push · GetAllWeapons pull on OpenInventory · assignment via Server_AssignToQuickSlot)
 
 [ ] Per-GA NetExecutionPolicy migration
     → All GAs are currently developed with the engine default LocalPredicted

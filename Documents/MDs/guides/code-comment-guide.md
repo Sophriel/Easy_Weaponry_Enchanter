@@ -162,7 +162,7 @@ void AEWEPlayerController::ToggleInventory()
   ```
 - **같은 이유가 여러 곳에서 반복되면 관문에 한 번만 쓴다.**
   관문 = 가드, 공통 헬퍼, 단일 진입점의 선언부. 호출부에서는 생략한다.
-  - "슬롯 쓰기는 서버 관문을 거쳐야 한다" → `AssignToSlot_ServerOnly()` 선언부에 한 번. 호출부마다 `// Route through the server gate ...` 을 달지 않는다
+  - "슬롯 쓰기는 서버 관문을 거쳐야 한다" → `AssignToQuickSlot_ServerOnly()` 선언부에 한 번. 호출부마다 `// Route through the server gate ...` 을 달지 않는다
   - 같은 가드 이유(`// Unsized is the expected state ...`)를 함수마다 반복하지 않는다
 - **`CLAUDE.md` 의 규칙을 코드로 옮겨 적지 않는다.** 규칙은 문서에 있고, 코드에는 그 규칙의 관문에만 짧게 남긴다.
 

@@ -63,10 +63,10 @@ Server → 유효성 검증 (Trigger, Condition, Cooldown) 은 CanActivateAbilit
 클라이언트 예측이 없다. 슬롯 선택 · 스크롤 · 배정 · 비우기 요청은 전부 서버 RPC 로만 간다.
 
 ```
-Client → Server_SelectSlot / Server_ScrollSlot / Server_AssignToSlot / Server_ClearSlot [Server, Reliable]
-Server → _ServerOnly 관문 안에서 검증 (Server_AssignToSlot: null · 미소유 Instance 거부)
-       → Model 변경 (SelectedSlotIndex · QuickSlots)
-Owner → OnRep_SelectedSlotIndex · OnRep_QuickSlots (소유자 전용)
+Client → Server_SelectQuickSlot / Server_ScrollQuickSlot / Server_AssignToQuickSlot / Server_ClearQuickSlot [Server, Reliable]
+Server → _ServerOnly 관문 안에서 검증 (Server_AssignToQuickSlot: null · 미소유 Instance 거부)
+       → Model 변경 (SelectedQuickSlotIndex · QuickSlots)
+Owner → OnRep_SelectedQuickSlotIndex · OnRep_QuickSlots (소유자 전용)
 All Clients → OnRep_EquippedWeaponInstance (별도 Confirm 브로드캐스트 없음)
 ```
 
@@ -195,7 +195,7 @@ void Multicast_ApplyFreeze(AActor* TargetActor);
 
 | 대상 | 복제 조건 |
 |------|-----------|
-| 인벤토리 `Items` · `QuickSlots` · `SelectedSlotIndex` | `COND_OwnerOnly` (소유자 전용) |
+| 인벤토리 `Items` · `QuickSlots` · `SelectedQuickSlotIndex` | `COND_OwnerOnly` (소유자 전용) |
 | 인벤토리 `QuickSlotCount` | 복제 안 함 (개발자 설정, 각 머신이 `InitializeComponent` 에서 배열 크기 지정) |
 | 캐릭터 `EquippedWeaponInstance` | 모두 (모든 클라이언트) |
 | Instance 서브오브젝트 | 소유자 전용, 장착 중인 것만 모두 |

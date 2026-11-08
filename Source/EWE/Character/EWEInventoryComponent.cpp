@@ -96,7 +96,7 @@ void UEWEInventoryComponent::RemoveWeapon_ServerOnly(UEWEWeaponInstance *Instanc
     const int32 SlotIndex = QuickSlots.IndexOfByKey(Instance);
     if (SlotIndex != INDEX_NONE)
     {
-        ClearSlot_ServerOnly(SlotIndex);
+        ClearQuickSlot_ServerOnly(SlotIndex);
     }
 
     // Defense: if the equipped instance is still the removed one, the invariant was
@@ -148,7 +148,7 @@ void UEWEInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     Items.Empty();
     QuickSlots.Init(nullptr, QuickSlotCount);
-    SelectedSlotIndex = INDEX_NONE;
+    SelectedQuickSlotIndex = INDEX_NONE;
 
     Super::EndPlay(EndPlayReason);
 }
@@ -161,7 +161,7 @@ void UEWEInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
     // sub-object (instance) conditions are evaluated; only these arrays are restricted.
     DOREPLIFETIME_CONDITION(UEWEInventoryComponent, Items, COND_OwnerOnly);
     DOREPLIFETIME_CONDITION(UEWEInventoryComponent, QuickSlots, COND_OwnerOnly);
-    DOREPLIFETIME_CONDITION(UEWEInventoryComponent, SelectedSlotIndex, COND_OwnerOnly);
+    DOREPLIFETIME_CONDITION(UEWEInventoryComponent, SelectedQuickSlotIndex, COND_OwnerOnly);
 }
 
 void UEWEInventoryComponent::OnRep_Items()
@@ -174,9 +174,9 @@ void UEWEInventoryComponent::OnRep_QuickSlots()
     OnQuickSlotsChanged.Broadcast();
 }
 
-void UEWEInventoryComponent::OnRep_SelectedSlotIndex()
+void UEWEInventoryComponent::OnRep_SelectedQuickSlotIndex()
 {
-    OnSelectedSlotChanged.Broadcast(SelectedSlotIndex);
+    OnSelectedQuickSlotChanged.Broadcast(SelectedQuickSlotIndex);
 }
 
 void UEWEInventoryComponent::CreateInitialWeaponInstances_ServerOnly()
@@ -249,28 +249,28 @@ void UEWEInventoryComponent::SyncInventoryUI()
     EWE_LOG(LogEWEInventory, Log, TEXT("Weapons synced: Total %d"), Items.Num());
 }
 
-void UEWEInventoryComponent::AssignToSlot_ServerOnly(UEWEWeaponInstance *Instance, int32 SlotIndex)
+void UEWEInventoryComponent::AssignToQuickSlot_ServerOnly(UEWEWeaponInstance *Instance, int32 SlotIndex)
 {
     if (!HasOwnerAuthority())
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToSlot: no authority"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToQuickSlot: no authority"));
         return;
     }
 
     if (!QuickSlots.IsValidIndex(SlotIndex))
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToSlot: invalid slot index %d"), SlotIndex);
+        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToQuickSlot: invalid slot index %d"), SlotIndex);
         return;
     }
 
     // nullptr is an invalid request, not a clear. The normal UI path never sends nullptr
-    // (the widget blocks it before the RPC, and clearing has its own ClearSlot path). A
+    // (the widget blocks it before the RPC, and clearing has its own ClearQuickSlot path). A
     // nullptr here means an abnormal path — e.g. the server could not resolve the RPC's
     // NetGUID (a just-removed weapon sent by a client holding a stale copy) or a caller
     // bug. Treating it as a clear would turn an assignment request into a slot clear.
     if (!Instance)
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToSlot: null instance is not a valid request"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToQuickSlot: null instance is not a valid request"));
         return;
     }
 
@@ -278,7 +278,7 @@ void UEWEInventoryComponent::AssignToSlot_ServerOnly(UEWEWeaponInstance *Instanc
     // another player's equipped instance (replicated to all clients) through the RPC.
     if (Items.IndexOfByKey(Instance) == INDEX_NONE)
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToSlot: instance not in inventory"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("AssignToQuickSlot: instance not in inventory"));
         return;
     }
 
@@ -290,8 +290,8 @@ void UEWEInventoryComponent::AssignToSlot_ServerOnly(UEWEWeaponInstance *Instanc
         QuickSlots[PrevIndex] = nullptr;
     }
 
-    const bool bSelectedSlotFilled = (SelectedSlotIndex == SlotIndex);
-    const bool bSelectedSlotEmptied = (SelectedSlotIndex == PrevIndex);
+    const bool bSelectedSlotFilled = (SelectedQuickSlotIndex == SlotIndex);
+    const bool bSelectedSlotEmptied = (SelectedQuickSlotIndex == PrevIndex);
 
     QuickSlots[SlotIndex] = Instance;
     OnQuickSlotsChanged.Broadcast();
@@ -308,17 +308,17 @@ void UEWEInventoryComponent::AssignToSlot_ServerOnly(UEWEWeaponInstance *Instanc
     }
 }
 
-void UEWEInventoryComponent::ClearSlot_ServerOnly(int32 SlotIndex)
+void UEWEInventoryComponent::ClearQuickSlot_ServerOnly(int32 SlotIndex)
 {
     if (!HasOwnerAuthority())
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("ClearSlot: no authority"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("ClearQuickSlot: no authority"));
         return;
     }
 
     if (!QuickSlots.IsValidIndex(SlotIndex))
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("ClearSlot: invalid slot index %d"), SlotIndex);
+        EWE_LOG(LogEWEInventory, Warning, TEXT("ClearQuickSlot: invalid slot index %d"), SlotIndex);
         return;
     }
 
@@ -330,43 +330,43 @@ void UEWEInventoryComponent::ClearSlot_ServerOnly(int32 SlotIndex)
     QuickSlots[SlotIndex] = nullptr;
     OnQuickSlotsChanged.Broadcast();
 
-    if (SelectedSlotIndex == SlotIndex)
+    if (SelectedQuickSlotIndex == SlotIndex)
     {
         ApplyEquipTransition_ServerOnly(nullptr);
     }
 }
 
-void UEWEInventoryComponent::SelectSlot_ServerOnly(int32 SlotIndex)
+void UEWEInventoryComponent::SelectQuickSlot_ServerOnly(int32 SlotIndex)
 {
     if (!HasOwnerAuthority())
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("SelectSlot: no authority"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("SelectQuickSlot: no authority"));
         return;
     }
 
     if (!QuickSlots.IsValidIndex(SlotIndex))
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("SelectSlot: invalid slot index %d"), SlotIndex);
+        EWE_LOG(LogEWEInventory, Warning, TEXT("SelectQuickSlot: invalid slot index %d"), SlotIndex);
         return;
     }
 
-    if (SelectedSlotIndex == SlotIndex)
+    if (SelectedQuickSlotIndex == SlotIndex)
     {
         return;   // Re-selecting the selected slot is a no-op (no transition).
     }
 
-    SelectedSlotIndex = SlotIndex;
-    OnSelectedSlotChanged.Broadcast(SelectedSlotIndex);
+    SelectedQuickSlotIndex = SlotIndex;
+    OnSelectedQuickSlotChanged.Broadcast(SelectedQuickSlotIndex);
 
     // An empty slot equips nothing (unequips the current weapon).
     ApplyEquipTransition_ServerOnly(QuickSlots[SlotIndex]);
 }
 
-void UEWEInventoryComponent::ScrollSlot_ServerOnly(float Direction)
+void UEWEInventoryComponent::ScrollQuickSlot_ServerOnly(float Direction)
 {
     if (!HasOwnerAuthority())
     {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("ScrollSlot: no authority"));
+        EWE_LOG(LogEWEInventory, Warning, TEXT("ScrollQuickSlot: no authority"));
         return;
     }
 
@@ -376,18 +376,18 @@ void UEWEInventoryComponent::ScrollSlot_ServerOnly(float Direction)
     }
 
     // Nothing selected yet: start at the first slot instead of wrapping from INDEX_NONE.
-    if (!QuickSlots.IsValidIndex(SelectedSlotIndex))
+    if (!QuickSlots.IsValidIndex(SelectedQuickSlotIndex))
     {
-        SelectSlot_ServerOnly(0);
+        SelectQuickSlot_ServerOnly(0);
         return;
     }
 
     const int32 Count = QuickSlots.Num();
     const int32 NextIndex = (Direction > 0.f)
-                                ? (SelectedSlotIndex + 1) % Count
-                                : (SelectedSlotIndex - 1 + Count) % Count;
+                                ? (SelectedQuickSlotIndex + 1) % Count
+                                : (SelectedQuickSlotIndex - 1 + Count) % Count;
 
-    SelectSlot_ServerOnly(NextIndex);
+    SelectQuickSlot_ServerOnly(NextIndex);
 }
 
 void UEWEInventoryComponent::ApplyEquipTransition_ServerOnly(UEWEWeaponInstance *NewInstance)
@@ -462,28 +462,28 @@ void UEWEInventoryComponent::TryInitialEquip_ServerOnly()
     bInitialEquipApplied = true;
 
     // Select slot 0 when nothing is selected yet.
-    if (SelectedSlotIndex == INDEX_NONE && QuickSlots.IsValidIndex(0))
+    if (SelectedQuickSlotIndex == INDEX_NONE && QuickSlots.IsValidIndex(0))
     {
-        SelectSlot_ServerOnly(0);
+        SelectQuickSlot_ServerOnly(0);
     }
 }
 
-void UEWEInventoryComponent::Server_AssignToSlot_Implementation(UEWEWeaponInstance *Instance, int32 SlotIndex)
+void UEWEInventoryComponent::Server_AssignToQuickSlot_Implementation(UEWEWeaponInstance *Instance, int32 SlotIndex)
 {
-    AssignToSlot_ServerOnly(Instance, SlotIndex);
+    AssignToQuickSlot_ServerOnly(Instance, SlotIndex);
 }
 
-void UEWEInventoryComponent::Server_ClearSlot_Implementation(int32 SlotIndex)
+void UEWEInventoryComponent::Server_ClearQuickSlot_Implementation(int32 SlotIndex)
 {
-    ClearSlot_ServerOnly(SlotIndex);
+    ClearQuickSlot_ServerOnly(SlotIndex);
 }
 
-void UEWEInventoryComponent::Server_SelectSlot_Implementation(int32 SlotIndex)
+void UEWEInventoryComponent::Server_SelectQuickSlot_Implementation(int32 SlotIndex)
 {
-    SelectSlot_ServerOnly(SlotIndex);
+    SelectQuickSlot_ServerOnly(SlotIndex);
 }
 
-void UEWEInventoryComponent::Server_ScrollSlot_Implementation(float Direction)
+void UEWEInventoryComponent::Server_ScrollQuickSlot_Implementation(float Direction)
 {
-    ScrollSlot_ServerOnly(Direction);
+    ScrollQuickSlot_ServerOnly(Direction);
 }

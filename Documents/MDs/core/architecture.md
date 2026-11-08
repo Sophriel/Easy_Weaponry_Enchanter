@@ -235,8 +235,8 @@ Current 는 Max 가 바뀌어도 스스로 재계산되지 않는다. 그래서 
 ```
 숫자키 / 마우스 휠
   → AEWECharacter::SelectWeapon / ScrollWeapon
-    → UEWEInventoryComponent::Server_SelectSlot / Server_ScrollSlot
-      → SelectSlot_ServerOnly / ScrollSlot_ServerOnly
+    → UEWEInventoryComponent::Server_SelectQuickSlot / Server_ScrollQuickSlot
+      → SelectQuickSlot_ServerOnly / ScrollQuickSlot_ServerOnly
         → ApplyEquipTransition_ServerOnly
 ```
 
@@ -254,14 +254,14 @@ Current 는 Max 가 바뀌어도 스스로 재계산되지 않는다. 그래서 
 교체 요청이 서버 관문을 거치는 현재 흐름이다.
 
 ```
-클라이언트: Server_SelectSlot / Server_ScrollSlot / Server_AssignToSlot / Server_ClearSlot RPC → 서버
+클라이언트: Server_SelectQuickSlot / Server_ScrollQuickSlot / Server_AssignToQuickSlot / Server_ClearQuickSlot RPC → 서버
                 │
                 ▼
 서버: 관문 검증
-  Server_SelectSlot = 인덱스 검증
-  Server_ScrollSlot = 방향 0 · 빈 슬롯이면 무시, 선택 없음이면 0번 선택, 그 외 다음 인덱스 계산 → SelectSlot_ServerOnly 경유
-  Server_AssignToSlot = 인덱스 · null · 미소유 Instance 거부
-  Server_ClearSlot = 인덱스 검증, 이미 비어 있으면 무시
+  Server_SelectQuickSlot = 인덱스 검증
+  Server_ScrollQuickSlot = 방향 0 · 빈 슬롯이면 무시, 선택 없음이면 0번 선택, 그 외 다음 인덱스 계산 → SelectQuickSlot_ServerOnly 경유
+  Server_AssignToQuickSlot = 인덱스 · null · 미소유 Instance 거부
+  Server_ClearQuickSlot = 인덱스 검증, 이미 비어 있으면 무시
                 │
                 ▼
 ApplyEquipTransition_ServerOnly
@@ -271,7 +271,7 @@ ApplyEquipTransition_ServerOnly
                 │
                 ▼
 결과 전달:
-  소유자 → OnRep_SelectedSlotIndex · OnRep_QuickSlots
+  소유자 → OnRep_SelectedQuickSlotIndex · OnRep_QuickSlots
   모든 클라이언트 → OnRep_EquippedWeaponInstance
   (별도 Confirm 브로드캐스트 없음)
 ```
@@ -330,13 +330,13 @@ EquipWeapon_ServerOnly(다음 Instance 또는 nullptr)
 
 ### 인벤토리 Model — 퀵슬롯 쓰기는 서버 관문 경유
 
-`QuickSlots` · `SelectedSlotIndex` 를 바꾸는 **런타임** 경로는 모두 아래 관문을 거친다.
+`QuickSlots` · `SelectedQuickSlotIndex` 를 바꾸는 **런타임** 경로는 모두 아래 관문을 거친다.
 클라이언트는 `Server_*` RPC 로 요청한다.
 
-- `AssignToSlot_ServerOnly` — 슬롯에 Instance 배정 (이전 슬롯에서 이동)
-- `ClearSlot_ServerOnly` — 슬롯 비우기
-- `SelectSlot_ServerOnly` — 슬롯 선택
-- `ScrollSlot_ServerOnly` — 슬롯 스크롤
+- `AssignToQuickSlot_ServerOnly` — 슬롯에 Instance 배정 (이전 슬롯에서 이동)
+- `ClearQuickSlot_ServerOnly` — 슬롯 비우기
+- `SelectQuickSlot_ServerOnly` — 슬롯 선택
+- `ScrollQuickSlot_ServerOnly` — 슬롯 스크롤
 
 **예외:** 초기 시딩 `CreateInitialWeaponInstances_ServerOnly` 는 1회성 초기화로 `QuickSlots` 를 직접 채운다.
 
@@ -344,11 +344,11 @@ EquipWeapon_ServerOnly(다음 Instance 또는 nullptr)
 선택 중인 슬롯의 내용이 바뀌면 관문이 `ApplyEquipTransition_ServerOnly` 를 호출하므로,
 배열을 직접 쓰면 재장착 · 해제가 조용히 빠진다.
 
-`RemoveWeapon_ServerOnly` 는 슬롯을 비울 때 `ClearSlot_ServerOnly` 를 거친다.
+`RemoveWeapon_ServerOnly` 는 슬롯을 비울 때 `ClearQuickSlot_ServerOnly` 를 거친다.
 
 ```cpp
 // ❌ QuickSlots[i] = Instance;
-// ✅ AssignToSlot_ServerOnly(Instance, i);
+// ✅ AssignToQuickSlot_ServerOnly(Instance, i);
 ```
 
 ### 손의 표현
@@ -412,7 +412,7 @@ QuickSlotViewModel = NewObject<UEWEQuickSlotViewModel>(this);
 - VM 은 **위젯보다 오래 산다.** 위젯을 재생성해도 VM 의 Model 바인딩이 유지된다.
 
 **Model 바인딩:** PC `OnInventoryModelChanged(Old, New)` → `BindInventoryModel` → `UEWEQuickSlotViewModel::BindModel`.
-`BindModel` 이 `OnQuickSlotsChanged` · `OnSelectedSlotChanged` 를 구독하고 `UpdateFromModel` 로 초기 상태를 채운다.
+`BindModel` 이 `OnQuickSlotsChanged` · `OnSelectedQuickSlotChanged` 를 구독하고 `UpdateFromModel` 로 초기 상태를 채운다.
 
 ### create-then-bind 패턴
 
@@ -433,7 +433,7 @@ AcknowledgePossession()  →  Bind<X>()                ← 폰이 준비된 경�
 어느 축도 다른 축의 순서를 가정하지 않는다.
 
 ```
-각 축은 준비되면 알린다        인벤토리 Model → OnQuickSlotsChanged · OnSelectedSlotChanged
+각 축은 준비되면 알린다        인벤토리 Model → OnQuickSlotsChanged · OnSelectedQuickSlotChanged
                               PC → OnInventoryModelChanged
 받는 쪽이 조건을 판정한다      UEWEQuickSlotViewModel::BindModel → UpdateFromModel 로 현재 상태 당겨 옴
                               위젯 → VM GetSlotCount() 로 슬롯 생성
@@ -488,7 +488,7 @@ Plugins/EasyWeaponryEnchanter/Source/EasyWeaponryEnchanter/
 Source/EWE/Character/
 ├── EWECharacter.h                      ← ASC / AttributeSet 소유, EquipWeapon_ServerOnly · EquippedWeaponInstance · WeaponMesh
 ├── EWEPlayerController.h
-├── EWEInventoryComponent.h             ← Model (Items · QuickSlots · SelectedSlotIndex, 서버 관문 · Server_* RPC)
+├── EWEInventoryComponent.h             ← Model (Items · QuickSlots · SelectedQuickSlotIndex, 서버 관문 · Server_* RPC)
 └── EWEWeaponMeshComponent.h            ← 손의 표현 (WeaponSocket 부착, NoCollision)
 
 Source/EWE/Weapon/

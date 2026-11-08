@@ -49,7 +49,7 @@ protected:
     void OnModelQuickSlotsChanged();
 
     /** Model broadcast: the selected index changed. Refreshes the selection highlight. */
-    void OnModelSelectedSlotChanged(int32 SlotIndex);
+    void OnModelSelectedQuickSlotChanged(int32 SlotIndex);
 
     /** Sizes the item array to the Model and mirrors its contents and selection. */
     void UpdateFromModel();
@@ -65,5 +65,5 @@ protected:
     TWeakObjectPtr<class UEWEInventoryComponent> BoundModel;
 
     FDelegateHandle QuickSlotsChangedHandle;
-    FDelegateHandle SelectedSlotChangedHandle;
+    FDelegateHandle SelectedQuickSlotChangedHandle;
 };
