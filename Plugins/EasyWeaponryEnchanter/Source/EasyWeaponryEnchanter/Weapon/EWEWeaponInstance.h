@@ -9,6 +9,7 @@
 class UEWEWeaponData;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWeaponInstanceLoadFinished, class UEWEWeaponInstance *);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWeaponInstanceChanged, class UEWEWeaponInstance *);
 
 /** Load state of a weapon instance. */
 UENUM()
@@ -35,6 +36,13 @@ class EASYWEAPONRYENCHANTER_API UEWEWeaponInstance : public UObject
 public:
     /** Broadcast when the instance finishes loading (Ready or Failed). */
     FOnWeaponInstanceLoadFinished OnLoadFinished;
+
+    /**
+     * Broadcast when the instance's item state changes — distinct from OnLoadFinished, which
+     * fires once when the load pipeline ends. When a replicated state is added, broadcast it
+     * from both the server setter and the matching OnRep. No broadcast site yet.
+     */
+    FOnWeaponInstanceChanged OnItemChanged;
 
     /**
      * Sets the weapon definition. Called once by the inventory right after creation; a
