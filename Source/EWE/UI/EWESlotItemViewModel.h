@@ -4,25 +4,25 @@
 
 #include "CoreMinimal.h"
 #include "MVVMViewModelBase.h"
-#include "EWEQuickSlotItemViewModel.generated.h"
+#include "EWESlotItemViewModel.generated.h"
 
 class UEWEWeaponInstance;
 
-/** One quick slot item — shows one weapon (or empty) and selection highlight state. */
+/** One slot item — shows one weapon (or empty) and selection highlight state. Shared by the quick slot bar and the inventory grid. */
 UCLASS(BlueprintType)
-class EWE_API UEWEQuickSlotItemViewModel : public UMVVMViewModelBase
+class EWE_API UEWESlotItemViewModel : public UMVVMViewModelBase
 {
     GENERATED_BODY()
 
 public:
-    /** Unsubscribes from the instance's load-finished notification so no stale binding lingers on it. */
+    /** Unsubscribes from the instance's notifications so no stale binding lingers on it. */
     virtual void BeginDestroy() override;
 
     /** Assigns the instance shown in this slot. Pass nullptr to clear it. */
     void SetInstance(class UEWEWeaponInstance *InInstance);
     void SetSelected(bool bInSelected);
 
-    /** Fixed position of this slot in the quick slot bar. Set once at creation. */
+    /** Fixed position of this slot in the quick slot bar or inventory grid. Set once at creation. */
     void SetSlotIndex(int32 InSlotIndex);
 
     UFUNCTION(BlueprintPure, FieldNotify) bool IsEmpty() const { return WeaponInstance == nullptr; }
@@ -35,6 +35,10 @@ public:
     UFUNCTION(BlueprintPure, FieldNotify)
     int32 GetSlotIndex() const { return SlotIndex; }
 
+    // TODO: Expose the weapon icon (UEWEWeaponInstance::GetWeaponIcon) as a FieldNotify
+    // getter so a slot can display it. Re-broadcast on load-finished and item-state
+    // change, like GetWeaponName.
+
 protected:
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     TObjectPtr<class UEWEWeaponInstance> WeaponInstance;
@@ -45,11 +49,13 @@ protected:
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     int32 SlotIndex = 0;
 
-    /** The instance whose load-finished notification this slot is subscribed to (if any). */
-    TWeakObjectPtr<class UEWEWeaponInstance> LoadSubscriptionInstance;
+    /** The instance this slot is subscribed to for load-finished and item-state changes (if any). */
+    TWeakObjectPtr<class UEWEWeaponInstance> SubscribedInstance;
 
     FDelegateHandle LoadFinishedHandle;
+    FDelegateHandle ItemChangedHandle;
 
     void HandleLoadFinished(class UEWEWeaponInstance *FinishedInstance);
-    void UnsubscribeLoadFinished();
+    void HandleItemChanged(class UEWEWeaponInstance *ChangedInstance);
+    void UnsubscribeInstance();
 };

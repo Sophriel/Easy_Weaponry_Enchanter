@@ -6,7 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "View/MVVMView.h"
 #include "EWE/UI/EWEQuickSlotViewModel.h"
-#include "EWE/UI/EWEQuickSlotItemViewModel.h"
+#include "EWE/UI/EWESlotItemViewModel.h"
 #include "EWE/EWELog.h"
 
 UEWEQuickSlot::UEWEQuickSlot(const FObjectInitializer& ObjectInitializer)
@@ -52,7 +52,7 @@ void UEWEQuickSlot::SetViewModel(UEWEQuickSlotViewModel *InViewModel)
 
 		// The Blueprint-side view model name stays inside this widget. The subsystem
 		// must not need to know it.
-		SlotView->SetViewModel(FName(TEXT("EWEQuickSlotItemViewModel")), InViewModel->GetSlotItem(i));
+		SlotView->SetViewModel(FName(TEXT("EWESlotItemViewModel")), InViewModel->GetSlotItem(i));
 	}
 }
 

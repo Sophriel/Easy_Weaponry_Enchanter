@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "EWEQuickSlotViewModel.h"
-#include "EWE/UI/EWEQuickSlotItemViewModel.h"
+#include "EWE/UI/EWESlotItemViewModel.h"
 #include "EWE/Character/EWEInventoryComponent.h"
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
 #include "EWE/EWELog.h"
@@ -105,7 +105,7 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
     {
         if (!SlotItems[i])
         {
-            SlotItems[i] = NewObject<UEWEQuickSlotItemViewModel>(this);
+            SlotItems[i] = NewObject<UEWESlotItemViewModel>(this);
         }
         SlotItems[i]->SetSlotIndex(i);
     }
@@ -114,7 +114,7 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
     const TArray<TObjectPtr<UEWEWeaponInstance>> &Slots = Model->GetQuickSlots();
     for (int32 i = 0; i < SlotItems.Num(); ++i)
     {
-        UEWEQuickSlotItemViewModel *SlotItem = SlotItems[i];
+        UEWESlotItemViewModel *SlotItem = SlotItems[i];
         if (!SlotItem)
             continue;
 
@@ -126,7 +126,7 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
     const int32 Selected = Model->GetSelectedQuickSlotIndex();
     for (int32 i = 0; i < SlotItems.Num(); ++i)
     {
-        UEWEQuickSlotItemViewModel *SlotItem = SlotItems[i];
+        UEWESlotItemViewModel *SlotItem = SlotItems[i];
         if (SlotItem)
         {
             SlotItem->SetSelected(i == Selected);
@@ -139,7 +139,7 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
     }
 }
 
-UEWEQuickSlotItemViewModel *UEWEQuickSlotViewModel::GetSlotItem(int32 SlotIndex) const
+UEWESlotItemViewModel *UEWEQuickSlotViewModel::GetSlotItem(int32 SlotIndex) const
 {
     if (!SlotItems.IsValidIndex(SlotIndex))
         return nullptr;

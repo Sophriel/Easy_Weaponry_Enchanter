@@ -8,7 +8,7 @@
 
 class UEWEInventoryComponent;
 class UEWEWeaponInstance;
-class UEWEQuickSlotItemViewModel;
+class UEWESlotItemViewModel;
 
 /**
  * View model for the entire quick slot bar.
@@ -42,7 +42,7 @@ public:
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSlotCount() const { return SlotItems.Num(); }
 
     UFUNCTION(BlueprintPure)
-    UEWEQuickSlotItemViewModel *GetSlotItem(int32 SlotIndex) const;
+    UEWESlotItemViewModel *GetSlotItem(int32 SlotIndex) const;
 
 protected:
     /** Model broadcast: the slot contents changed. Refreshes every slot. */
@@ -55,7 +55,7 @@ protected:
     void UpdateFromModel();
 
     UPROPERTY(BlueprintReadOnly, FieldNotify)
-    TArray<TObjectPtr<UEWEQuickSlotItemViewModel>> SlotItems;
+    TArray<TObjectPtr<UEWESlotItemViewModel>> SlotItems;
 
     /** INDEX_NONE until the Model reports a selection. */
     UPROPERTY(BlueprintReadOnly, FieldNotify)
