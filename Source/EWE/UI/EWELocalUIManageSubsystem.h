@@ -8,6 +8,7 @@
 
 // Forward declarations
 class UEWEQuickSlotViewModel;
+class UEWEInventoryViewModel;
 class UEWEStatusViewModel;
 class UEWETargetInfoViewModel;
 class UEWEInventoryComponent;
@@ -79,15 +80,19 @@ protected:
     /** Creates the inventory widget if it doesn't exist */
     void CreateInventoryWidget();
 
+    /** Creates the inventory view model. Called once from Initialize(). */
+    void CreateInventoryViewModel();
+
     UPROPERTY(Transient)
     TObjectPtr<class UEWEInventory> InventoryWidget;
+
+    UPROPERTY(Transient)
+    TObjectPtr<class UEWEInventoryViewModel> InventoryViewModel;
 
 #pragma endregion
 
 #pragma region QuickSlot
 public:
-    UEWEQuickSlotViewModel *GetQuickSlotViewModel() const { return QuickSlotViewModel; }
-
     /** Gets the quick slot widget instance (may be nullptr) */
     UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
     UEWEQuickSlot *GetQuickSlotWidget() const { return QuickSlotWidget; }

@@ -12,6 +12,7 @@
 #include "EWEStatusViewModel.h"
 #include "EWETargetInfoViewModel.h"
 #include "EWEQuickSlotViewModel.h"
+#include "EWEInventoryViewModel.h"
 #include "EWE/Character/EWECharacter.h"
 #include "EWE/Character/EWEInventoryComponent.h"
 #include "EWE/Character/EWEPlayerController.h"
@@ -32,6 +33,7 @@ void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection
     }
 
     CreateQuickSlotViewModel();
+    CreateInventoryViewModel();
 }
 
 void UEWELocalUIManageSubsystem::Deinitialize()
@@ -48,11 +50,17 @@ void UEWELocalUIManageSubsystem::Deinitialize()
     }
     InventoryModelChangedHandle.Reset();
 
-    // Unbind the view model from its Model before tearing it down.
+    // Unbind the view models from their Model before tearing them down.
     if (QuickSlotViewModel)
     {
         QuickSlotViewModel->BindModel(nullptr, nullptr);
         QuickSlotViewModel = nullptr;
+    }
+
+    if (InventoryViewModel)
+    {
+        InventoryViewModel->BindModel(nullptr, nullptr);
+        InventoryViewModel = nullptr;
     }
 
     if (InventoryWidget)
@@ -256,6 +264,20 @@ void UEWELocalUIManageSubsystem::CreateInventoryWidget()
     }
 
     InventoryWidget->AddToViewport();
+
+    // The view model may already be bound to a Model (the possession path can run before
+    // the widget exists). SetViewModel is idempotent.
+    InventoryWidget->SetViewModel(InventoryViewModel);
+}
+
+void UEWELocalUIManageSubsystem::CreateInventoryViewModel()
+{
+    if (InventoryViewModel)
+        return;
+
+    // The view model is an observer: it binds to the inventory Model through
+    // BindInventoryModel, not here. The slot array stays empty until a Model is bound.
+    InventoryViewModel = NewObject<UEWEInventoryViewModel>(this);
 }
 
 #pragma endregion
@@ -348,6 +370,11 @@ void UEWELocalUIManageSubsystem::HandleInventoryModelChanged(UEWEInventoryCompon
         {
             QuickSlotWidget->SetViewModel(QuickSlotViewModel);
         }
+    }
+
+    if (InventoryViewModel)
+    {
+        InventoryViewModel->BindModel(Old, New);
     }
 }
 
