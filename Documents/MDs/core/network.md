@@ -195,10 +195,16 @@ void Multicast_ApplyFreeze(AActor* TargetActor);
 
 | 대상 | 복제 조건 |
 |------|-----------|
-| 인벤토리 `Items` · `QuickSlots` · `SelectedQuickSlotIndex` | `COND_OwnerOnly` (소유자 전용) |
-| 인벤토리 `QuickSlotCount` | 복제 안 함 (개발자 설정, 각 머신이 `InitializeComponent` 에서 배열 크기 지정) |
+| 인벤토리 `Items` (고정 칸 슬롯 배열, 빈칸 null) · `QuickSlots` · `SelectedQuickSlotIndex` | `COND_OwnerOnly` (소유자 전용) |
+| 인벤토리 `QuickSlotCount` · `InventorySlotCount` | 복제 안 함 (개발자 설정, 각 머신이 `InitializeComponent` 에서 배열 크기 지정) |
 | 캐릭터 `EquippedWeaponInstance` | 모두 (모든 클라이언트) |
 | Instance 서브오브젝트 | 소유자 전용, 장착 중인 것만 모두 |
+
+**복제 vs 알림**
+
+`Items` 는 바뀐 칸만 복제된다 (`COND_OwnerOnly`). 무기를 제거해도 칸을 비울 뿐 인덱스가 밀리지 않으므로, 변경된 칸 하나만 전송된다. 클라이언트는 `OnRep_Items(PreviousItems)` 에서 인덱스별로 비교해 변경된 칸만 `OnItemSlotChanged` 로 브로드캐스트한다.
+
+`Client_NotifyAcquireRejected` (Client, Reliable) 는 인벤토리가 가득 차 획득이 거부됐을 때 소유 클라이언트에 1회 통지한다. 소유 연결이 없으면(빙의 전 초기 시딩, 봇) 전달되지 않는다.
 
 **서브오브젝트 조건 전환**
 

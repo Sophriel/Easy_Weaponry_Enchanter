@@ -369,7 +369,7 @@ Key rules (see commit-guide.md for details):
 ```
 UEWEWeaponData          Immutable definition (soft refs: WeaponIcon · WeaponMeshAsset · Hold / Hit / OnEquip GA arrays)
 UEWEWeaponInstance      One weapon's state · self-loading
-UEWEInventoryComponent  Model — Items · QuickSlots · selected index. Server gate
+UEWEInventoryComponent  Model — Items (slot-type) · QuickSlots · selected index. Server gate
 UEWEWeaponMeshComponent Hand visual
 AEWECharacter           Character owning ASC / AttributeSet. Grants weapon GAs via EquipWeapon_ServerOnly, replicates EquippedWeaponInstance
 UEWEAttributeBase       AttributeSet (Health / MaxHealth / Mana / MaxMana, clamping, Max change policy)
@@ -391,8 +391,9 @@ UEWELocalUIManageSubsystem      Creates/injects VMs, Model binding (PC relay), U
 UEWEStatusViewModel             Subscribes to the ASC -> HP / MP
 UEWETargetInfoViewModel         Subscribes to the target's ASC
 UEWEQuickSlotViewModel          Observes the inventory Model (BindModel)
-UEWEQuickSlotItemViewModel      One slot (Instance / bSelected / SlotIndex)
-UEWEQuickSlot / UEWEStatus / UEWETargetInfo   Views. They own no data
+UEWEInventoryViewModel          Observes the inventory Model (BindModel), owns selection state
+UEWESlotItemViewModel           One slot (Instance / bSelected / SlotIndex). Shared by quick slot · inventory
+UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory   Views. They own no data
 ```
 
 Full class map and file locations → `architecture.md`
@@ -442,8 +443,8 @@ Full class map and file locations → `architecture.md`
     → Without DestroyConditions, no destruction other than Lifetime (current policy)
     → Update functions/basic.md if new edge cases arise
 
-[ ] Inventory widget MVVM not converted
-    → UEWEInventory accesses the Model directly without a ViewModel (SetWeapons push · GetAllWeapons pull on OpenInventory · assignment via Server_AssignToQuickSlot)
+[ ] Inventory entry widget not implemented
+    → UEWEInventory receives the UEWEInventoryViewModel, but entry widget creation for the inventory grid is not implemented
 
 [ ] Per-GA NetExecutionPolicy migration
     → All GAs are currently developed with the engine default LocalPredicted

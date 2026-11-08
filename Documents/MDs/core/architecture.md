@@ -333,10 +333,10 @@ EquipWeapon_ServerOnly(다음 Instance 또는 nullptr)
 `QuickSlots` · `SelectedQuickSlotIndex` 를 바꾸는 **런타임** 경로는 모두 아래 관문을 거친다.
 클라이언트는 `Server_*` RPC 로 요청한다.
 
-- `AssignToQuickSlot_ServerOnly` — 슬롯에 Instance 배정 (이전 슬롯에서 이동)
-- `ClearQuickSlot_ServerOnly` — 슬롯 비우기
-- `SelectQuickSlot_ServerOnly` — 슬롯 선택
-- `ScrollQuickSlot_ServerOnly` — 슬롯 스크롤
+- `AssignToQuickSlot_ServerOnly` — 퀵슬롯에 Instance 배정 (이전 퀵슬롯에서 이동)
+- `ClearQuickSlot_ServerOnly` — 퀵슬롯 비우기
+- `SelectQuickSlot_ServerOnly` — 퀵슬롯 선택
+- `ScrollQuickSlot_ServerOnly` — 퀵슬롯 스크롤
 
 **예외:** 초기 시딩 `CreateInitialWeaponInstances_ServerOnly` 는 1회성 초기화로 `QuickSlots` 를 직접 채운다.
 
@@ -350,6 +350,14 @@ EquipWeapon_ServerOnly(다음 Instance 또는 nullptr)
 // ❌ QuickSlots[i] = Instance;
 // ✅ AssignToQuickSlot_ServerOnly(Instance, i);
 ```
+
+### 인벤토리 `Items` 구조
+
+`Items` 는 고정 크기 슬롯 배열이다. `InitializeComponent` 에서 `InventorySlotCount`(개발자 설정, 기본 32)만큼 `nullptr` 로 초기화한다.
+
+- **재정렬 없음.** 무기를 제거하면 해당 슬롯만 `nullptr` 가 되고, 뒤의 아이템이 앞으로 오지 않는다.
+- **가득 참.** `AcquireWeapon_ServerOnly` 는 첫 빈 슬롯을 찾아 채운다. 빈 슬롯이 없으면 `Client_NotifyAcquireRejected`(Client, Reliable) 로 소유 클라이언트에 1회 통지하고 획득을 거부한다. 소유 연결이 없으면(빙의 전 초기 시딩, 봇) 통지는 전달되지 않는다.
+- **슬롯별 알림.** `OnItemSlotChanged(int32)` 는 서버 쓰기 경로(`AcquireWeapon_ServerOnly` · `RemoveWeapon_ServerOnly`)와 클라이언트 `OnRep_Items` 양쪽에서 브로드캐스트된다. `OnRep_Items` 는 인덱스별 비교해 변경된 인덱스만 알린다. 뷰모델은 이 이벤트를 구독해 해당 슬롯만 갱신한다.
 
 ### 손의 표현
 
@@ -395,9 +403,9 @@ ViewModel 은 View 를 참조하지 않는다. 위젯이 사라져도 ViewModel 
 | 계층 | 클래스 | 책임 |
 |------|--------|------|
 | Model | `UEWEInventoryComponent` (서버 권한, 소유자 전용 복제), `UAbilitySystemComponent` | 진짜 데이터 |
-| ViewModel | `UEWEStatusViewModel`, `UEWETargetInfoViewModel`, `UEWEQuickSlotViewModel`, `UEWEQuickSlotItemViewModel` | 표시 상태 + 변경 알림 |
-| View | `UEWEStatus`, `UEWETargetInfo`, `UEWEQuickSlot` + 각 WBP | 바인딩만 |
-| 소유·중재 | `UEWELocalUIManageSubsystem` | VM 생성 · 주입, Model 바인딩 (PC 릴레이), UI 명령 중계 (인벤토리 토글 · 타겟 정보) |
+| ViewModel | `UEWEStatusViewModel`, `UEWETargetInfoViewModel`, `UEWEQuickSlotViewModel`, `UEWEInventoryViewModel`, `UEWESlotItemViewModel` (퀵슬롯 · 인벤토리 공유) | 표시 상태 + 변경 알림 |
+| View | `UEWEStatus`, `UEWETargetInfo`, `UEWEQuickSlot`, `UEWEInventory` + 각 WBP | 바인딩만 |
+| 소유·중재 | `UEWELocalUIManageSubsystem` | VM 생성 · 주입, Model 바인딩 (PC 릴레이, 퀵슬롯 · 인벤토리 VM), UI 명령 중계 (인벤토리 토글 · 타겟 정보) |
 
 ### ViewModel 은 서브시스템이 소유한다
 
@@ -411,8 +419,8 @@ QuickSlotViewModel = NewObject<UEWEQuickSlotViewModel>(this);
   두 번 일어나는 창이 생긴다.
 - VM 은 **위젯보다 오래 산다.** 위젯을 재생성해도 VM 의 Model 바인딩이 유지된다.
 
-**Model 바인딩:** PC `OnInventoryModelChanged(Old, New)` → `BindInventoryModel` → `UEWEQuickSlotViewModel::BindModel`.
-`BindModel` 이 `OnQuickSlotsChanged` · `OnSelectedQuickSlotChanged` 를 구독하고 `UpdateFromModel` 로 초기 상태를 채운다.
+**Model 바인딩:** PC `OnInventoryModelChanged(Old, New)` → `BindInventoryModel` → `UEWEQuickSlotViewModel::BindModel` · `UEWEInventoryViewModel::BindModel`.
+퀵슬롯 VM 은 `OnQuickSlotsChanged` · `OnSelectedQuickSlotChanged` 를, 인벤토리 VM 은 `OnItemSlotChanged` 를 구독하고, 각자 `UpdateFromModel` 로 초기 상태를 채운다. 인벤토리 VM 은 새 Model 에 바인딩할 때 선택을 해제한다.
 
 ### create-then-bind 패턴
 
@@ -452,7 +460,7 @@ AcknowledgePossession()  →  Bind<X>()                ← 폰이 준비된 경�
 - **BP 프로퍼티 바인딩은 금지되어 있다.** `Config/DefaultEditor.ini` 의
   `PropertyBindingRule=Prevent`. 반드시 ViewModel 바인딩을 쓴다.
 - 자식 위젯은 부모가 호출해주는 게 아니라 **자기 Entry VM 을 관찰**한다.
-  `BP_ItemSlot` 이 `UEWEQuickSlotItemViewModel` 의 `IsEmpty` · `IsSelected` · `GetWeaponName` · 아이콘 · `GetSlotIndex` 에 바인딩한다.
+  `BP_ItemSlot` 이 `UEWESlotItemViewModel` 의 `IsEmpty` · `IsSelected` · `GetWeaponName` · `GetSlotIndex` 에 바인딩한다.
 - ViewModel 주입 이름은 위젯 안에 격리한다. 서브시스템은 BP 측 이름을 몰라야 한다.
 
 > `IsSelected` 바인딩은 슬롯 변경 1회당 **두 번** 발화한다 (이전 슬롯 false, 새 슬롯 true).
@@ -543,12 +551,13 @@ Source/EWE/UI/
 │
 ├── EWEQuickSlot.h/.cpp                ← View (슬롯 위젯 생성 · Entry VM 주입)
 ├── EWEQuickSlotViewModel.h/.cpp       ← 인벤토리 Model 관찰 (BindModel)
-├── EWEQuickSlotItemViewModel.h/.cpp   ← Instance 1개 표시 (SetInstance, 로드 완료 구독)
+├── EWESlotItemViewModel.h/.cpp        ← Instance 1개 표시 (SetInstance, 로드 완료 구독). 퀵슬롯 · 인벤토리 공유
+├── EWEInventoryViewModel.h/.cpp       ← 인벤토리 Model 관찰 (BindModel), 선택 상태 소유
 │
-└── EWEInventory.h/.cpp                ← 인벤토리 위젯 (MVVM 미전환)
+└── EWEInventory.h/.cpp                ← 인벤토리 위젯 (VM 주입, 엔트리 위젯 생성 미구현)
 
 Content/UI/HUD/
 ├── BP_Status / BP_TargetInfo / BP_QuickSlot / BP_ItemSlot
 ```
 
-`UEWEInventory` 는 아직 MVVM 이 아니다. 서브시스템을 직접 조회하는 경로가 남아 있다.
+`UEWEInventory` 는 VM 을 주입받는다 (`SetViewModel`). 엔트리 위젯 생성은 미구현이다.

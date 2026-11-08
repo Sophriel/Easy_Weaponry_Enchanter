@@ -368,7 +368,7 @@ C++ 코드를 쓰거나 고칠 때 따른다:
 ```
 UEWEWeaponData          불변 정의 (소프트 참조: WeaponIcon · WeaponMeshAsset · Hold / Hit / OnEquip GA 배열)
 UEWEWeaponInstance      한 자루의 상태 · 자체 로드
-UEWEInventoryComponent  Model — Items · QuickSlots · 선택 인덱스. 서버 관문
+UEWEInventoryComponent  Model — Items (슬롯형) · QuickSlots · 선택 인덱스. 서버 관문
 UEWEWeaponMeshComponent 손의 표현
 AEWECharacter           ASC / AttributeSet 소유 캐릭터. EquipWeapon_ServerOnly 로 무기 GA 부여, EquippedWeaponInstance 복제
 UEWEAttributeBase       AttributeSet (Health / MaxHealth / Mana / MaxMana, 클램프, Max 변화 정책)
@@ -390,8 +390,9 @@ UEWELocalUIManageSubsystem      VM 생성 · 주입, Model 바인딩 (PC 릴레�
 UEWEStatusViewModel             ASC 구독 → HP / MP
 UEWETargetInfoViewModel         타겟 ASC 구독
 UEWEQuickSlotViewModel          인벤토리 Model 관찰 (BindModel)
-UEWEQuickSlotItemViewModel      슬롯 1칸 (Instance / bSelected / SlotIndex)
-UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
+UEWEInventoryViewModel          인벤토리 Model 관찰 (BindModel), 선택 상태 소유
+UEWESlotItemViewModel           슬롯 1칸 (Instance / bSelected / SlotIndex). 퀵슬롯 · 인벤토리 공유
+UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory   View. 데이터 미소유
 ```
 
 전체 클래스 맵 및 파일 위치 → `architecture.md`
@@ -441,8 +442,8 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo   View. 데이터 미소유
     → DestroyConditions 미설정 시 Lifetime 외 소멸 없음 (현재 정책)
     → 추가 예외 케이스 발생 시 functions/basic.md 업데이트
 
-[ ] 인벤토리 위젯 MVVM 미전환
-    → UEWEInventory 는 ViewModel 없이 Model 에 직접 접근한다 (SetWeapons push · OpenInventory 시 GetAllWeapons pull · 배정은 Server_AssignToQuickSlot)
+[ ] 인벤토리 엔트리 위젯 미구현
+    → UEWEInventory 는 UEWEInventoryViewModel 을 주입받지만, 인벤토리 그리드의 엔트리 위젯 생성은 미구현
 
 [ ] GA 별 NetExecutionPolicy 전환
     → 현재 모든 GA 는 엔진 기본값 LocalPredicted 로 개발 중
