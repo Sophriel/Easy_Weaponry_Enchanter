@@ -160,13 +160,6 @@ protected:
     UFUNCTION(BlueprintCallable, Category = Inventory)
     void ToggleInventory();
 
-    // Inventory Event Handlers
-    UFUNCTION()
-    void HandleWeaponRemoved(class UEWEWeaponInstance *Weapon, int32 Index);
-
-    void SetupInventorySubscriptions();
-    void ClearInventorySubscriptions();
-
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Weapon, meta = (AllowPrivateAccess = "true"))
     bool IsAttack;

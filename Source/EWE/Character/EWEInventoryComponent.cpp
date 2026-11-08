@@ -55,18 +55,37 @@ void UEWEInventoryComponent::AcquireWeapon_ServerOnly(TSoftObjectPtr<UEWEWeaponD
         return;
     }
 
+    // The inventory is a fixed-size slot array. Find the first empty slot; a full
+    // inventory rejects the acquisition instead of growing.
+    int32 SlotIndex = INDEX_NONE;
+    for (int32 i = 0; i < Items.Num(); ++i)
+    {
+        if (!Items[i])
+        {
+            SlotIndex = i;
+            break;
+        }
+    }
+
+    if (SlotIndex == INDEX_NONE)
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("AcquireWeapon: inventory full, rejecting %s"), *NewWeaponData.ToString());
+        Client_NotifyAcquireRejected(NewWeaponData);
+        return;
+    }
+
     UEWEWeaponInstance *Instance = NewObject<UEWEWeaponInstance>(this);
     Instance->InitializeWeaponData(NewWeaponData);
-    Items.Add(Instance);
+    Items[SlotIndex] = Instance;
     AddReplicatedSubObject(Instance, COND_OwnerOnly);
 
     // The instance loads its own data and sub-assets. The server starts the
     // pipeline now; clients start it from OnRep_WeaponData.
     Instance->BeginLoad();
 
-    OnWeaponAcquired.Broadcast(Instance);
+    OnItemSlotChanged.Broadcast(SlotIndex);
 
-    EWE_LOG(LogEWEInventory, Log, TEXT("Weapon acquired: %s (Total: %d)"), *NewWeaponData.ToString(), Items.Num());
+    EWE_LOG(LogEWEInventory, Log, TEXT("Weapon acquired: %s (slot %d)"), *NewWeaponData.ToString(), SlotIndex);
 }
 
 void UEWEInventoryComponent::AcquireWeapon_ServerOnly(UEWEWeaponInstance *Instance)
@@ -79,6 +98,14 @@ void UEWEInventoryComponent::RemoveWeapon_ServerOnly(UEWEWeaponInstance *Instanc
     if (!HasOwnerAuthority())
     {
         EWE_LOG(LogEWEInventory, Warning, TEXT("RemoveWeapon: no authority"));
+        return;
+    }
+
+    // With null slots in the array, IndexOfByKey(nullptr) would match the first empty
+    // slot — reject null before the lookup.
+    if (!Instance)
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("RemoveWeapon: null instance is not a valid request"));
         return;
     }
 
@@ -108,20 +135,23 @@ void UEWEInventoryComponent::RemoveWeapon_ServerOnly(UEWEWeaponInstance *Instanc
         ApplyEquipTransition_ServerOnly(nullptr);
     }
 
-    Items.RemoveAt(Index);
+    // Leave the slot null rather than re-ordering: the inventory is a fixed-size slot
+    // array, so removing a weapon empties its slot instead of shifting the others.
+    Items[Index] = nullptr;
     RemoveReplicatedSubObject(Instance);
 
-    OnWeaponRemoved.Broadcast(Instance, Index);
+    OnItemSlotChanged.Broadcast(Index);
 
-    EWE_LOG(LogEWEInventory, Log, TEXT("Weapon removed (Total: %d)"), Items.Num());
+    EWE_LOG(LogEWEInventory, Log, TEXT("Weapon removed (slot %d)"), Index);
 }
 
 void UEWEInventoryComponent::InitializeComponent()
 {
     Super::InitializeComponent();
 
-    // Every machine sizes the quick slot array to the developer setting, so the client
-    // array is correct even before replication arrives.
+    // Every machine sizes the slot arrays to the developer settings, so the client arrays
+    // are correct even before replication arrives.
+    Items.Init(nullptr, InventorySlotCount);
     QuickSlots.Init(nullptr, QuickSlotCount);
 
     if (HasOwnerAuthority())
@@ -164,9 +194,20 @@ void UEWEInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
     DOREPLIFETIME_CONDITION(UEWEInventoryComponent, SelectedQuickSlotIndex, COND_OwnerOnly);
 }
 
-void UEWEInventoryComponent::OnRep_Items()
+void UEWEInventoryComponent::OnRep_Items(const TArray<UEWEWeaponInstance *> &PreviousItems)
 {
-    SyncInventoryUI();
+    // Compare slot by slot. A slot whose instance has not arrived yet reads as null here;
+    // the sub-object mapping re-invokes this OnRep once it lands, so the change is caught
+    // on that second pass rather than dropped.
+    for (int32 i = 0; i < Items.Num(); ++i)
+    {
+        const UEWEWeaponInstance *Previous = PreviousItems.IsValidIndex(i) ? PreviousItems[i] : nullptr;
+        const UEWEWeaponInstance *Current = Items[i].Get();
+        if (Previous != Current)
+        {
+            OnItemSlotChanged.Broadcast(i);
+        }
+    }
 }
 
 void UEWEInventoryComponent::OnRep_QuickSlots()
@@ -195,13 +236,19 @@ void UEWEInventoryComponent::CreateInitialWeaponInstances_ServerOnly()
         AcquireWeapon_ServerOnly(WeaponAsset);
     }
 
-    // Seed the quick slots from the front, without waiting for loads.
+    // Seed the quick slots from the front, without waiting for loads. The inventory is a
+    // fixed-size slot array with null gaps, so skip empty slots instead of breaking, and
+    // stop once the quick slots are full.
     int32 SlotIndex = 0;
     for (UEWEWeaponInstance *Instance : Items)
     {
-        if (!Instance || !QuickSlots.IsValidIndex(SlotIndex))
+        if (!Instance)
         {
-            break;
+            continue;   // Empty inventory slot — skip, keep seeding later slots.
+        }
+        if (!QuickSlots.IsValidIndex(SlotIndex))
+        {
+            break;      // Quick slots are full.
         }
         QuickSlots[SlotIndex] = Instance;
         ++SlotIndex;
@@ -228,25 +275,23 @@ void UEWEInventoryComponent::TryApplyInitialLoadout_ServerOnly()
 
     bInitialLoadoutApplied = true;
 
-    if (Items.IsEmpty())
+    // The inventory is a fixed-size slot array; IsEmpty() no longer means "no weapons".
+    // Check for at least one filled slot instead.
+    bool bAnyWeapon = false;
+    for (const TObjectPtr<UEWEWeaponInstance> &Slot : Items)
+    {
+        if (Slot)
+        {
+            bAnyWeapon = true;
+            break;
+        }
+    }
+    if (!bAnyWeapon)
         return;
-
-    // Broadcast only. Subscribers decide on seeding, selection and equipping —
-    // the inventory has no reason to know a slot index or to equip anything.
-    SyncInventoryUI();
-
-    EWE_LOG(LogEWEInventory, Log, TEXT("Initial loadout broadcast: %d weapons"), Items.Num());
 
     // The possession gate may not be met yet (BeginPlay runs before PossessedBy). The
     // character's PossessedBy calls TryInitialEquip_ServerOnly again once it is.
     TryInitialEquip_ServerOnly();
-}
-
-void UEWEInventoryComponent::SyncInventoryUI()
-{
-    OnWeaponsSynced.Broadcast(Items, Items.Num());
-
-    EWE_LOG(LogEWEInventory, Log, TEXT("Weapons synced: Total %d"), Items.Num());
 }
 
 void UEWEInventoryComponent::AssignToQuickSlot_ServerOnly(UEWEWeaponInstance *Instance, int32 SlotIndex)
@@ -486,4 +531,10 @@ void UEWEInventoryComponent::Server_SelectQuickSlot_Implementation(int32 SlotInd
 void UEWEInventoryComponent::Server_ScrollQuickSlot_Implementation(float Direction)
 {
     ScrollQuickSlot_ServerOnly(Direction);
+}
+
+void UEWEInventoryComponent::Client_NotifyAcquireRejected_Implementation(const TSoftObjectPtr<UEWEWeaponData> &WeaponData)
+{
+    EWE_LOG(LogEWEInventory, Warning, TEXT("Acquire rejected: inventory full (%s)"), *WeaponData.ToString());
+    OnAcquireRejected.Broadcast(WeaponData);
 }

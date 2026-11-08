@@ -10,11 +10,9 @@
 class UEWEWeaponData;
 class UEWEWeaponInstance;
 
-// Delegate Declarations
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWeaponAcquiredEvent, UEWEWeaponInstance *, Weapon);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponsSyncedEvent, const TArray<UEWEWeaponInstance *> &, Weapons, int32,
-                                             NewCount);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnWeaponRemovedEvent, UEWEWeaponInstance *, Weapon, int32, Index);
+// Inventory slot Model broadcasts. Native: only C++ (the view model) subscribes.
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemSlotChangedEvent, int32 /*SlotIndex*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAcquireRejectedEvent, TSoftObjectPtr<class UEWEWeaponData>);
 
 // Quick slot Model broadcasts. Native: only C++ (the view model) subscribes.
 DECLARE_MULTICAST_DELEGATE(FOnQuickSlotsChangedEvent);
@@ -28,6 +26,7 @@ class EWE_API UEWEInventoryComponent : public UActorComponent
 public:
     UEWEInventoryComponent();
 
+    /** Returns the instance in the given inventory slot, or nullptr if the slot is empty. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
     class UEWEWeaponInstance *GetWeapon(int32 TargetWeapon);
 
@@ -46,17 +45,22 @@ public:
     /** Removes a weapon instance. Server-only: mutates the replicated Items list. */
     void RemoveWeapon_ServerOnly(class UEWEWeaponInstance *Instance);
 
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
-    TArray<class UEWEWeaponInstance *> GetAllWeapons() const { return Items; }
+    /** The fixed-size inventory slot array (empty slots are nullptr). Read-only. */
+    const TArray<TObjectPtr<class UEWEWeaponInstance>> &GetItemSlots() const { return Items; }
+
+    /** Number of inventory slots (developer setting). */
+    int32 GetInventorySlotCount() const { return InventorySlotCount; }
 
     // Quick slot Model access (read-only). The view model observes these.
     const TArray<TObjectPtr<class UEWEWeaponInstance>> &GetQuickSlots() const { return QuickSlots; }
     int32 GetSelectedQuickSlotIndex() const { return SelectedQuickSlotIndex; }
     int32 GetQuickSlotCount() const { return QuickSlotCount; }
 
-    // Model broadcasts. The quick slot view model subscribes (native, C++ only).
+    // Model broadcasts. The view models subscribe (native, C++ only).
     FOnQuickSlotsChangedEvent OnQuickSlotsChanged;
     FOnSelectedQuickSlotChangedEvent OnSelectedQuickSlotChanged;
+    FOnItemSlotChangedEvent OnItemSlotChanged;
+    FOnAcquireRejectedEvent OnAcquireRejected;
 
     /**
      * Server single gate for slot content. Assigns the instance to the slot (moving it out of
@@ -100,15 +104,13 @@ public:
     UFUNCTION(Server, Reliable, Category = "Inventory|QuickSlot")
     void Server_ScrollQuickSlot(float Direction);
 
-    // Event Delegates (BlueprintAssignable for Blueprint connection)
-    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-    FOnWeaponAcquiredEvent OnWeaponAcquired;
-
-    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-    FOnWeaponsSyncedEvent OnWeaponsSynced;
-
-    UPROPERTY(BlueprintAssignable, Category = "Inventory|Events")
-    FOnWeaponRemovedEvent OnWeaponRemoved;
+    /**
+     * One-shot notification to the owning client that an acquisition was rejected because
+     * the inventory is full. A Client RPC: a character with no owning client (bots) never
+     * receives it.
+     */
+    UFUNCTION(Client, Reliable, Category = "Inventory|Weapon")
+    void Client_NotifyAcquireRejected(const TSoftObjectPtr<class UEWEWeaponData> &WeaponData);
 
 protected:
     virtual void InitializeComponent() override;
@@ -116,9 +118,9 @@ protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
-    /** RepNotify: the owner's item list changed. Broadcasts a single full-sync event. */
+    /** RepNotify: the owner's item slots changed. Broadcasts per-slot change events. */
     UFUNCTION()
-    void OnRep_Items();
+    void OnRep_Items(const TArray<class UEWEWeaponInstance *> &PreviousItems);
 
     /** Creates one instance per InitialWeapons entry and seeds the quick slots. Server-only. */
     void CreateInitialWeaponInstances_ServerOnly();
@@ -128,8 +130,6 @@ protected:
      * have been created. Safe to call from either path regardless of which finishes first.
      */
     void TryApplyInitialLoadout_ServerOnly();
-
-    void SyncInventoryUI();
 
     /** RepNotify: the owner's quick slot contents changed. Broadcasts a full-sync event. */
     UFUNCTION()
@@ -146,10 +146,21 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
     TArray<TSoftObjectPtr<class UEWEWeaponData>> InitialWeapons;
 
-    /** Weapons acquired at runtime. Replicated to the owner only. */
+    /**
+     * Fixed-size inventory slots (nullptr = empty). Sized to InventorySlotCount in
+     * InitializeComponent; never re-ordered — removing a weapon leaves its slot null.
+     * Replicated to the owner only.
+     */
     UPROPERTY(ReplicatedUsing = OnRep_Items, VisibleAnywhere, BlueprintReadOnly, Category = "Inventory|Weapon",
               meta = (AllowPrivateAccess = "true"))
     TArray<TObjectPtr<class UEWEWeaponInstance>> Items;
+
+    /**
+     * Number of inventory slots. Developer setting, not replicated: every machine sizes its
+     * Items array to this in InitializeComponent.
+     */
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|Weapon", meta = (AllowPrivateAccess = "true"))
+    int32 InventorySlotCount = 32;
 
     /**
      * Number of quick slots. Developer setting, not replicated: every machine sizes its
@@ -172,7 +183,7 @@ protected:
               Category = "Inventory|QuickSlot", meta = (AllowPrivateAccess = "true"))
     int32 SelectedQuickSlotIndex = INDEX_NONE;
 
-    /** Logs and returns false when the index does not address a weapon. */
+    /** Logs and returns false when the index is outside the inventory slot range. */
     bool IsValidWeaponIndex(int32 Index) const;
 
     /** True when the owning actor has authority (server). */

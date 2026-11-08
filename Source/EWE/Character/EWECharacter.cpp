@@ -110,10 +110,6 @@ void AEWECharacter::PossessedBy(AController *NewController)
 
 void AEWECharacter::BeginPlay()
 {
-    // Subscribe before Super::BeginPlay(), which dispatches component BeginPlay.
-    // The inventory can broadcast its initial sync from there.
-    SetupInventorySubscriptions();
-
     Super::BeginPlay();
 
     // Enable ticking for target acquisition
@@ -122,8 +118,6 @@ void AEWECharacter::BeginPlay()
 
 void AEWECharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    ClearInventorySubscriptions();
-
     SubWeaponMesh->SetSkeletalMesh(nullptr);
 
     ClearPendingEquipSubscription();
@@ -301,36 +295,6 @@ void AEWECharacter::SetCharacterControlData(const UEWEControlData *ControlData)
 #pragma region Weapon
 
 UAbilitySystemComponent *AEWECharacter::GetAbilitySystemComponent() const { return WeaponAbilityComponent; }
-
-void AEWECharacter::SetupInventorySubscriptions()
-{
-    if (!InventoryComponent)
-    {
-        EWE_LOG(LogEWECharacter, Warning, TEXT("InventoryComponent not found"));
-        return;
-    }
-
-    // The quick slot view model and the inventory widget observe the inventory Model
-    // directly (see UEWELocalUIManageSubsystem). The character only keeps the removal log.
-    InventoryComponent->OnWeaponRemoved.AddDynamic(this, &AEWECharacter::HandleWeaponRemoved);
-
-    EWE_LOG(LogEWECharacter, Log, TEXT("Inventory subscriptions setup complete"));
-}
-
-void AEWECharacter::ClearInventorySubscriptions()
-{
-    if (InventoryComponent)
-    {
-        InventoryComponent->OnWeaponRemoved.RemoveAll(this);
-
-        EWE_LOG(LogEWECharacter, Log, TEXT("Inventory subscriptions cleared"));
-    }
-}
-
-void AEWECharacter::HandleWeaponRemoved(UEWEWeaponInstance *Weapon, int32 Index)
-{
-    EWE_LOG(LogEWECharacter, Log, TEXT("Weapon removed: %s at index %d"), *Weapon->GetName(), Index);
-}
 
 void AEWECharacter::ToggleInventory()
 {
