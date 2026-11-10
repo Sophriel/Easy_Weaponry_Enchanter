@@ -14,4 +14,8 @@ UCLASS()
 class EWE_API UEWEStatus : public UUserWidget
 {
     GENERATED_BODY()
+
+public:
+    /** Injects the status view model and binds it to this widget's own view. */
+    void SetViewModel(class UEWEStatusViewModel *InViewModel);
 };

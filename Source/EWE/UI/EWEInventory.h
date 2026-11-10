@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "FieldNotificationId.h"
 #include "EWEInventory.generated.h"
 
 class UEWEInventoryViewModel;
@@ -29,16 +30,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Inventory)
 	bool IsInventoryOpen() const { return bIsInventoryOpen; }
 
-	/** Stores the injected view model. Entry creation happens when the widget is implemented. */
-	void SetViewModel(class UEWEInventoryViewModel *InViewModel);
+	/** Injects the view model, binds it to this widget's own view, and subscribes to its
+	 *  GetSlotCount. Entry creation happens when the inventory grid is implemented. */
+	void SetViewModel(UEWEInventoryViewModel *InViewModel);
 
 protected:
 	void SetMouseCursorVisible(bool bShow);
 
 	UEWEInventory(const FObjectInitializer& ObjectInitializer);
+	virtual void NativeDestruct() override;
 
 	bool bIsInventoryOpen = false;
 
-	/** The injected view model. Weak: the subsystem owns it and may tear it down. */
+	/** The injected view model. Weak: the subsystem owns it and may tear it down. Kept to
+	 *  unsubscribe from GetSlotCount, create slot widgets, and clear the selection on close. */
 	TWeakObjectPtr<UEWEInventoryViewModel> ViewModel;
+
+	/** Handle for the view model's GetSlotCount field-change subscription. */
+	FDelegateHandle SlotCountChangedHandle;
+
+private:
+	void OnSlotCountChanged(UObject *InViewModel, UE::FieldNotification::FFieldId InFieldId);
 };

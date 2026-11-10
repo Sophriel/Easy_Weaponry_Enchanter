@@ -2,6 +2,8 @@
 
 #include "EWEInventory.h"
 #include "EWEInventoryViewModel.h"
+#include "View/MVVMView.h"
+#include "INotifyFieldValueChanged.h"
 #include "EWE/EWELog.h"
 
 UEWEInventory::UEWEInventory(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -59,5 +61,66 @@ void UEWEInventory::SetMouseCursorVisible(bool bShow)
 
 void UEWEInventory::SetViewModel(UEWEInventoryViewModel *InViewModel)
 {
+    if (!InViewModel)
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("SetViewModel: inventory view model is null"));
+        return;
+    }
+
+    // Same view model — already bound. The subsystem injects once, but guard against a
+    // duplicate subscription if it is called again.
+    if (InViewModel == ViewModel.Get())
+    {
+        return;
+    }
+
+    // Unsubscribe from the previous view model before switching.
+    UEWEInventoryViewModel *Previous = ViewModel.Get();
+    if (Previous)
+    {
+        Previous->RemoveFieldValueChangedDelegate(
+            UEWEInventoryViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+            SlotCountChangedHandle);
+    }
+    SlotCountChangedHandle.Reset();
+
     ViewModel = InViewModel;
+
+    // Bind this widget's own view to the view model. The name must match the view model
+    // declared in the WBP (BP_EWEInventory), or the binding silently does nothing.
+    UMVVMView *MVVMView = GetExtension<UMVVMView>();
+    if (MVVMView)
+    {
+        MVVMView->SetViewModel(FName(TEXT("EWEInventoryViewModel")), InViewModel);
+    }
+    else
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("Inventory widget has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
+    }
+
+    // Subscribe to the slot count so the grid can be created when the count becomes known.
+    SlotCountChangedHandle = InViewModel->AddFieldValueChangedDelegate(
+        UEWEInventoryViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+        INotifyFieldValueChanged::FFieldValueChangedDelegate::CreateUObject(this, &UEWEInventory::OnSlotCountChanged));
+}
+
+void UEWEInventory::NativeDestruct()
+{
+    // Unsubscribe from the view model's GetSlotCount before it is torn down.
+    UEWEInventoryViewModel *VM = ViewModel.Get();
+    if (VM)
+    {
+        VM->RemoveFieldValueChangedDelegate(
+            UEWEInventoryViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+            SlotCountChangedHandle);
+    }
+    SlotCountChangedHandle.Reset();
+
+    Super::NativeDestruct();
+}
+
+void UEWEInventory::OnSlotCountChanged(UObject *InViewModel, UE::FieldNotification::FFieldId InFieldId)
+{
+    // TODO: Build the inventory grid here — create one UEWESlotItem per slot and call
+    // SetViewModel(VM->GetSlotItem(i)) on each. Filled in when the grid widget is implemented.
 }
