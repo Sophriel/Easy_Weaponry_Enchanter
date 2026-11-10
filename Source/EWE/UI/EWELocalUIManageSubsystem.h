@@ -45,6 +45,9 @@ protected:
     /** Drops the pending OnUILoaded subscription, if any. */
     void ClearUILoadedSubscription();
 
+    /** Returns the current inventory Model, or nullptr when the controller is not an EWE controller. */
+    class UEWEInventoryComponent *GetCurrentInventoryModel() const;
+
 protected:
     TSoftObjectPtr<class UEWEUIAsset> UIConfigAsset;
 
@@ -80,7 +83,7 @@ protected:
     /** Creates the inventory widget if it doesn't exist */
     void CreateInventoryWidget();
 
-    /** Creates the inventory view model. Called once from Initialize(). */
+    /** Creates the inventory view model. Called from CreateInventoryWidget(). */
     void CreateInventoryViewModel();
 
     UPROPERTY(Transient)
@@ -98,7 +101,7 @@ public:
     UEWEQuickSlot *GetQuickSlotWidget() const { return QuickSlotWidget; }
 
 protected:
-    /** Creates the view model. Called once from Initialize(). */
+    /** Creates the view model. Called from CreateQuickSlotWidget(). */
     void CreateQuickSlotViewModel();
 
     void CreateQuickSlotWidget();
@@ -131,6 +134,9 @@ public:
 protected:
     void CreateStatusWidget();
 
+    /** Creates the status view model. Called from CreateStatusWidget(). */
+    void CreateStatusViewModel();
+
     UPROPERTY(Transient)
     TObjectPtr<class UEWEStatus> StatusWidget;
 
@@ -143,14 +149,6 @@ protected:
 public:
     void BindTargetInfo();
 
-    /** Shows the target info widget */
-    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
-    void ShowTargetInfo();
-
-    /** Hides the target info widget */
-    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
-    void HideTargetInfo();
-
     /** Updates target info with a new target's AttributeSet */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
     void UpdateTargetName(const FText &TargetName);
@@ -158,7 +156,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
     void UpdateTargetInfo(const FText &TargetName, class UAbilitySystemComponent *TargetASC);
 
-    /** Clears target info and hides the widget */
+    /** Clears the target info view model */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
     void ClearTargetInfo();
 
@@ -167,8 +165,11 @@ public:
     class UEWETargetInfo *GetTargetInfoWidget() const { return TargetInfoWidget; }
 
 protected:
-    /** Creates the target info widget (initially hidden) */
+    /** Creates the target info widget */
     void CreateTargetInfoWidget();
+
+    /** Creates the target info view model. Called from CreateTargetInfoWidget(). */
+    void CreateTargetInfoViewModel();
 
     UPROPERTY(Transient)
     TObjectPtr<class UEWETargetInfo> TargetInfoWidget;

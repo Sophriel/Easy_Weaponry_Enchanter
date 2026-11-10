@@ -20,7 +20,6 @@
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
-#include "View/MVVMView.h"
 
 void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -31,9 +30,6 @@ void UEWELocalUIManageSubsystem::Initialize(FSubsystemCollectionBase &Collection
     {
         UIConfigAsset = Settings->UIConfigAsset.Get();
     }
-
-    CreateQuickSlotViewModel();
-    CreateInventoryViewModel();
 }
 
 void UEWELocalUIManageSubsystem::Deinitialize()
@@ -175,6 +171,12 @@ const UEWEUIAsset *UEWELocalUIManageSubsystem::GetUIConfigAsset() const
     return UIConfig;
 }
 
+UEWEInventoryComponent *UEWELocalUIManageSubsystem::GetCurrentInventoryModel() const
+{
+    AEWEPlayerController *EWEPC = Cast<AEWEPlayerController>(CurrentPlayerController.Get());
+    return EWEPC ? EWEPC->GetInventoryModel() : nullptr;
+}
+
 void UEWELocalUIManageSubsystem::AddUIWidgets()
 {
     // OnUILoaded is a one-shot for this subsystem. Drop the subscription whether we
@@ -265,8 +267,18 @@ void UEWELocalUIManageSubsystem::CreateInventoryWidget()
 
     InventoryWidget->AddToViewport();
 
-    // The view model may already be bound to a Model (the possession path can run before
-    // the widget exists). SetViewModel is idempotent.
+    CreateInventoryViewModel();
+    if (!InventoryViewModel)
+        return;
+
+    // Pull the current Model so a widget created after possession still binds. Bind only
+    // this view model — rebinding the other one would clear its state (inventory selection).
+    UEWEInventoryComponent *Model = GetCurrentInventoryModel();
+    if (Model)
+    {
+        InventoryViewModel->BindModel(nullptr, Model);
+    }
+
     InventoryWidget->SetViewModel(InventoryViewModel);
 }
 
@@ -275,9 +287,15 @@ void UEWELocalUIManageSubsystem::CreateInventoryViewModel()
     if (InventoryViewModel)
         return;
 
-    // The view model is an observer: it binds to the inventory Model through
-    // BindInventoryModel, not here. The slot array stays empty until a Model is bound.
+    // Only allocates the view model. The Model binding happens in the widget-creation
+    // pull and OnInventoryModelChanged, not here. The slot array stays empty until a
+    // Model is bound.
     InventoryViewModel = NewObject<UEWEInventoryViewModel>(this);
+    if (!ensure(InventoryViewModel))
+    {
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create inventory view model"));
+        return;
+    }
 }
 
 #pragma endregion
@@ -289,9 +307,15 @@ void UEWELocalUIManageSubsystem::CreateQuickSlotViewModel()
     if (QuickSlotViewModel)
         return;
 
-    // The view model is an observer: it binds to the inventory Model through
-    // BindInventoryModel, not here. The slot array stays empty until a Model is bound.
+    // Only allocates the view model. The Model binding happens in the widget-creation
+    // pull and OnInventoryModelChanged, not here. The slot array stays empty until a
+    // Model is bound.
     QuickSlotViewModel = NewObject<UEWEQuickSlotViewModel>(this);
+    if (!ensure(QuickSlotViewModel))
+    {
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create quick slot view model"));
+        return;
+    }
 }
 
 void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
@@ -319,8 +343,18 @@ void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
 
     QuickSlotWidget->AddToViewport();
 
-    // The view model may already be bound to a Model (the possession path can run before
-    // the widget exists). SetViewModel is idempotent and re-drives slot creation.
+    CreateQuickSlotViewModel();
+    if (!QuickSlotViewModel)
+        return;
+
+    // Pull the current Model so a widget created after possession still binds. Bind only
+    // this view model — rebinding the other one would clear its state (inventory selection).
+    UEWEInventoryComponent *Model = GetCurrentInventoryModel();
+    if (Model)
+    {
+        QuickSlotViewModel->BindModel(nullptr, Model);
+    }
+
     QuickSlotWidget->SetViewModel(QuickSlotViewModel);
 }
 
@@ -363,13 +397,6 @@ void UEWELocalUIManageSubsystem::HandleInventoryModelChanged(UEWEInventoryCompon
     if (QuickSlotViewModel)
     {
         QuickSlotViewModel->BindModel(Old, New);
-
-        // The slot count is known only once the view model is bound. Re-drive the widget
-        // so it creates its slot widgets now (a no-op if it already has them).
-        if (QuickSlotWidget)
-        {
-            QuickSlotWidget->SetViewModel(QuickSlotViewModel);
-        }
     }
 
     if (InventoryViewModel)
@@ -407,22 +434,30 @@ void UEWELocalUIManageSubsystem::CreateStatusWidget()
 
     StatusWidget->AddToViewport();
 
-    StatusViewModel = NewObject<UEWEStatusViewModel>(this);
-    UMVVMView *MVVMView = StatusWidget->GetExtension<UMVVMView>();
-    if (!MVVMView)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("WBP_Status has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
+    CreateStatusViewModel();
+    if (!StatusViewModel)
         return;
-    }
-
-    MVVMView->SetViewModel(FName(TEXT("EWEStatusViewModel")), StatusViewModel);
 
     BindStatus();
+    StatusWidget->SetViewModel(StatusViewModel);
+}
+
+void UEWELocalUIManageSubsystem::CreateStatusViewModel()
+{
+    if (StatusViewModel)
+        return;
+
+    StatusViewModel = NewObject<UEWEStatusViewModel>(this);
+    if (!ensure(StatusViewModel))
+    {
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create status view model"));
+        return;
+    }
 }
 
 void UEWELocalUIManageSubsystem::BindStatus()
 {
-    if (!CurrentPlayerController || !StatusWidget || !StatusViewModel)
+    if (!IsValid(CurrentPlayerController) || !StatusViewModel)
         return;
 
     APawn *CurrentPawn = CurrentPlayerController->GetPawn();
@@ -436,7 +471,7 @@ void UEWELocalUIManageSubsystem::BindStatus()
     UAbilitySystemComponent *CurrentPawnASC = CurrentPawnASI->GetAbilitySystemComponent();
     if (!CurrentPawnASC)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("CreateStatusWidget: ASC not found on pawn"));
+        EWE_LOG(LogEWE, Warning, TEXT("BindStatus: ASC not found on pawn"));
         return;
     }
 
@@ -484,60 +519,48 @@ void UEWELocalUIManageSubsystem::CreateTargetInfoWidget()
     }
 
     TargetInfoWidget->AddToViewport();
-    TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
 
-    TargetInfoViewModel = NewObject<UEWETargetInfoViewModel>(this);
-    UMVVMView *MVVMView = TargetInfoWidget->GetExtension<UMVVMView>();
-    if (!MVVMView)
-    {
-        EWE_LOG(LogEWE, Warning,
-                TEXT("TargetInfo widget has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
+    CreateTargetInfoViewModel();
+    if (!TargetInfoViewModel)
         return;
-    }
-
-    MVVMView->SetViewModel(FName(TEXT("EWETargetInfoViewModel")), TargetInfoViewModel);
 
     BindTargetInfo();
+    TargetInfoWidget->SetViewModel(TargetInfoViewModel);
 }
 
-void UEWELocalUIManageSubsystem::ShowTargetInfo()
+void UEWELocalUIManageSubsystem::CreateTargetInfoViewModel()
 {
-    if (!TargetInfoWidget)
+    if (TargetInfoViewModel)
         return;
 
-    TargetInfoWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
-}
-
-void UEWELocalUIManageSubsystem::HideTargetInfo()
-{
-    if (!TargetInfoWidget)
+    TargetInfoViewModel = NewObject<UEWETargetInfoViewModel>(this);
+    if (!ensure(TargetInfoViewModel))
+    {
+        EWE_LOG(LogEWE, Error, TEXT("Failed to create target info view model"));
         return;
-
-    TargetInfoWidget->SetVisibility(ESlateVisibility::Collapsed);
+    }
 }
 
 void UEWELocalUIManageSubsystem::UpdateTargetName(const FText &TargetName)
 {
     if (!TargetInfoViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetName: TargetInfoViewModel not created"));
+        EWE_LOG(LogEWE, Verbose, TEXT("UpdateTargetName: TargetInfoViewModel not created"));
         return;
     }
 
     TargetInfoViewModel->SetTarget(TargetName);
-    ShowTargetInfo();
 }
 
 void UEWELocalUIManageSubsystem::UpdateTargetInfo(const FText &TargetName, UAbilitySystemComponent *TargetASC)
 {
     if (!TargetInfoViewModel)
     {
-        EWE_LOG(LogEWE, Warning, TEXT("UpdateTargetInfo: TargetInfoViewModel not created"));
+        EWE_LOG(LogEWE, Verbose, TEXT("UpdateTargetInfo: TargetInfoViewModel not created"));
         return;
     }
 
     TargetInfoViewModel->SetTarget(TargetName, TargetASC);
-    ShowTargetInfo();
 }
 
 void UEWELocalUIManageSubsystem::ClearTargetInfo()
@@ -546,7 +569,6 @@ void UEWELocalUIManageSubsystem::ClearTargetInfo()
         return;
 
     TargetInfoViewModel->ClearTarget();
-    HideTargetInfo();
 }
 
 #pragma endregion
