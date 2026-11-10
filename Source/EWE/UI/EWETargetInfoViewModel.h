@@ -22,10 +22,13 @@ public:
     void SetTarget(const FText &InTargetName, UAbilitySystemComponent *InASC);
     void ClearTarget();
 
+    /** True while a target is set. The target info widget shows itself based on this. */
+    UFUNCTION(BlueprintPure, FieldNotify) bool HasTarget() const { return bHasTarget; }
     UFUNCTION(BlueprintPure, FieldNotify) bool HasHPInfo() const { return bHasHPInfo; }
     UFUNCTION(BlueprintPure, FieldNotify) FText GetTargetName() const { return TargetName; }
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetCurrentHP() const { return CurrentHP; }
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetMaxHP() const { return MaxHP; }
+    UFUNCTION(BlueprintPure, FieldNotify) FText GetHPText() const;
 
 protected:
     void Unbind();
@@ -40,6 +43,7 @@ protected:
     UPROPERTY(BlueprintReadOnly, FieldNotify) FText TargetName;
     UPROPERTY(BlueprintReadOnly, FieldNotify) int32 CurrentHP = 0;
     UPROPERTY(BlueprintReadOnly, FieldNotify) int32 MaxHP = 0;
+    UPROPERTY(BlueprintReadOnly, FieldNotify) bool bHasTarget = false;
     UPROPERTY(BlueprintReadOnly, FieldNotify) bool bHasHPInfo = false;
 
     /** ASC of the current target. Weak: the view model only observes it. */
