@@ -84,7 +84,8 @@ Unreal Engine 5 C++ Plugin.
 | 작업 | 참조 문서 |
 |------|-----------|
 | 모듈 구조, GAS 컴포넌트, 무기 인스턴스 · 인벤토리 Model · 퀵슬롯, 무기 교체 흐름 | `Documents/MDs/core/architecture.md` |
-| **UI 계층 (MVVM), ViewModel 소유·초기화 순서** | `Documents/MDs/core/architecture.md` → "UI 계층 (MVVM)" |
+| **UI 계층 (MVVM)** — 계층 · 의존 방향 · 초기화 순서 원칙 | `Documents/MDs/core/architecture.md` → "UI 계층 (MVVM)" |
+| ViewModel 생성 · 주입 절차, Model 바인딩 경로, View 측 바인딩 규칙 | `Documents/MDs/features/ui.md` → "HUD MVVM 구조" |
 | DataAsset, GA/AT 클래스, GA 생명주기, 실행 흐름 | `Documents/MDs/core/enchant-system.md` |
 | Trigger 타입, Condition 판별, 조합 규칙 | `Documents/MDs/core/trigger-condition.md` |
 | RPC, 서버 권한, 복제 정책 | `Documents/MDs/core/network.md` |
@@ -248,9 +249,11 @@ CancelAbility는 종료로 인정하지 않음.
 위젯은 데이터를 소유하지 않는다. 바인딩만 한다.
 ViewModel 은 View 를 참조하지 않는다. View → ViewModel → Model 이 유일한 방향.
 
-ViewModel 생성과 이벤트 구독은 서브시스템 Initialize() 에서 1회.
-  ❌ Bind*() 안에서 구독 — 조기 반환 분기가 많아 0회 또는 2회가 된다
-  ✅ Initialize() 에서 NewObject + AddUObject
+ViewModel 생성은 위젯 생성 함수(Create<X>Widget)에서 1회.
+  ❌ Bind*() 안에서 생성 — 조기 반환 분기가 많아 0회 또는 2회가 된다
+  ✅ Create<X>Widget() 에서 NewObject + 현재 소스 pull · 바인딩
+
+주입은 VM 객체만 넘긴다. 각 위젯이 자기 UMVVMView 에 자기 이름(FName) 으로 바인딩한다.
 
 Bind*() 는 몇 번 불려도 안전해야 한다. 이미 채워졌으면 덮어쓰지 않는다.
 
@@ -392,7 +395,7 @@ UEWETargetInfoViewModel         타겟 ASC 구독
 UEWEQuickSlotViewModel          인벤토리 Model 관찰 (BindModel)
 UEWEInventoryViewModel          인벤토리 Model 관찰 (BindModel), 선택 상태 소유
 UEWESlotItemViewModel           슬롯 1칸 (Instance / bSelected / SlotIndex). 퀵슬롯 · 인벤토리 공유
-UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory   View. 데이터 미소유
+UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory / UEWESlotItem   View. 데이터 미소유
 ```
 
 전체 클래스 맵 및 파일 위치 → `architecture.md`
@@ -442,8 +445,8 @@ UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory   View. 데이터 �
     → DestroyConditions 미설정 시 Lifetime 외 소멸 없음 (현재 정책)
     → 추가 예외 케이스 발생 시 functions/basic.md 업데이트
 
-[ ] 인벤토리 엔트리 위젯 미구현
-    → UEWEInventory 는 UEWEInventoryViewModel 을 주입받지만, 인벤토리 그리드의 엔트리 위젯 생성은 미구현
+[ ] 인벤토리 그리드 슬롯 위젯 미구현
+    → UEWEInventory 는 UEWEInventoryViewModel 을 주입받고 GetSlotCount 를 구독하지만, 인벤토리 그리드의 슬롯 위젯(UEWESlotItem) 생성은 미구현
 
 [ ] GA 별 NetExecutionPolicy 전환
     → 현재 모든 GA 는 엔진 기본값 LocalPredicted 로 개발 중

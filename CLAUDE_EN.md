@@ -215,9 +215,11 @@ Do not modify many files at once — build once per logical unit of change.
 Widgets never own data. They only bind.
 ViewModels never reference Views. View -> ViewModel -> Model is the only direction.
 
-Create the ViewModel and subscribe to its events once, in the subsystem's Initialize().
-  BAD  subscribing inside Bind*() -- it has many early returns, so you get 0 or 2
-  GOOD NewObject + AddUObject in Initialize()
+Create the ViewModel once, in the widget-creation function (Create<X>Widget()).
+  BAD  creating inside Bind*() -- it has many early returns, so you get 0 or 2
+  GOOD NewObject + pull current source + bind in Create<X>Widget()
+
+Injection passes only the VM object. Each widget binds its own UMVVMView by its own name (FName).
 
 Bind*() must be safe to call repeatedly. Never overwrite what is already filled.
 
@@ -393,7 +395,7 @@ UEWETargetInfoViewModel         Subscribes to the target's ASC
 UEWEQuickSlotViewModel          Observes the inventory Model (BindModel)
 UEWEInventoryViewModel          Observes the inventory Model (BindModel), owns selection state
 UEWESlotItemViewModel           One slot (Instance / bSelected / SlotIndex). Shared by quick slot · inventory
-UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory   Views. They own no data
+UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory / UEWESlotItem   Views. They own no data
 ```
 
 Full class map and file locations → `architecture.md`
@@ -443,8 +445,8 @@ Full class map and file locations → `architecture.md`
     → Without DestroyConditions, no destruction other than Lifetime (current policy)
     → Update functions/basic.md if new edge cases arise
 
-[ ] Inventory entry widget not implemented
-    → UEWEInventory receives the UEWEInventoryViewModel, but entry widget creation for the inventory grid is not implemented
+[ ] Inventory grid slot widgets not implemented
+    → UEWEInventory receives the UEWEInventoryViewModel and subscribes to GetSlotCount, but slot widget (UEWESlotItem) creation for the inventory grid is not implemented
 
 [ ] Per-GA NetExecutionPolicy migration
     → All GAs are currently developed with the engine default LocalPredicted

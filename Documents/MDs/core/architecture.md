@@ -404,67 +404,27 @@ ViewModel 은 View 를 참조하지 않는다. 위젯이 사라져도 ViewModel 
 |------|--------|------|
 | Model | `UEWEInventoryComponent` (서버 권한, 소유자 전용 복제), `UAbilitySystemComponent` | 진짜 데이터 |
 | ViewModel | `UEWEStatusViewModel`, `UEWETargetInfoViewModel`, `UEWEQuickSlotViewModel`, `UEWEInventoryViewModel`, `UEWESlotItemViewModel` (퀵슬롯 · 인벤토리 공유) | 표시 상태 + 변경 알림 |
-| View | `UEWEStatus`, `UEWETargetInfo`, `UEWEQuickSlot`, `UEWEInventory` + 각 WBP | 바인딩만 |
-| 소유·중재 | `UEWELocalUIManageSubsystem` | VM 생성 · 주입, Model 바인딩 (PC 릴레이, 퀵슬롯 · 인벤토리 VM), UI 명령 중계 (인벤토리 토글 · 타겟 정보) |
+| View | `UEWEStatus`, `UEWETargetInfo`, `UEWEQuickSlot`, `UEWEInventory`, `UEWESlotItem` + 각 WBP | 바인딩만 (자기 `UMVVMView` 에 자기 이름으로 바인딩) |
+| 소유·중재 | `UEWELocalUIManageSubsystem` | VM 생성 · 주입 (VM 객체만 `SetViewModel` 으로 넘김), Model 바인딩 (PC 릴레이, 퀵슬롯 · 인벤토리 VM), UI 명령 중계 (인벤토리 토글 · 타겟 정보) |
 
-### ViewModel 은 서브시스템이 소유한다
+### 핵심 원칙
 
-```cpp
-// UEWELocalUIManageSubsystem::Initialize
-QuickSlotViewModel = NewObject<UEWEQuickSlotViewModel>(this);
-```
-
-- **생성은 `Initialize()` 에서 1회.** `Bind*()` 안에 두지 않는다 —
-  `Bind*()` 는 여러 경로에서 호출되고 조기 반환 분기가 많아, 생성이 아예 일어나지 않거나
-  두 번 일어나는 창이 생긴다.
-- VM 은 **위젯보다 오래 산다.** 위젯을 재생성해도 VM 의 Model 바인딩이 유지된다.
-
-**Model 바인딩:** PC `OnInventoryModelChanged(Old, New)` → `BindInventoryModel` → `UEWEQuickSlotViewModel::BindModel` · `UEWEInventoryViewModel::BindModel`.
-퀵슬롯 VM 은 `OnQuickSlotsChanged` · `OnSelectedQuickSlotChanged` 를, 인벤토리 VM 은 `OnItemSlotChanged` 를 구독하고, 각자 `UpdateFromModel` 로 초기 상태를 채운다. 인벤토리 VM 은 새 Model 에 바인딩할 때 선택을 해제한다.
-
-### create-then-bind 패턴
-
-세 위젯이 같은 형태를 따른다. 어느 쪽이 먼저 준비되든 결과가 같다.
-
-```
-Initialize()             →  VM 생성
-Create<X>Widget()        →  VM 주입 → Bind<X>()      ← 위젯이 준비된 경로
-AcknowledgePossession()  →  Bind<X>()                ← 폰이 준비된 경로
-                         →  PC OnInventoryModelChanged → BindInventoryModel → BindModel
-```
-
-`Bind*()` 는 **몇 번 불려도 안전**해야 한다. 이미 채워졌으면 덮어쓰지 않는다.
+- **ViewModel 은 서브시스템이 소유하고, 위젯보다 오래 산다.** VM 은 위젯 생성 함수(`Create<X>Widget()`)에서
+  함께 만든다. 위젯을 재생성해도 VM 의 Model 바인딩이 유지된다.
+- **주입은 VM 객체만 넘긴다.** 각 위젯이 자기 `UMVVMView` 에 자기 이름으로 바인딩한다.
+  서브시스템은 BP 측 ViewModel 이름을 모른다.
+- **표시 상태는 VM 필드로 표현한다.** 서브시스템은 위젯을 직접 조작하지 않는다
+  (예: TargetInfo 의 보임 여부는 VM 의 `HasTarget` 바인딩).
 
 ### 초기화 순서 무관성 (변경 금지)
 
 인벤토리 Model 복제 도착 · 폰 빙의 · 위젯 부착은 **서로 순서가 보장되지 않는 세 개의 축**이다.
-어느 축도 다른 축의 순서를 가정하지 않는다.
+어느 축도 다른 축의 순서를 가정하지 않는다. 각 축은 준비되면 알리고, 받는 쪽이 조건을 판정한다.
 
-```
-각 축은 준비되면 알린다        인벤토리 Model → OnQuickSlotsChanged · OnSelectedQuickSlotChanged
-                              PC → OnInventoryModelChanged
-받는 쪽이 조건을 판정한다      UEWEQuickSlotViewModel::BindModel → UpdateFromModel 로 현재 상태 당겨 옴
-                              위젯 → VM GetSlotCount() 로 슬롯 생성
-```
+**"타이밍이 아니라 조건으로 게이팅한다."** 이 원칙을 깨는 수정은 하지 말 것.
 
-**"타이밍이 아니라 조건으로 게이팅한다."** 이 원칙을 깨는 수정은 하지 말 것 —
-이 저장소에서 같은 부류의 버그가 네 번 재발했다.
-
-### 슬롯 개수는 인벤토리 Model 이 소유한다
-
-슬롯 수는 `UEWEInventoryComponent::QuickSlotCount` (개발자 설정, 복제하지 않음).
-위젯은 VM 의 슬롯 수로 슬롯을 만든다.
-
-### View 측 규칙
-
-- **BP 프로퍼티 바인딩은 금지되어 있다.** `Config/DefaultEditor.ini` 의
-  `PropertyBindingRule=Prevent`. 반드시 ViewModel 바인딩을 쓴다.
-- 자식 위젯은 부모가 호출해주는 게 아니라 **자기 Entry VM 을 관찰**한다.
-  `BP_ItemSlot` 이 `UEWESlotItemViewModel` 의 `IsEmpty` · `IsSelected` · `GetWeaponName` · `GetSlotIndex` 에 바인딩한다.
-- ViewModel 주입 이름은 위젯 안에 격리한다. 서브시스템은 BP 측 이름을 몰라야 한다.
-
-> `IsSelected` 바인딩은 슬롯 변경 1회당 **두 번** 발화한다 (이전 슬롯 false, 새 슬롯 true).
-> 하이라이트는 이게 맞지만, 사운드를 넣을 때는 `bSelected == true` 가드가 필요하다.
+> VM 생성 · 주입 절차, Model 바인딩 경로, create-then-bind, 축별 알림 · 판정 지점, View 측 바인딩 규칙
+> → `features/ui.md` "HUD MVVM 구조"
 
 ---
 
@@ -549,15 +509,16 @@ Source/EWE/UI/
 ├── EWETargetInfo.h/.cpp               ← View
 ├── EWETargetInfoViewModel.h/.cpp      ← 타겟 ASC 구독
 │
-├── EWEQuickSlot.h/.cpp                ← View (슬롯 위젯 생성 · Entry VM 주입)
+├── EWEQuickSlot.h/.cpp                ← View (슬롯 위젯 생성 · 아이템 VM 전달)
 ├── EWEQuickSlotViewModel.h/.cpp       ← 인벤토리 Model 관찰 (BindModel)
+├── EWESlotItem.h/.cpp                 ← View (슬롯 1칸, 자기 뷰에 바인딩). 퀵슬롯 · 인벤토리 공유
 ├── EWESlotItemViewModel.h/.cpp        ← Instance 1개 표시 (SetInstance, 로드 완료 구독). 퀵슬롯 · 인벤토리 공유
 ├── EWEInventoryViewModel.h/.cpp       ← 인벤토리 Model 관찰 (BindModel), 선택 상태 소유
 │
-└── EWEInventory.h/.cpp                ← 인벤토리 위젯 (VM 주입, 엔트리 위젯 생성 미구현)
+└── EWEInventory.h/.cpp                ← 인벤토리 위젯 (VM 주입, 슬롯 위젯 생성 미구현)
 
 Content/UI/HUD/
 ├── BP_Status / BP_TargetInfo / BP_QuickSlot / BP_ItemSlot
 ```
 
-`UEWEInventory` 는 VM 을 주입받는다 (`SetViewModel`). 엔트리 위젯 생성은 미구현이다.
+`UEWEInventory` 는 VM 을 주입받는다 (`SetViewModel`). 슬롯 위젯 생성은 미구현이다.
