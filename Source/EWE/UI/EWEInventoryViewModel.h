@@ -42,9 +42,6 @@ public:
      *  is selected or no Model is bound. */
     void AssignSelectedToQuickSlot(int32 QuickSlotIndex);
 
-    // TODO: When the inventory widget is implemented, broadcast GetSlotCount in
-    // UpdateFromModel when the slot array is resized, so a widget can receive the slot
-    // count through a binding.
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSlotCount() const { return SlotItems.Num(); }
 
     /**

@@ -95,9 +95,11 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
         return;
 
     // Size the item array to the Model's slot count. The count is a developer setting,
-    // fixed for the session, so this runs once per bind.
+    // fixed for the session, so the array is resized (and GetSlotCount broadcast) only
+    // on the first bind; later binds reuse the item view models.
     const int32 SlotCount = Model->GetQuickSlotCount();
-    if (SlotItems.Num() != SlotCount)
+    const bool bSlotCountChanged = SlotItems.Num() != SlotCount;
+    if (bSlotCountChanged)
     {
         SlotItems.SetNum(SlotCount);
     }
@@ -136,6 +138,13 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
     if (UE_MVVM_SET_PROPERTY_VALUE(SelectedIndex, Selected))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedIndex);
+    }
+
+    // Broadcast after the item view models exist so subscribers can read GetSlotItem(i)
+    // in their callback.
+    if (bSlotCountChanged)
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSlotCount);
     }
 }
 
