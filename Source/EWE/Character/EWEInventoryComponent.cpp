@@ -23,24 +23,6 @@ UEWEInventoryComponent::UEWEInventoryComponent()
     bReplicateUsingRegisteredSubObjectList = true;
 }
 
-bool UEWEInventoryComponent::IsValidWeaponIndex(int32 Index) const
-{
-    if (!Items.IsValidIndex(Index))
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Invalid weapon index: %d"), Index);
-        return false;
-    }
-    return true;
-}
-
-UEWEWeaponInstance *UEWEInventoryComponent::GetWeapon(int32 TargetWeapon)
-{
-    if (!IsValidWeaponIndex(TargetWeapon))
-        return nullptr;
-
-    return Items[TargetWeapon];
-}
-
 void UEWEInventoryComponent::AcquireWeapon_ServerOnly(TSoftObjectPtr<UEWEWeaponData> NewWeaponData)
 {
     if (!HasOwnerAuthority())
@@ -90,7 +72,8 @@ void UEWEInventoryComponent::AcquireWeapon_ServerOnly(TSoftObjectPtr<UEWEWeaponD
 
 void UEWEInventoryComponent::AcquireWeapon_ServerOnly(UEWEWeaponInstance *Instance)
 {
-    EWE_LOG(LogEWEInventory, Warning, TEXT("AcquireWeapon(Instance) is not implemented"));
+    // Currently unused. Base work for external acquisition paths (transfer from another
+    // owner, drop pickup); implemented with those features.
 }
 
 void UEWEInventoryComponent::RemoveWeapon_ServerOnly(UEWEWeaponInstance *Instance)
@@ -275,8 +258,8 @@ void UEWEInventoryComponent::TryApplyInitialLoadout_ServerOnly()
 
     bInitialLoadoutApplied = true;
 
-    // The inventory is a fixed-size slot array; IsEmpty() no longer means "no weapons".
-    // Check for at least one filled slot instead.
+    // Items is a fixed-size slot array, so IsEmpty() is always false; check for at least
+    // one filled slot instead.
     bool bAnyWeapon = false;
     for (const TObjectPtr<UEWEWeaponInstance> &Slot : Items)
     {

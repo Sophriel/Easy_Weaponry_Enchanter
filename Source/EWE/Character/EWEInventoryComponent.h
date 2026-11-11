@@ -26,10 +26,6 @@ class EWE_API UEWEInventoryComponent : public UActorComponent
 public:
     UEWEInventoryComponent();
 
-    /** Returns the instance in the given inventory slot, or nullptr if the slot is empty. */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapon")
-    class UEWEWeaponInstance *GetWeapon(int32 TargetWeapon);
-
     /**
      * Creates a weapon instance matched to the given data and replicates it to the owner.
      * Server-only: the replicated Items list is mutated here.
@@ -37,8 +33,8 @@ public:
     void AcquireWeapon_ServerOnly(TSoftObjectPtr<class UEWEWeaponData> NewWeaponData);
 
     /**
-     * Reserved for external acquisition paths (transfer from another owner, drop pickup, etc.).
-     * Declared but not implemented yet.
+     * Currently unused. Base work for external acquisition paths (transfer from another
+     * owner, drop pickup); implemented with those features.
      */
     void AcquireWeapon_ServerOnly(class UEWEWeaponInstance *Instance);
 
@@ -60,6 +56,8 @@ public:
     FOnQuickSlotsChangedEvent OnQuickSlotsChanged;
     FOnSelectedQuickSlotChangedEvent OnSelectedQuickSlotChanged;
     FOnItemSlotChangedEvent OnItemSlotChanged;
+
+    /** Currently unused. Base work for the inventory-full notification UI, which will subscribe here. */
     FOnAcquireRejectedEvent OnAcquireRejected;
 
     /**
@@ -107,7 +105,8 @@ public:
     /**
      * One-shot notification to the owning client that an acquisition was rejected because
      * the inventory is full. A Client RPC: a character with no owning client (bots) never
-     * receives it.
+     * receives it. Currently unused — no receiving UI yet. Base work for the
+     * inventory-full notification pipeline.
      */
     UFUNCTION(Client, Reliable, Category = "Inventory|Weapon")
     void Client_NotifyAcquireRejected(const TSoftObjectPtr<class UEWEWeaponData> &WeaponData);
@@ -182,9 +181,6 @@ protected:
     UPROPERTY(ReplicatedUsing = OnRep_SelectedQuickSlotIndex, VisibleAnywhere, BlueprintReadOnly,
               Category = "Inventory|QuickSlot", meta = (AllowPrivateAccess = "true"))
     int32 SelectedQuickSlotIndex = INDEX_NONE;
-
-    /** Logs and returns false when the index is outside the inventory slot range. */
-    bool IsValidWeaponIndex(int32 Index) const;
 
     /** True when the owning actor has authority (server). */
     bool HasOwnerAuthority() const { return GetOwner() && GetOwner()->HasAuthority(); }

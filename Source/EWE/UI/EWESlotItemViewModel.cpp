@@ -58,6 +58,8 @@ void UEWESlotItemViewModel::HandleItemChanged(UEWEWeaponInstance *ChangedInstanc
     }
 
     UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetWeaponName);
+    // TODO: Broadcast the detailed item changes (enchant list, etc.) here once the item
+    // detail fields exist on this view model. Until then only the name is refreshed.
 }
 
 void UEWESlotItemViewModel::UnsubscribeInstance()
