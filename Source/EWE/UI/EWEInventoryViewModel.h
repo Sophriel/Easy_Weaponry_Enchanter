@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MVVMViewModelBase.h"
+#include "EWESlotContainerViewModelBase.h"
 #include "EWEInventoryViewModel.generated.h"
 
 class UEWEInventoryComponent;
-class UEWESlotItemViewModel;
+class UEWEWeaponInstance;
 
 /**
  * View model for the inventory grid.
@@ -17,20 +17,17 @@ class UEWESlotItemViewModel;
  * view model. Selection is local UI state owned here — it is not replicated and is unrelated
  * to the Model's quick slot selection. Assigning the selected item to a quick slot is
  * forwarded to the Model's Server_* RPC; the server is the single writer.
+ *
+ * The slot item array, Model binding, and the full-mirror refresh live in the shared base
+ * (UEWESlotContainerViewModelBase); this class provides the inventory Model accessors, the
+ * per-slot subscription, and local selection handling.
  */
 UCLASS(BlueprintType)
-class EWE_API UEWEInventoryViewModel : public UMVVMViewModelBase
+class EWE_API UEWEInventoryViewModel : public UEWESlotContainerViewModelBase
 {
     GENERATED_BODY()
 
 public:
-    /**
-     * Binds to a new inventory Model. Unsubscribes the currently bound Model, clears the
-     * selection, subscribes the new one, and pulls the current state. Safe to call more than
-     * once; a null New simply unbinds (Verbose).
-     */
-    void BindModel(class UEWEInventoryComponent *Old, class UEWEInventoryComponent *New);
-
     /** Selects an inventory slot. Only a slot that holds an item can be selected; empty or
      *  out-of-range slots are ignored. */
     void SelectItemSlot(int32 SlotIndex);
@@ -42,8 +39,6 @@ public:
      *  is selected or no Model is bound. */
     void AssignSelectedToQuickSlot(int32 QuickSlotIndex);
 
-    UFUNCTION(BlueprintPure, FieldNotify) int32 GetSlotCount() const { return SlotItems.Num(); }
-
     /**
      * The inventory slot currently selected in the UI. INDEX_NONE when nothing is selected.
      * Local UI state: not replicated, unrelated to the Model's SelectedQuickSlotIndex, and
@@ -51,29 +46,26 @@ public:
      */
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSelectedItemSlotIndex() const { return SelectedItemSlotIndex; }
 
-    UFUNCTION(BlueprintPure)
-    UEWESlotItemViewModel *GetSlotItem(int32 SlotIndex) const;
-
 protected:
     /** Model broadcast: one item slot's content changed. Refreshes that slot and clears the
      *  selection if it was the selected slot. */
     void OnItemSlotChanged(int32 SlotIndex);
 
-    /** Sizes the item array to the Model and mirrors every slot's content. */
-    void UpdateFromModel();
+    // --- UEWESlotContainerViewModelBase hooks ---
+
+    int32 GetModelSlotCount(const class UEWEInventoryComponent &Model) const override;
+    const TArray<TObjectPtr<class UEWEWeaponInstance>> &GetModelSlots(const class UEWEInventoryComponent &Model) const override;
+    void SubscribeModel(class UEWEInventoryComponent &Model) override;
+    void UnsubscribeModel(class UEWEInventoryComponent &Model) override;
+    void OnModelBound() override;
+    void UpdateFromModel() override;
 
     /** Applies the current selection to the slot item view models. */
     void ApplySelection();
 
-    UPROPERTY(BlueprintReadOnly, FieldNotify)
-    TArray<TObjectPtr<UEWESlotItemViewModel>> SlotItems;
-
     /** INDEX_NONE until a slot is selected. Local UI state — see GetSelectedItemSlotIndex. */
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     int32 SelectedItemSlotIndex = INDEX_NONE;
-
-    /** The inventory Model being observed. Weak: the pawn may be replaced. */
-    TWeakObjectPtr<class UEWEInventoryComponent> BoundModel;
 
     FDelegateHandle ItemSlotChangedHandle;
 };

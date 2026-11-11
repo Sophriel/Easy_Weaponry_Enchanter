@@ -6,33 +6,6 @@
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
 #include "EWE/EWELog.h"
 
-void UEWEQuickSlotViewModel::BindModel(UEWEInventoryComponent *Old, UEWEInventoryComponent *New)
-{
-    // Unsubscribe whatever is currently bound, regardless of what Old is. This keeps the
-    // function idempotent: a repeated call with the same Model just re-subscribes.
-    UEWEInventoryComponent *Current = BoundModel.Get();
-    if (Current)
-    {
-        Current->OnQuickSlotsChanged.Remove(QuickSlotsChangedHandle);
-        Current->OnSelectedQuickSlotChanged.Remove(SelectedQuickSlotChangedHandle);
-    }
-    QuickSlotsChangedHandle.Reset();
-    SelectedQuickSlotChangedHandle.Reset();
-
-    BoundModel = New;
-
-    if (!New)
-    {
-        EWE_LOG(LogEWE, Verbose, TEXT("BindModel: no model to bind"));
-        return;
-    }
-
-    QuickSlotsChangedHandle = New->OnQuickSlotsChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelQuickSlotsChanged);
-    SelectedQuickSlotChangedHandle = New->OnSelectedQuickSlotChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelSelectedQuickSlotChanged);
-
-    UpdateFromModel();
-}
-
 void UEWEQuickSlotViewModel::SelectSlot(int32 SlotIndex)
 {
     UEWEInventoryComponent *Model = BoundModel.Get();
@@ -88,41 +61,37 @@ void UEWEQuickSlotViewModel::OnModelSelectedQuickSlotChanged(int32 SlotIndex)
     UpdateFromModel();
 }
 
+int32 UEWEQuickSlotViewModel::GetModelSlotCount(const UEWEInventoryComponent &Model) const
+{
+    return Model.GetQuickSlotCount();
+}
+
+const TArray<TObjectPtr<UEWEWeaponInstance>> &UEWEQuickSlotViewModel::GetModelSlots(const UEWEInventoryComponent &Model) const
+{
+    return Model.GetQuickSlots();
+}
+
+void UEWEQuickSlotViewModel::SubscribeModel(UEWEInventoryComponent &Model)
+{
+    QuickSlotsChangedHandle = Model.OnQuickSlotsChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelQuickSlotsChanged);
+    SelectedQuickSlotChangedHandle = Model.OnSelectedQuickSlotChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelSelectedQuickSlotChanged);
+}
+
+void UEWEQuickSlotViewModel::UnsubscribeModel(UEWEInventoryComponent &Model)
+{
+    Model.OnQuickSlotsChanged.Remove(QuickSlotsChangedHandle);
+    Model.OnSelectedQuickSlotChanged.Remove(SelectedQuickSlotChangedHandle);
+    QuickSlotsChangedHandle.Reset();
+    SelectedQuickSlotChangedHandle.Reset();
+}
+
 void UEWEQuickSlotViewModel::UpdateFromModel()
 {
+    Super::UpdateFromModel();
+
     UEWEInventoryComponent *Model = BoundModel.Get();
     if (!Model)
         return;
-
-    // Size the item array to the Model's slot count. The count is a developer setting,
-    // fixed for the session, so the array is resized (and GetSlotCount broadcast) only
-    // on the first bind; later binds reuse the item view models.
-    const int32 SlotCount = Model->GetQuickSlotCount();
-    const bool bSlotCountChanged = SlotItems.Num() != SlotCount;
-    if (bSlotCountChanged)
-    {
-        SlotItems.SetNum(SlotCount);
-    }
-    for (int32 i = 0; i < SlotItems.Num(); ++i)
-    {
-        if (!SlotItems[i])
-        {
-            SlotItems[i] = NewObject<UEWESlotItemViewModel>(this);
-        }
-        SlotItems[i]->SetSlotIndex(i);
-    }
-
-    // Mirror the slot contents.
-    const TArray<TObjectPtr<UEWEWeaponInstance>> &Slots = Model->GetQuickSlots();
-    for (int32 i = 0; i < SlotItems.Num(); ++i)
-    {
-        UEWESlotItemViewModel *SlotItem = SlotItems[i];
-        if (!SlotItem)
-            continue;
-
-        UEWEWeaponInstance *Instance = Slots.IsValidIndex(i) ? Slots[i].Get() : nullptr;
-        SlotItem->SetInstance(Instance);
-    }
 
     // Mirror the selection.
     const int32 Selected = Model->GetSelectedQuickSlotIndex();
@@ -139,18 +108,4 @@ void UEWEQuickSlotViewModel::UpdateFromModel()
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedIndex);
     }
-
-    // Broadcast after the item view models exist so subscribers can read GetSlotItem(i)
-    // in their callback.
-    if (bSlotCountChanged)
-    {
-        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSlotCount);
-    }
-}
-
-UEWESlotItemViewModel *UEWEQuickSlotViewModel::GetSlotItem(int32 SlotIndex) const
-{
-    if (!SlotItems.IsValidIndex(SlotIndex))
-        return nullptr;
-    return SlotItems[SlotIndex];
 }
