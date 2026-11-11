@@ -46,19 +46,23 @@ public:
      */
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSelectedItemSlotIndex() const { return SelectedItemSlotIndex; }
 
+#pragma region UEWESlotContainerViewModelBase
 protected:
-    /** Model broadcast: one item slot's content changed. Refreshes that slot and clears the
-     *  selection if it was the selected slot. */
-    void OnItemSlotChanged(int32 SlotIndex);
-
-    // --- UEWESlotContainerViewModelBase hooks ---
+    // --- UEWESlotContainerViewModelBase override ---
 
     int32 GetModelSlotCount(const class UEWEInventoryComponent &Model) const override;
-    const TArray<TObjectPtr<class UEWEWeaponInstance>> &GetModelSlots(const class UEWEInventoryComponent &Model) const override;
+    const TArray<TObjectPtr<class UEWEWeaponInstance>> &
+    GetModelSlots(const class UEWEInventoryComponent &Model) const override;
     void SubscribeModel(class UEWEInventoryComponent &Model) override;
     void UnsubscribeModel(class UEWEInventoryComponent &Model) override;
     void OnModelBound() override;
     void UpdateFromModel() override;
+
+#pragma endregion
+
+    /** Model broadcast: one item slot's content changed. Refreshes that slot and clears the
+     *  selection if it was the selected slot. */
+    void OnItemSlotChanged(int32 SlotIndex);
 
     /** Applies the current selection to the slot item view models. */
     void ApplySelection();

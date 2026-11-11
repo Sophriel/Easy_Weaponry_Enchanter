@@ -36,20 +36,24 @@ public:
 
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSelectedIndex() const { return SelectedIndex; }
 
+#pragma region UEWESlotContainerViewModelBase
 protected:
+    // --- UEWESlotContainerViewModelBase override ---
+
+    int32 GetModelSlotCount(const class UEWEInventoryComponent &Model) const override;
+    const TArray<TObjectPtr<class UEWEWeaponInstance>> &
+    GetModelSlots(const class UEWEInventoryComponent &Model) const override;
+    void SubscribeModel(class UEWEInventoryComponent &Model) override;
+    void UnsubscribeModel(class UEWEInventoryComponent &Model) override;
+    void UpdateFromModel() override;
+
+#pragma endregion
+
     /** Model broadcast: the slot contents changed. Refreshes every slot. */
     void OnModelQuickSlotsChanged();
 
     /** Model broadcast: the selected index changed. Refreshes the selection highlight. */
     void OnModelSelectedQuickSlotChanged(int32 SlotIndex);
-
-    // --- UEWESlotContainerViewModelBase hooks ---
-
-    int32 GetModelSlotCount(const class UEWEInventoryComponent &Model) const override;
-    const TArray<TObjectPtr<class UEWEWeaponInstance>> &GetModelSlots(const class UEWEInventoryComponent &Model) const override;
-    void SubscribeModel(class UEWEInventoryComponent &Model) override;
-    void UnsubscribeModel(class UEWEInventoryComponent &Model) override;
-    void UpdateFromModel() override;
 
     /** INDEX_NONE until the Model reports a selection. */
     UPROPERTY(BlueprintReadOnly, FieldNotify)

@@ -242,6 +242,53 @@ bool UEWELocalUIManageSubsystem::IsInventoryOpen() const
     return InventoryWidget && InventoryWidget->IsInventoryOpen();
 }
 
+void UEWELocalUIManageSubsystem::BindInventoryModel(APlayerController *NewPlayerController)
+{
+    // Drop the previous controller's subscription first.
+    AEWEPlayerController *PreviousPC = Cast<AEWEPlayerController>(CurrentPlayerController.Get());
+    if (PreviousPC)
+    {
+        PreviousPC->OnInventoryModelChanged.Remove(InventoryModelChangedHandle);
+    }
+    InventoryModelChangedHandle.Reset();
+
+    if (!NewPlayerController)
+    {
+        return;
+    }
+
+    // The Model relay lives on the EWE controller, not the engine base.
+    AEWEPlayerController *EWEPC = Cast<AEWEPlayerController>(NewPlayerController);
+    if (!EWEPC)
+    {
+        return;
+    }
+
+    InventoryModelChangedHandle = EWEPC->OnInventoryModelChanged.AddUObject(
+        this, &UEWELocalUIManageSubsystem::HandleInventoryModelChanged);
+
+    // Pull the current Model for a late subscriber. The PC fires OnInventoryModelChanged
+    // only on possession, so a controller that already possesses a pawn must be pulled.
+    UEWEInventoryComponent *Model = EWEPC->GetInventoryModel();
+    if (Model)
+    {
+        HandleInventoryModelChanged(nullptr, Model);
+    }
+}
+
+void UEWELocalUIManageSubsystem::HandleInventoryModelChanged(UEWEInventoryComponent *Old, UEWEInventoryComponent *New)
+{
+    if (QuickSlotViewModel)
+    {
+        QuickSlotViewModel->BindModel(Old, New);
+    }
+
+    if (InventoryViewModel)
+    {
+        InventoryViewModel->BindModel(Old, New);
+    }
+}
+
 void UEWELocalUIManageSubsystem::CreateInventoryWidget()
 {
     if (InventoryWidget)
@@ -356,53 +403,6 @@ void UEWELocalUIManageSubsystem::CreateQuickSlotWidget()
     }
 
     QuickSlotWidget->SetViewModel(QuickSlotViewModel);
-}
-
-void UEWELocalUIManageSubsystem::BindInventoryModel(APlayerController *NewPlayerController)
-{
-    // Drop the previous controller's subscription first.
-    AEWEPlayerController *PreviousPC = Cast<AEWEPlayerController>(CurrentPlayerController.Get());
-    if (PreviousPC)
-    {
-        PreviousPC->OnInventoryModelChanged.Remove(InventoryModelChangedHandle);
-    }
-    InventoryModelChangedHandle.Reset();
-
-    if (!NewPlayerController)
-    {
-        return;
-    }
-
-    // The Model relay lives on the EWE controller, not the engine base.
-    AEWEPlayerController *EWEPC = Cast<AEWEPlayerController>(NewPlayerController);
-    if (!EWEPC)
-    {
-        return;
-    }
-
-    InventoryModelChangedHandle = EWEPC->OnInventoryModelChanged.AddUObject(
-        this, &UEWELocalUIManageSubsystem::HandleInventoryModelChanged);
-
-    // Pull the current Model for a late subscriber. The PC fires OnInventoryModelChanged
-    // only on possession, so a controller that already possesses a pawn must be pulled.
-    UEWEInventoryComponent *Model = EWEPC->GetInventoryModel();
-    if (Model)
-    {
-        HandleInventoryModelChanged(nullptr, Model);
-    }
-}
-
-void UEWELocalUIManageSubsystem::HandleInventoryModelChanged(UEWEInventoryComponent *Old, UEWEInventoryComponent *New)
-{
-    if (QuickSlotViewModel)
-    {
-        QuickSlotViewModel->BindModel(Old, New);
-    }
-
-    if (InventoryViewModel)
-    {
-        InventoryViewModel->BindModel(Old, New);
-    }
 }
 
 #pragma endregion

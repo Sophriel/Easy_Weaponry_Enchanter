@@ -6,6 +6,46 @@
 #include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
 #include "EWE/EWELog.h"
 
+#pragma region UEWESlotContainerViewModelBase
+
+// --- UEWESlotContainerViewModelBase override ---
+
+int32 UEWEInventoryViewModel::GetModelSlotCount(const UEWEInventoryComponent &Model) const
+{
+    return Model.GetInventorySlotCount();
+}
+
+const TArray<TObjectPtr<UEWEWeaponInstance>> &UEWEInventoryViewModel::GetModelSlots(const UEWEInventoryComponent &Model) const
+{
+    return Model.GetItemSlots();
+}
+
+void UEWEInventoryViewModel::SubscribeModel(UEWEInventoryComponent &Model)
+{
+    ItemSlotChangedHandle = Model.OnItemSlotChanged.AddUObject(this, &UEWEInventoryViewModel::OnItemSlotChanged);
+}
+
+void UEWEInventoryViewModel::UnsubscribeModel(UEWEInventoryComponent &Model)
+{
+    Model.OnItemSlotChanged.Remove(ItemSlotChangedHandle);
+    ItemSlotChangedHandle.Reset();
+}
+
+void UEWEInventoryViewModel::OnModelBound()
+{
+    // A new Model is a fresh inventory — the previous selection no longer applies.
+    ClearSelection();
+}
+
+void UEWEInventoryViewModel::UpdateFromModel()
+{
+    Super::UpdateFromModel();
+
+    ApplySelection();
+}
+
+#pragma endregion
+
 void UEWEInventoryViewModel::SelectItemSlot(int32 SlotIndex)
 {
     UEWEInventoryComponent *Model = BoundModel.Get();
@@ -98,40 +138,6 @@ void UEWEInventoryViewModel::OnItemSlotChanged(int32 SlotIndex)
     {
         ClearSelection();
     }
-}
-
-int32 UEWEInventoryViewModel::GetModelSlotCount(const UEWEInventoryComponent &Model) const
-{
-    return Model.GetInventorySlotCount();
-}
-
-const TArray<TObjectPtr<UEWEWeaponInstance>> &UEWEInventoryViewModel::GetModelSlots(const UEWEInventoryComponent &Model) const
-{
-    return Model.GetItemSlots();
-}
-
-void UEWEInventoryViewModel::SubscribeModel(UEWEInventoryComponent &Model)
-{
-    ItemSlotChangedHandle = Model.OnItemSlotChanged.AddUObject(this, &UEWEInventoryViewModel::OnItemSlotChanged);
-}
-
-void UEWEInventoryViewModel::UnsubscribeModel(UEWEInventoryComponent &Model)
-{
-    Model.OnItemSlotChanged.Remove(ItemSlotChangedHandle);
-    ItemSlotChangedHandle.Reset();
-}
-
-void UEWEInventoryViewModel::OnModelBound()
-{
-    // A new Model is a fresh inventory — the previous selection no longer applies.
-    ClearSelection();
-}
-
-void UEWEInventoryViewModel::UpdateFromModel()
-{
-    Super::UpdateFromModel();
-
-    ApplySelection();
 }
 
 void UEWEInventoryViewModel::ApplySelection()

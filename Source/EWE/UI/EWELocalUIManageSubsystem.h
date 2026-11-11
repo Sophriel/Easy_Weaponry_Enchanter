@@ -80,6 +80,15 @@ public:
     UEWEInventory *GetInventoryWidget() const { return InventoryWidget; }
 
 protected:
+    /**
+     * Subscribes to the new player controller's Model-change relay and pulls the current
+     * Model. Drops the previous controller's subscription first.
+     */
+    void BindInventoryModel(APlayerController *NewPlayerController);
+
+    /** Forwards the Model change to the quick slot view model and re-drives the widget. */
+    void HandleInventoryModelChanged(class UEWEInventoryComponent *Old, class UEWEInventoryComponent *New);
+
     /** Creates the inventory widget if it doesn't exist */
     void CreateInventoryWidget();
 
@@ -105,15 +114,6 @@ protected:
     void CreateQuickSlotViewModel();
 
     void CreateQuickSlotWidget();
-
-    /**
-     * Subscribes to the new player controller's Model-change relay and pulls the current
-     * Model. Drops the previous controller's subscription first.
-     */
-    void BindInventoryModel(APlayerController *NewPlayerController);
-
-    /** Forwards the Model change to the quick slot view model and re-drives the widget. */
-    void HandleInventoryModelChanged(class UEWEInventoryComponent *Old, class UEWEInventoryComponent *New);
 
     UPROPERTY(Transient)
     TObjectPtr<class UEWEQuickSlotViewModel> QuickSlotViewModel;
