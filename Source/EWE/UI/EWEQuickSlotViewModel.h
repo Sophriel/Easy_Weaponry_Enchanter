@@ -3,64 +3,63 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MVVMViewModelBase.h"
+#include "EWESlotContainerViewModelBase.h"
 #include "EWEQuickSlotViewModel.generated.h"
 
-class UEWEWeaponData;
-class UEWEQuickSlotItemViewModel;
+class UEWEInventoryComponent;
+class UEWEWeaponInstance;
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnQuickSlotSelectedEvent, int32 /*SlotIndex*/,
-                                     class UEWEWeaponData * /*Weapon*/);
-
-/** View model for the entire quick slot bar. */
+/**
+ * View model for the entire quick slot bar.
+ *
+ * Observer, not owner: the inventory component (Model) owns the slot contents and the
+ * selected index. This view model subscribes to the Model's broadcasts and mirrors them
+ * into per-slot item view models. Client requests (select / scroll / assign / clear) are
+ * forwarded to the Model's Server_* RPCs; the server is the single writer.
+ *
+ * The slot item array, Model binding, and the full-mirror refresh live in the shared base
+ * (UEWESlotContainerViewModelBase); this class provides the quick-slot Model accessors,
+ * subscriptions, and selection handling.
+ */
 UCLASS(BlueprintType)
-class EWE_API UEWEQuickSlotViewModel : public UMVVMViewModelBase
+class EWE_API UEWEQuickSlotViewModel : public UEWESlotContainerViewModelBase
 {
     GENERATED_BODY()
 
 public:
-    /** Allocates the fixed slot array. Safe to call again with the same size.
-     *  Until the widget calls this, the view model is unsized: slot writes and
-     *  selection are deferred silently, not treated as errors. */
-    void InitializeSlots(int32 InSlotCount);
-
-    /** Assigns a weapon to an explicit slot. Out-of-range logs and returns.
-     *  All slot-content writes must go through this (or the methods that do),
-     *  so the re-equip broadcast below stays reachable. */
-    void SetSlot(int32 SlotIndex, class UEWEWeaponData *Weapon);
-
-    /** Places a weapon in the first empty slot. Returns the slot used, or INDEX_NONE. */
-    int32 AddWeapon(class UEWEWeaponData *Weapon);
-
-    /** Clears the slot. No caller yet — kept as the readable form of
-     *  SetSlot(Index, nullptr) for the upcoming inventory "clear slot" action. */
-    void ClearSlot(int32 SlotIndex);
+    // Client requests. Each forwards to the bound Model's Server_* RPC; the server runs
+    // the gate and the result comes back through the Model's replication.
     void SelectSlot(int32 SlotIndex);
-
-    /** Wraps around both ends. */
     void ScrollSlot(float Direction);
-
-    /** True when no weapon has been assigned to any slot yet. */
-    bool IsEmpty() const;
-
-    /** Seeds the slots from an inventory weapon list. No-op if already seeded. */
-    void SeedFromInventory(const TArray<class UEWEWeaponData *> &InWeapons);
+    void AssignToSlot(class UEWEWeaponInstance *Instance, int32 SlotIndex);
+    void ClearSlot(int32 SlotIndex);
 
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSelectedIndex() const { return SelectedIndex; }
-    UFUNCTION(BlueprintPure, FieldNotify) int32 GetSlotCount() const { return SlotItems.Num(); }
-
-    UFUNCTION(BlueprintPure)
-    UEWEQuickSlotItemViewModel *GetSlotItem(int32 SlotIndex) const;
-
-    /** Broadcast when a slot is selected. Subscribers own the equip side effect. */
-    FOnQuickSlotSelectedEvent OnSlotSelected;
 
 protected:
-    UPROPERTY(BlueprintReadOnly, FieldNotify)
-    TArray<TObjectPtr<UEWEQuickSlotItemViewModel>> SlotItems;
+#pragma region UEWESlotContainerViewModelBase
+    // --- UEWESlotContainerViewModelBase override ---
 
-    /** INDEX_NONE until the first selection, so SelectSlot(0) at startup is not swallowed
-     *  by the same-index guard. */
+    int32 GetModelSlotCount(const class UEWEInventoryComponent &Model) const override;
+    const TArray<TObjectPtr<class UEWEWeaponInstance>> &
+    GetModelSlots(const class UEWEInventoryComponent &Model) const override;
+    void SubscribeModel(class UEWEInventoryComponent &Model) override;
+    void UnsubscribeModel(class UEWEInventoryComponent &Model) override;
+    void UpdateFromModel() override;
+
+#pragma endregion
+
+    /** Model broadcast: the slot contents changed. Refreshes every slot. */
+    void OnModelQuickSlotsChanged();
+
+    /** Model broadcast: the selected index changed. Refreshes the selection highlight. */
+    void OnModelSelectedQuickSlotChanged(int32 SlotIndex);
+
+protected:
+    /** INDEX_NONE until the Model reports a selection. */
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     int32 SelectedIndex = INDEX_NONE;
+
+    FDelegateHandle QuickSlotsChangedHandle;
+    FDelegateHandle SelectedQuickSlotChangedHandle;
 };

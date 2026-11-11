@@ -9,12 +9,14 @@
 ### 퀵슬롯 구조
 
 ```
-슬롯 수: 가변 — WBP_QuickSlot::MaxSlotSize 가 결정 (C++ 기본값 5, BP 에서 조정)
+슬롯 수: UEWEInventoryComponent::QuickSlotCount (기본 5, 개발자 설정, 복제하지 않음)
+         위젯은 VM 의 슬롯 수(GetSlotCount)로 슬롯 위젯을 만든다
 전 슬롯: 일반 무기
 
 전환 방식:
   마우스 휠 스크롤
   숫자키 1 ~ 0
+  선택은 서버 권한 — 입력 → RPC → OnRep_SelectedQuickSlotIndex
 ```
 
 > "슬롯 0: 레코딩 북 고정" 은 아래 레코딩 북 UI 섹션의 **미구현 설계 정책**이다.
@@ -55,27 +57,77 @@ UMG 위젯에서 ASC를 직접 참조하지 말 것.
 
 ## HUD MVVM 구조
 
-> 구조·의존 방향·설계 결정은 `core/architecture.md` 의 "UI 계층 (MVVM)" 절에 있다.
-> 여기서는 **HUD 를 만들거나 고칠 때의 실무 규칙**만 다룬다.
+> 계층 · 의존 방향 · 핵심 원칙은 `core/architecture.md` 의 "UI 계층 (MVVM)" 절에 있다.
+> 여기서는 ViewModel 생성 · 주입 절차와 **HUD 를 만들거나 고칠 때의 실무 규칙**을 다룬다.
+
+### ViewModel 생성 · 주입
+
+```cpp
+// UEWELocalUIManageSubsystem::CreateQuickSlotWidget
+CreateQuickSlotViewModel();   // NewObject, 이미 있으면 반환
+```
+
+- **생성은 위젯 생성 함수에서 1회.** `Create<X>Widget()` 이 VM 을 만들고, 현재 소스를
+  pull 해 바인딩한 뒤 위젯에 주입한다. `Bind*()` 안에 두지 않는다 — `Bind*()` 는 여러
+  경로에서 호출되고 조기 반환 분기가 많아, 생성이 아예 일어나지 않거나 두 번 일어나는
+  창이 생긴다.
+- VM 은 **위젯보다 오래 산다.** 위젯을 재생성해도 VM 의 Model 바인딩이 유지된다.
+- 소스 변경 경로(Model 변경 · 빙의 · 타겟 갱신)는 VM 이 아직 없으면 스킵한다. VM 이 생기면 위젯 생성 함수의 pull 로 현재 소스에 바인딩된다.
+- VM 생성에 실패하면(`ensure` + Error 로그) 위젯 생성 함수는 pull · 바인딩 · 주입을 모두 건너뛴다.
+
+**주입:** 서브시스템은 VM 객체만 `SetViewModel(VM)` 으로 넘긴다. 각 위젯은
+`UEWEUserWidgetBase::BindViewModel` 로 자기 뷰에 바인딩한다 — WBP 에 선언한 이름을
+넘기고, 이름을 넣을 수 없을 때만(`NAME_None`) 클래스로 찾는다. 상위 위젯(`UEWEQuickSlot`)
+은 슬롯 위젯(`UEWESlotItem`) 을 만들고 아이템 VM 을 넘기며, 슬롯 위젯이 스스로 바인딩한다.
+
+**슬롯 위젯 생성:** `UEWEQuickSlot` 은 VM 의 `GetSlotCount` 변경을 구독해 슬롯 위젯을 만든다. `UEWEInventory` 도 같은 구독을 갖지만 인벤토리 그리드의 슬롯 위젯 생성은 미구현이다.
+
+**TargetInfo:** 서브시스템은 VM 만 갱신한다 (`UpdateTargetName` · `UpdateTargetInfo` ·
+`ClearTargetInfo`). 보임 여부는 위젯이 VM 의 `HasTarget` 바인딩으로 정한다.
+
+**Model 바인딩:** 세 경로로 들어온다.
+
+- `PlayerControllerChanged` → `BindInventoryModel` — PC 의 `OnInventoryModelChanged` 를 구독하고, 이미 빙의된 PC 면 현재 Model 을 pull 한다
+- PC `OnInventoryModelChanged(Old, New)` → `HandleInventoryModelChanged` → `UEWEQuickSlotViewModel::BindModel` · `UEWEInventoryViewModel::BindModel` (빙의 시)
+- `CreateQuickSlotWidget` · `CreateInventoryWidget` — 현재 Model 을 pull 해 **자기 VM 만** `BindModel` 한다. 다른 VM 을 다시 바인딩하면 인벤토리 VM 의 선택이 풀리기 때문이다
+
+부모 `BindModel` 이 자식의 `SubscribeModel` 로 구독하고(퀵슬롯 VM 은 `OnQuickSlotsChanged` · `OnSelectedQuickSlotChanged`, 인벤토리 VM 은 `OnItemSlotChanged`) `UpdateFromModel` 로 초기 상태를 채운다. 자식은 `UpdateFromModel` 을 오버라이드해 선택을 반영한다. 인벤토리 VM 은 새 Model 에 바인딩할 때 선택을 해제한다.
+
+두 VM 은 `UEWESlotContainerViewModelBase` 를 상속한다 — 부모가 슬롯 아이템 배열 · `BindModel` 흐름 · 내용 미러링 · `GetSlotCount` 브로드캐스트를 맡고, 자식은 Model 접근자 · 구독 · 선택 처리를 제공한다.
+
+### create-then-bind 패턴
+
+네 위젯(Status · TargetInfo · QuickSlot · Inventory)이 같은 형태를 따른다. 어느 쪽이 먼저 준비되든 결과가 같다.
+
+```
+Create<X>Widget()        →  VM 생성 → 현재 소스 pull · 바인딩 → VM 주입   ← 위젯이 준비된 경로
+AcknowledgePossession()  →  Bind<X>()                ← 폰이 준비된 경로
+                         →  PC OnInventoryModelChanged → HandleInventoryModelChanged → BindModel
+```
+
+`Bind*()` 는 **몇 번 불려도 안전**해야 한다. 이미 채워졌으면 덮어쓰지 않는다.
 
 ### 위젯을 만들 때
 
-세 HUD 위젯(Status / TargetInfo / QuickSlot)은 전부 같은 형태다. 새 HUD 를 추가할 때도 따른다.
+HUD 위젯(Status / TargetInfo / QuickSlot)과 인벤토리 위젯은 전부 같은 형태다. 새 HUD 를 추가할 때도 따른다.
 
 ```
 1. UEWE<이름>ViewModel  : UMVVMViewModelBase   생성
      표시할 값을 FieldNotify 로 노출
      소스(ASC · 인벤토리 등)를 구독해 값 갱신
+     슬롯 컨테이너형 VM(슬롯 아이템 VM 배열을 갖는 VM)은 UEWESlotContainerViewModelBase 를 상속한다
 
-2. UEWE<이름>  : UUserWidget                   생성
+2. UEWE<이름>  : UEWEUserWidgetBase            생성
      데이터 멤버를 두지 않는다. 바인딩만 한다
 
 3. UEWELocalUIManageSubsystem 에 Create / Bind 추가
-     Create<X>Widget()  — 위젯 생성 → UMVVMView 에 VM 주입 → Bind<X>()
+     Create<X>Widget()  — 위젯 생성 → VM 생성 → 현재 소스 pull · 바인딩 → VM 주입
      Bind<X>()          — 데이터 소스 연결. 여러 번 불려도 안전할 것
+     퀵슬롯 · 인벤토리는 Bind<X> 대신 인벤토리 Model 을 바인딩한다 (위 "Model 바인딩")
+     주입 · 표시 상태 규칙은 위 "ViewModel 생성 · 주입" 을 따른다
 
 4. WBP Class Settings 에서 ViewModel 등록
-     Creation Type = Manual, 이름은 C++ SetViewModel() 의 FName 과 일치
+     Creation Type = Manual, 이름은 C++ BindViewModel() 에 넘기는 이름과 일치 (이름을 넘기지 않으면 클래스로 찾는다)
 ```
 
 ### BP 바인딩 규칙
@@ -96,19 +148,20 @@ UMG 위젯에서 ASC를 직접 참조하지 말 것.
 
 ```
 ❌ 부모 위젯이 자식의 함수를 호출해 상태를 밀어넣는다
-✅ 부모는 자식에게 Entry ViewModel 을 1회 주입하고, 자식이 그 VM 을 관찰한다
+✅ 부모는 슬롯 위젯에 아이템 ViewModel 을 넘기고, 슬롯 위젯이 그 VM 을 관찰한다
 ```
 
-퀵슬롯이 그 예다. `UEWEQuickSlot` 이 `BP_ItemSlot` 마다
-`UEWEQuickSlotItemViewModel` 을 주입하고, 이후로는 자식에게 아무것도 하지 않는다.
+퀵슬롯이 그 예다. `UEWEQuickSlot` 이 `BP_ItemSlot` (`UEWESlotItem`) 마다
+`SetViewModel(UEWESlotItemViewModel)` 을 호출하고, 이후로는 자식에게 아무것도 하지 않는다.
+슬롯 위젯은 `SetViewModel` 을 받으면 자기 `UMVVMView` 에 스스로 바인딩한다.
 `WeaponSlots` 배열은 생성·레이아웃용일 뿐 상태 전달 통로가 아니다.
 
 | 표시할 것 | 바인딩 소스 |
 |---|---|
 | 선택 강조 | `IsSelected` |
-| 무기 아이콘 | `GetWeapon()` |
 | 무기 이름 | `GetWeaponName()` |
 | 빈 슬롯 처리 | `IsEmpty()` |
+| 슬롯 번호 | `GetSlotIndex()` |
 
 > ⚠️ **`IsSelected` 는 슬롯 변경 1회당 두 번 발화한다** — 이전 슬롯에 `false`,
 > 새 슬롯에 `true`. 하이라이트는 이게 맞는 동작이지만, 전환 사운드를 넣으면
@@ -117,7 +170,15 @@ UMG 위젯에서 ASC를 직접 참조하지 말 것.
 
 ### 초기화 순서를 가정하지 말 것
 
-인벤토리 로드 · 폰 빙의 · 위젯 부착은 순서가 보장되지 않는다.
+인벤토리 로드 · 폰 빙의 · 위젯 부착은 순서가 보장되지 않는다 (원칙: `core/architecture.md` "초기화 순서 무관성").
+각 축이 알리는 지점과 받는 쪽이 판정하는 지점은 다음과 같다.
+
+```
+각 축은 준비되면 알린다        인벤토리 Model → OnQuickSlotsChanged · OnSelectedQuickSlotChanged
+                              PC → OnInventoryModelChanged
+받는 쪽이 조건을 판정한다      UEWEQuickSlotViewModel::BindModel → UpdateFromModel 로 현재 상태 당겨 옴
+                              위젯 → VM GetSlotCount 변경을 구독해 슬롯 생성
+```
 
 ```
 ❌ "BeginPlay 시점엔 인벤토리가 차 있다"
@@ -139,11 +200,29 @@ Tab 키로 표시/숨기기 토글.
 HUD 퀵슬롯에 장착 가능한 아이템(무기, 두루마리 등)을 보관.
 ```
 
+### 구조
+
+```
+인벤토리는 고정 크기 슬롯 배열이다.
+- 칸 수: InventorySlotCount (개발자 설정, 기본 32)
+- 빈칸은 null. 무기를 제거하면 해당 칸만 비워지고, 뒤의 아이템이 앞으로 오지 않는다 (재정렬 없음).
+```
+
+### 선택 수명
+
+```
+선택은 인벤토리 VM 의 로컬 UI 상태다 (복제 안 함, Model 의 퀵슬롯 선택과 무관).
+- 아이템 칸만 선택 가능 (빈칸 · 범위 밖은 무시)
+- 해제: 선택 칸의 내용 변경 시 · 새 Model 바인딩 시 · 인벤토리 닫기 시
+- 유지: 퀵슬롯 배정 후에도 선택은 유지된다
+```
+
 ### 아이템 퀵슬롯 지정
 
 ```
-1. 인벤토리에서 아이템 클릭 → 선택 상태
+1. 인벤토리에서 아이템 클릭 → 선택 상태 (인벤토리 VM)
 2. 숫자키 입력 → 해당 퀵슬롯에 지정
+   배정은 인벤토리 VM → Server_AssignToQuickSlot 로 Model 관문에 모인다
 ```
 
 ### 인벤토리 입력 차단 조건
@@ -194,8 +273,8 @@ Possess Object 빙의 중:
 ### 인챈터 UI 구현 시 주의사항
 
 ```
-DataAsset 변경은 반드시 서버를 통해 처리.
-클라이언트에서 UEWEWeaponData을 직접 수정하면 안 됨.
+수정 대상은 UEWEWeaponInstance (런타임 상태). UEWEWeaponData 는 런타임 불변.
+클라이언트에서 직접 수정하면 안 됨.
 → Server RPC로 변경 요청 → 서버에서 처리 → 복제로 클라이언트 반영.
 ```
 

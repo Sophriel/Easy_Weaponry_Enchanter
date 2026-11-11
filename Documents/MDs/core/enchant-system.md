@@ -18,13 +18,14 @@ UGameplayAbility
     └── UEWEGA_DefaultOnEquip       ← 장착 중 GE 적용
 ```
 
-무기 GA 는 `UEWEWeaponData` 의 세 배열로 부여된다 (`AEWECharacter::EquipWeapon`, 전부 레벨 0).
+무기 GA 는 `UEWEWeaponInstance` 의 세 배열로 부여된다 (`AEWECharacter::EquipWeapon_ServerOnly`, 전부 레벨 0).
+SourceObject 는 세 카테고리 모두 `UEWEWeaponInstance` 다.
 
 | 배열 | InputID | 활성화 |
 |------|---------|--------|
 | `HoldAbilities` | `CHoldAbilityIndex` 부터 순번 | 공격 입력 Hold |
 | `HitAbilities` | `CHitAbilityIndex` 부터 순번 | 공격 입력 Hit (애님 노티파이) |
-| `OnEquipAbilities` | `INDEX_NONE` | 부여 즉시 자동 (아래). SourceObject = 무기 |
+| `OnEquipAbilities` | `INDEX_NONE` | 부여 즉시 자동 (아래) |
 
 요소 타입은 모두 `TSubclassOf<UGameplayAbility>` 다. `OnEquipAbilities` 에는 `UEWEGA_DefaultOnEquip` 파생을 넣는다.
 
@@ -50,7 +51,7 @@ UGameplayAbility
 **흐름**
 
 ```
-GiveAbility (EquipWeapon)
+GiveAbility (EquipWeapon_ServerOnly)
   → OnAvatarSet
       1. NetExecutionPolicy != ServerOnly → Warning, return
       2. !ActorInfo->IsNetAuthority()    → return
@@ -61,16 +62,16 @@ GiveAbility (EquipWeapon)
       유효한 Active 핸들만 AppliedEffectHandles 에 저장
       EndAbility 하지 않음 — 장착 동안 활성 유지
 
-ClearAllAbilities (다음 EquipWeapon)
+ClearAllAbilities (다음 EquipWeapon_ServerOnly)
   → OnRemoveAbility → EndAbility
       AppliedEffectHandles 전부 RemoveActiveGameplayEffect → Reset → Super::EndAbility
 ```
 
 - `IsNetAuthority` 가드는 중복이 아니다. Spec 이 복제되므로 소유 클라이언트에서도 `OnAvatarSet` 이 불린다.
   가드가 없으면 클라이언트의 `TryActivateAbility` 가 서버로 원격 활성화 RPC 를 보낸다.
-- GA 경로로 적용하므로 EffectContext 에 Ability 와 SourceObject(= 무기)가 자동 기록된다.
+- GA 경로로 적용하므로 EffectContext 에 Ability 와 SourceObject(= `UEWEWeaponInstance`)가 자동 기록된다.
 - GE 가 빠지면서 Max 가 바뀌면 `UEWEAttributeBase` 의 Max 변화 정책이 종속 Attribute 를 보정한다 (`architecture.md` "AttributeSet 설계").
-- 제약: 현재 `EquipWeapon` 이 로컬 호출이므로 Standalone / 리슨 호스트에서만 동작한다.
+- 제약: `EquipWeapon_ServerOnly` 는 서버 권한(`HasAuthority`)이 있어야 실행된다.
 
 ---
 
@@ -117,9 +118,9 @@ public:
 
 ## UEWEWeaponData 구조
 
-> ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
-> 실제 `UEWEWeaponData` 멤버는 `WeaponIcon` / `WeaponMesh` / `HoldAbilities` / `HitAbilities` / `OnEquipAbilities` / `WeaponMeshAsset` 이다.
-> 아래 블록의 인챈트 슬롯·`DefaultAttributes`·`WeaponActorClass` 는 계획상의 멤버다.
+> ⚠️ 아래 블록의 인챈트 슬롯·`DefaultAttributes` 는 계획상의 멤버다 (미구현).
+> 실제 `UEWEWeaponData` 멤버는 전부 소프트 참조다: `WeaponIcon` / `WeaponMeshAsset` / `HoldAbilities` / `HitAbilities` / `OnEquipAbilities` (각 getter).
+> 인챈트 슬롯 · 런타임 상태의 위치는 `UEWEWeaponInstance` 다. DataAsset 은 불변 정의다.
 
 ```cpp
 UCLASS(BlueprintType)
@@ -141,10 +142,6 @@ public:
     // 존재하지 않는 Attribute 이름은 Warning 후 무시
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
     TMap<FName, float> DefaultAttributes;
-
-    // 무기 액터 클래스
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-    TSubclassOf<AEWEWeaponActor> WeaponActorClass;
 };
 ```
 
@@ -325,8 +322,9 @@ void UEWEAbilityBase::OnTaskCompleted()
 
 > ⚠️ 목표 설계 (미구현) — 현재 코드에 없음
 
-- 슬롯 수는 `UEWEWeaponData::MaxEnchantSlots`로 제한
-- 실행 순서는 `Enchants` 배열 인덱스 순서로 고정
+- 슬롯 수 정의는 `UEWEWeaponData::MaxEnchantSlots` (Data)
+- 등록된 인챈트는 `UEWEWeaponInstance` (런타임 상태)
+- 실행 순서는 인챈트 배열 인덱스 순서로 고정
 - 동일 DataAsset을 같은 무기에 중복 등록 가능 → 완전 독립 GA 인스턴스 생성
 - 인챈트 슬롯 편집은 해당 무기가 **미장착** 상태일 때만 허용
 - 퀵슬롯 교체는 **모든 GA가 End/Cancel 처리된 상태**일 때만 허용

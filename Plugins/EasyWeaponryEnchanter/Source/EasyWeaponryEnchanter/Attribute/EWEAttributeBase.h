@@ -47,6 +47,7 @@ class EASYWEAPONRYENCHANTER_API UEWEAttributeBase : public UAttributeSet
 public:
     UEWEAttributeBase();
 
+public:
     // --- Vital Attributes ---
     UPROPERTY(BlueprintReadOnly, Category = "Vital", ReplicatedUsing = OnRep_Health)
     FGameplayAttributeData Health;
@@ -64,6 +65,7 @@ public:
     FGameplayAttributeData MaxMana;
     ATTRIBUTE_ACCESSORS(UEWEAttributeBase, MaxMana)
 
+public:
     // --- Replication ---
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 

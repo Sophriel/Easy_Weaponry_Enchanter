@@ -5,6 +5,8 @@
 > ⚠️ 목표 설계 (미구현) — 현재 코드에 없음.
 > 이 문서 전체가 `UEnchantDataAsset` · 인챈트 GA(`SourceEnchant`) · 인챈트 슬롯을 전제로 한다.
 
+**DataAsset 은 런타임에 쓰지 않는다.** 모든 소지자가 공유하고 PIE 에서 에디터 에셋이 오염된다.
+
 ---
 
 ## 쿨타임 시스템
@@ -84,7 +86,7 @@ bool UEWEAbilityBase::CheckCooldown(
 
 ```
 레코딩 북 = Recording GE가 부여된 특수 무기 아이템.
-일반 무기와 동일한 AEWEWeaponActor 상속 구조.
+일반 무기와 같은 Data / Instance 구조.
 QuickSlot[0]에 고정 배치.
 ```
 
@@ -173,15 +175,15 @@ void UEWEAbilityBase::ActivateAbility(...)
 ### 무기 부여 로직
 
 ```cpp
-void UEWEScrollItem::ApplyToWeapon(UEWEWeaponData* WeaponData)
+void UEWEScrollItem::ApplyToWeapon(UEWEWeaponInstance* WeaponInstance)
 {
-    int32 AvailableSlots = WeaponData->MaxEnchantSlots - WeaponData->Enchants.Num();
+    int32 AvailableSlots = WeaponInstance->GetLoadedWeaponData()->MaxEnchantSlots - WeaponInstance->Enchants.Num();
     int32 ApplyCount = FMath::Min(RecordedEnchants.Num(), AvailableSlots);
 
     // 앞에서부터 슬롯 범위 내 GA만 순차 부여
     for (int32 i = 0; i < ApplyCount; i++)
     {
-        WeaponData->Enchants.Add(RecordedEnchants[i]);
+        WeaponInstance->Enchants.Add(RecordedEnchants[i]);
     }
 
     if (RecordedEnchants.Num() > ApplyCount)
@@ -238,7 +240,7 @@ void UEWEScrollItem::ApplyToWeapon(UEWEWeaponData* WeaponData)
 ```cpp
 bool UEWEJsonImporter::ImportFromFile(
     const FString& FilePath,
-    UEWEWeaponData* TargetWeapon)
+    UEWEWeaponInstance* TargetWeapon)
 {
     FString JsonStr;
     if (!FFileHelper::LoadFileToString(JsonStr, *FilePath))

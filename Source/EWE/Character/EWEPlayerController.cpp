@@ -2,6 +2,7 @@
 
 #include "EWEPlayerController.h"
 #include "EWECharacter.h"
+#include "EWE/Character/EWEInventoryComponent.h"
 #include "EWE/UI/EWEInventory.h"
 #include "EWE/UI/EWELocalUIManageSubsystem.h"
 #include "EasyWeaponryEnchanter/Public/EasyWeaponryEnchanter.h"
@@ -17,10 +18,26 @@ void AEWEPlayerController::AcknowledgePossession(APawn *P)
         CachedUIManager = LocalPlayer->GetSubsystem<UEWELocalUIManageSubsystem>();
     }
 
+    // Relay the inventory Model. This is a local-PC-only hook; the subscribers are the
+    // local UI. Re-possession of the same pawn is a no-op (Old == New).
+    UEWEInventoryComponent *NewModel = nullptr;
+    // Named CharacterPawn: a local 'Character' would hide AController::Character.
+    AEWECharacter *CharacterPawn = Cast<AEWECharacter>(P);
+    if (CharacterPawn)
+    {
+        NewModel = CharacterPawn->GetInventoryComponent();
+    }
+
+    UEWEInventoryComponent *OldModel = InventoryModel.Get();
+    if (OldModel != NewModel)
+    {
+        InventoryModel = NewModel;
+        OnInventoryModelChanged.Broadcast(OldModel, NewModel);
+    }
+
     if (CachedUIManager)
     {
         CachedUIManager->BindStatus();
-        CachedUIManager->BindQuickSlot();
         CachedUIManager->BindTargetInfo();
     }
 }
@@ -33,86 +50,6 @@ void AEWEPlayerController::ToggleInventory()
     if (CachedUIManager)
     {
         CachedUIManager->ToggleInventory();
-    }
-}
-
-void AEWEPlayerController::SyncInventoryWeapons(const TArray<class UEWEWeaponData *> &Weapons)
-{
-    if (CachedUIManager)
-    {
-        CachedUIManager->SyncInventoryWeapons(Weapons);
-    }
-}
-
-UEWEWeaponData *AEWEPlayerController::GetSelectedWeaponDataFromInventory()
-{
-    if (CachedUIManager)
-    {
-        UEWEInventory *InventoryWidget = CachedUIManager->GetInventoryWidget();
-        if (InventoryWidget)
-        {
-            TArray<UEWEWeaponData *> Weapons = InventoryWidget->GetWeapons();
-            int32 SelectedIndex = InventoryWidget->GetSelectedItemIndex();
-
-            if (SelectedIndex >= 0 && SelectedIndex < Weapons.Num())
-            {
-                return Weapons[SelectedIndex];
-            }
-        }
-    }
-
-    EWE_LOG(LogEWE, Warning, TEXT("No weapon selected in inventory"));
-    return nullptr;
-}
-
-#pragma endregion
-
-#pragma region QuickSlot
-
-void AEWEPlayerController::AddWeapon(UEWEWeaponData *Weapon)
-{
-    if (!CachedUIManager)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("AddWeapon: UI manager not cached yet"));
-        return;
-    }
-
-    CachedUIManager->AddWeaponToQuickSlot(Weapon);
-}
-
-void AEWEPlayerController::SelectSlot(const uint8 SlotIndex)
-{
-    if (!CachedUIManager)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("SelectSlot: UI manager not cached yet"));
-        return;
-    }
-
-    CachedUIManager->SelectQuickSlot(SlotIndex);
-}
-
-void AEWEPlayerController::ScrollSlot(const float ScrollDirection)
-{
-    if (!CachedUIManager)
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("ScrollSlot: UI manager not cached yet"));
-        return;
-    }
-
-    CachedUIManager->ScrollQuickSlot(ScrollDirection);
-}
-
-void AEWEPlayerController::AssignSelectedInventoryItemToSlot(int32 SlotIndex)
-{
-    UEWEWeaponData *SelectedWeapon = GetSelectedWeaponDataFromInventory();
-    if (!SelectedWeapon)
-    {
-        return;
-    }
-
-    if (CachedUIManager)
-    {
-        CachedUIManager->SetQuickSlot(SlotIndex, SelectedWeapon);
     }
 }
 

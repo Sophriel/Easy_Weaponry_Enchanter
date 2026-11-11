@@ -1,179 +1,117 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "EWEQuickSlotViewModel.h"
-#include "EWE/UI/EWEQuickSlotItemViewModel.h"
-#include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
+#include "EWE/UI/EWESlotItemViewModel.h"
+#include "EWE/Character/EWEInventoryComponent.h"
+#include "EasyWeaponryEnchanter/Weapon/EWEWeaponInstance.h"
 #include "EWE/EWELog.h"
 
-void UEWEQuickSlotViewModel::InitializeSlots(int32 InSlotCount)
+#pragma region UEWESlotContainerViewModelBase
+
+// --- UEWESlotContainerViewModelBase override ---
+
+int32 UEWEQuickSlotViewModel::GetModelSlotCount(const UEWEInventoryComponent &Model) const
 {
-    if (SlotItems.Num() == InSlotCount)
-        return;
-
-    SlotItems.SetNum(InSlotCount);
-
-    for (int32 i = 0; i < InSlotCount; ++i)
-    {
-        SlotItems[i] = NewObject<UEWEQuickSlotItemViewModel>(this);
-        SlotItems[i]->SetSlotIndex(i);
-    }
+    return Model.GetQuickSlotCount();
 }
 
-void UEWEQuickSlotViewModel::SetSlot(int32 SlotIndex, UEWEWeaponData *Weapon)
+const TArray<TObjectPtr<UEWEWeaponInstance>> &UEWEQuickSlotViewModel::GetModelSlots(const UEWEInventoryComponent &Model) const
 {
-    if (SlotItems.Num() == 0)
-    {
-        EWE_LOG(LogEWE, Verbose, TEXT("SetSlot: view model not sized yet, ignoring"));
-        return;
-    }
-
-    if (!SlotItems.IsValidIndex(SlotIndex))
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("SetSlot: index %d out of range (%d slots)"), SlotIndex, SlotItems.Num());
-        return;
-    }
-
-    UEWEQuickSlotItemViewModel *SlotItem = SlotItems[SlotIndex];
-    if (!SlotItem)
-        return;
-
-    if (SlotItem->GetWeapon() == Weapon)
-        return;
-
-    SlotItem->SetWeapon(Weapon);
-
-    // Changing the contents of the slot the player is holding must re-equip.
-    // SelectSlot() cannot do this: the index did not change.
-    if (SlotIndex == SelectedIndex)
-    {
-        OnSlotSelected.Broadcast(SlotIndex, Weapon);
-    }
+    return Model.GetQuickSlots();
 }
 
-int32 UEWEQuickSlotViewModel::AddWeapon(UEWEWeaponData *Weapon)
+void UEWEQuickSlotViewModel::SubscribeModel(UEWEInventoryComponent &Model)
 {
-    // Needed despite SetSlot's own guard: avoids a spurious "no empty slot" warning.
-    if (SlotItems.Num() == 0)
-    {
-        EWE_LOG(LogEWE, Verbose, TEXT("AddWeapon: view model not sized yet, ignoring"));
-        return INDEX_NONE;
-    }
+    QuickSlotsChangedHandle = Model.OnQuickSlotsChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelQuickSlotsChanged);
+    SelectedQuickSlotChangedHandle = Model.OnSelectedQuickSlotChanged.AddUObject(this, &UEWEQuickSlotViewModel::OnModelSelectedQuickSlotChanged);
+}
 
+void UEWEQuickSlotViewModel::UnsubscribeModel(UEWEInventoryComponent &Model)
+{
+    Model.OnQuickSlotsChanged.Remove(QuickSlotsChangedHandle);
+    Model.OnSelectedQuickSlotChanged.Remove(SelectedQuickSlotChangedHandle);
+    QuickSlotsChangedHandle.Reset();
+    SelectedQuickSlotChangedHandle.Reset();
+}
+
+void UEWEQuickSlotViewModel::UpdateFromModel()
+{
+    Super::UpdateFromModel();
+
+    UEWEInventoryComponent *Model = BoundModel.Get();
+    if (!Model)
+        return;
+
+    // Mirror the selection.
+    const int32 Selected = Model->GetSelectedQuickSlotIndex();
     for (int32 i = 0; i < SlotItems.Num(); ++i)
     {
-        if (SlotItems[i] && SlotItems[i]->IsEmpty())
+        UEWESlotItemViewModel *SlotItem = SlotItems[i];
+        if (SlotItem)
         {
-            SetSlot(i, Weapon);
-            return i;
+            SlotItem->SetSelected(i == Selected);
         }
     }
 
-    EWE_LOG(LogEWE, Warning, TEXT("AddWeapon: no empty slot available"));
-    return INDEX_NONE;
-}
-
-void UEWEQuickSlotViewModel::ClearSlot(int32 SlotIndex)
-{
-    SetSlot(SlotIndex, nullptr);
-}
-
-void UEWEQuickSlotViewModel::SelectSlot(int32 SlotIndex)
-{
-    if (SlotItems.Num() == 0)
-    {
-        EWE_LOG(LogEWE, Verbose, TEXT("SelectSlot: view model not sized yet, ignoring"));
-        return;
-    }
-
-    if (!SlotItems.IsValidIndex(SlotIndex))
-    {
-        EWE_LOG(LogEWE, Warning, TEXT("SelectSlot: index %d out of range (%d slots)"), SlotIndex, SlotItems.Num());
-        return;
-    }
-
-    // Re-selecting the current slot changes nothing, so there is nothing to broadcast.
-    if (SlotIndex == SelectedIndex)
-        return;
-
-    if (SlotItems.IsValidIndex(SelectedIndex) && SlotItems[SelectedIndex])
-    {
-        SlotItems[SelectedIndex]->SetSelected(false);
-    }
-
-    if (UE_MVVM_SET_PROPERTY_VALUE(SelectedIndex, SlotIndex))
+    if (UE_MVVM_SET_PROPERTY_VALUE(SelectedIndex, Selected))
     {
         UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedIndex);
     }
+}
 
-    UEWEQuickSlotItemViewModel *NewSlotItem = SlotItems[SlotIndex];
-    if (!NewSlotItem)
+#pragma endregion
+
+void UEWEQuickSlotViewModel::SelectSlot(int32 SlotIndex)
+{
+    UEWEInventoryComponent *Model = BoundModel.Get();
+    if (!Model)
+    {
+        EWE_LOG(LogEWE, Verbose, TEXT("SelectSlot: no model bound"));
         return;
-
-    NewSlotItem->SetSelected(true);
-
-    // Empty slot broadcasts nullptr on purpose: selecting an empty slot unequips.
-    OnSlotSelected.Broadcast(SlotIndex, NewSlotItem->GetWeapon());
+    }
+    Model->Server_SelectQuickSlot(SlotIndex);
 }
 
 void UEWEQuickSlotViewModel::ScrollSlot(float Direction)
 {
-    if (SlotItems.Num() == 0)
-        return;
-
-    // Nothing selected yet: start at the first slot instead of wrapping from INDEX_NONE.
-    if (!SlotItems.IsValidIndex(SelectedIndex))
+    UEWEInventoryComponent *Model = BoundModel.Get();
+    if (!Model)
     {
-        SelectSlot(0);
+        EWE_LOG(LogEWE, Verbose, TEXT("ScrollSlot: no model bound"));
         return;
     }
-
-    int32 NextIndex = SelectedIndex;
-
-    if (Direction > 0.0f)
-        NextIndex = (SelectedIndex + 1) % SlotItems.Num();
-    else if (Direction < 0.0f)
-        NextIndex = (SelectedIndex - 1 + SlotItems.Num()) % SlotItems.Num();
-
-    SelectSlot(NextIndex);
+    Model->Server_ScrollQuickSlot(Direction);
 }
 
-bool UEWEQuickSlotViewModel::IsEmpty() const
+void UEWEQuickSlotViewModel::AssignToSlot(UEWEWeaponInstance *Instance, int32 SlotIndex)
 {
-    for (const auto &SlotItem : SlotItems)
+    UEWEInventoryComponent *Model = BoundModel.Get();
+    if (!Model)
     {
-        if (SlotItem && !SlotItem->IsEmpty())
-            return false;
-    }
-    return true;
-}
-
-void UEWEQuickSlotViewModel::SeedFromInventory(const TArray<UEWEWeaponData *> &InWeapons)
-{
-    if (SlotItems.Num() == 0)
-    {
-        EWE_LOG(LogEWE, Verbose, TEXT("SeedFromInventory: view model not sized yet, ignoring"));
+        EWE_LOG(LogEWE, Verbose, TEXT("AssignToSlot: no model bound"));
         return;
     }
-
-    if (!IsEmpty())
-        return;
-
-    for (int32 i = 0; i < InWeapons.Num(); ++i)
-    {
-        if (!SlotItems.IsValidIndex(i))
-        {
-            EWE_LOG(LogEWE, Warning, TEXT("SeedFromInventory: more weapons (%d) than slots (%d), skipping weapon %d"),
-                    InWeapons.Num(), SlotItems.Num(), i);
-            break;
-        }
-
-        SetSlot(i, InWeapons[i]);
-    }
+    Model->Server_AssignToQuickSlot(Instance, SlotIndex);
 }
 
-UEWEQuickSlotItemViewModel *UEWEQuickSlotViewModel::GetSlotItem(int32 SlotIndex) const
+void UEWEQuickSlotViewModel::ClearSlot(int32 SlotIndex)
 {
-    if (!SlotItems.IsValidIndex(SlotIndex))
-        return nullptr;
-    return SlotItems[SlotIndex];
+    UEWEInventoryComponent *Model = BoundModel.Get();
+    if (!Model)
+    {
+        EWE_LOG(LogEWE, Verbose, TEXT("ClearSlot: no model bound"));
+        return;
+    }
+    Model->Server_ClearQuickSlot(SlotIndex);
+}
+
+void UEWEQuickSlotViewModel::OnModelQuickSlotsChanged()
+{
+    // A full mirror is idempotent and cheap for a fixed-size slot bar.
+    UpdateFromModel();
+}
+
+void UEWEQuickSlotViewModel::OnModelSelectedQuickSlotChanged(int32 SlotIndex)
+{
+    UpdateFromModel();
 }

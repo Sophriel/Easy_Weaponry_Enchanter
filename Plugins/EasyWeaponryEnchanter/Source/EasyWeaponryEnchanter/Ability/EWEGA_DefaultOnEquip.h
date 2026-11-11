@@ -23,6 +23,7 @@ class EASYWEAPONRYENCHANTER_API UEWEGA_DefaultOnEquip : public UEWEAbilityBase
 public:
     UEWEGA_DefaultOnEquip();
 
+public:
     UPROPERTY(EditDefaultsOnly, Category = "OnEquip")
     TArray<TSubclassOf<UGameplayEffect>> OnEquipEffects;
 

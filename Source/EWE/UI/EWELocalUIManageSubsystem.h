@@ -8,9 +8,11 @@
 
 // Forward declarations
 class UEWEQuickSlotViewModel;
+class UEWEInventoryViewModel;
 class UEWEStatusViewModel;
 class UEWETargetInfoViewModel;
 class UEWEInventoryComponent;
+class UEWEWeaponInstance;
 
 /**
  * Manages all UI widgets for local player.
@@ -43,6 +45,9 @@ protected:
     /** Drops the pending OnUILoaded subscription, if any. */
     void ClearUILoadedSubscription();
 
+    /** Returns the current inventory Model, or nullptr when the controller is not an EWE controller. */
+    class UEWEInventoryComponent *GetCurrentInventoryModel() const;
+
 protected:
     TSoftObjectPtr<class UEWEUIAsset> UIConfigAsset;
 
@@ -70,74 +75,52 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI|Inventory")
     bool IsInventoryOpen() const;
 
-    /** Syncs weapons list to inventory UI */
-    UFUNCTION(BlueprintCallable, Category = "UI|Inventory")
-    void SyncInventoryWeapons(const TArray<class UEWEWeaponData *> &Weapons);
-
     /** Gets the inventory widget instance (may be nullptr) */
     UFUNCTION(BlueprintCallable, Category = "UI|Inventory")
     UEWEInventory *GetInventoryWidget() const { return InventoryWidget; }
 
 protected:
+    /**
+     * Subscribes to the new player controller's Model-change relay and pulls the current
+     * Model. Drops the previous controller's subscription first.
+     */
+    void BindInventoryModel(APlayerController *NewPlayerController);
+
+    /** Forwards the Model change to the quick slot view model and re-drives the widget. */
+    void HandleInventoryModelChanged(class UEWEInventoryComponent *Old, class UEWEInventoryComponent *New);
+
     /** Creates the inventory widget if it doesn't exist */
     void CreateInventoryWidget();
 
+    /** Creates the inventory view model. Called from CreateInventoryWidget(). */
+    void CreateInventoryViewModel();
+
+protected:
     UPROPERTY(Transient)
     TObjectPtr<class UEWEInventory> InventoryWidget;
+
+    UPROPERTY(Transient)
+    TObjectPtr<class UEWEInventoryViewModel> InventoryViewModel;
 
 #pragma endregion
 
 #pragma region QuickSlot
 public:
-    UEWEQuickSlotViewModel *GetQuickSlotViewModel() const { return QuickSlotViewModel; }
-
-    /** Restores the initial slot assignment from the owning pawn's inventory. */
-    void BindQuickSlot();
-
-    /** Adds a weapon to the first available quick slot */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void AddWeaponToQuickSlot(class UEWEWeaponData *Weapon);
-
-    /** Sets a weapon at the specified quick slot index */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void SetQuickSlot(int32 SlotIndex, class UEWEWeaponData *Weapon);
-
-    /** Selects the specified quick slot */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void SelectQuickSlot(int32 SlotIndex);
-
-    /** Scrolls to the next/previous quick slot */
-    UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
-    void ScrollQuickSlot(float ScrollDirection);
-
     /** Gets the quick slot widget instance (may be nullptr) */
     UFUNCTION(BlueprintCallable, Category = "UI|QuickSlot")
     UEWEQuickSlot *GetQuickSlotWidget() const { return QuickSlotWidget; }
 
 protected:
-    /** Creates the view model and subscribes to it. Called once from Initialize(). */
+    /** Creates the view model. Called from CreateQuickSlotWidget(). */
     void CreateQuickSlotViewModel();
 
     void CreateQuickSlotWidget();
 
-    /** Forwards the selected weapon to the possessed pawn. */
-    void HandleSlotSelected(int32 SlotIndex, class UEWEWeaponData *Weapon);
-
-    /** Subscribes to the pawn's inventory so a late load still reaches the view model. */
-    void SubscribeToInventory();
-
-    /** Fills the view model from the bound inventory. Safe to call more than once. */
-    void SeedQuickSlotFromInventory();
-
-    /** Reacts to the inventory sync broadcast: seeds the slots and ensures a selection. */
-    UFUNCTION()
-    void HandleWeaponsSynced(const TArray<class UEWEWeaponData *> &InWeapons, int32 NewCount);
-
     UPROPERTY(Transient)
     TObjectPtr<class UEWEQuickSlotViewModel> QuickSlotViewModel;
 
-    /** Inventory currently subscribed to. Weak: the pawn may be replaced. */
-    TWeakObjectPtr<class UEWEInventoryComponent> BoundInventory;
+    /** Handle for the player controller's OnInventoryModelChanged subscription. */
+    FDelegateHandle InventoryModelChangedHandle;
 
     UPROPERTY(Transient)
     TObjectPtr<class UEWEQuickSlot> QuickSlotWidget;
@@ -152,6 +135,9 @@ public:
 protected:
     void CreateStatusWidget();
 
+    /** Creates the status view model. Called from CreateStatusWidget(). */
+    void CreateStatusViewModel();
+
     UPROPERTY(Transient)
     TObjectPtr<class UEWEStatus> StatusWidget;
 
@@ -164,14 +150,6 @@ protected:
 public:
     void BindTargetInfo();
 
-    /** Shows the target info widget */
-    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
-    void ShowTargetInfo();
-
-    /** Hides the target info widget */
-    UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
-    void HideTargetInfo();
-
     /** Updates target info with a new target's AttributeSet */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
     void UpdateTargetName(const FText &TargetName);
@@ -179,7 +157,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
     void UpdateTargetInfo(const FText &TargetName, class UAbilitySystemComponent *TargetASC);
 
-    /** Clears target info and hides the widget */
+    /** Clears the target info view model */
     UFUNCTION(BlueprintCallable, Category = "UI|TargetInfo")
     void ClearTargetInfo();
 
@@ -188,8 +166,11 @@ public:
     class UEWETargetInfo *GetTargetInfoWidget() const { return TargetInfoWidget; }
 
 protected:
-    /** Creates the target info widget (initially hidden) */
+    /** Creates the target info widget */
     void CreateTargetInfoWidget();
+
+    /** Creates the target info view model. Called from CreateTargetInfoWidget(). */
+    void CreateTargetInfoViewModel();
 
     UPROPERTY(Transient)
     TObjectPtr<class UEWETargetInfo> TargetInfoWidget;

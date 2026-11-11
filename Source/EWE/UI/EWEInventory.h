@@ -3,15 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
-#include "EasyWeaponryEnchanter/Weapon/EWEWeaponData.h"
+#include "EWEUserWidgetBase.h"
+#include "FieldNotificationId.h"
 #include "EWEInventory.generated.h"
 
+class UEWEInventoryViewModel;
+
 UCLASS()
-class EWE_API UEWEInventory : public UUserWidget
+class EWE_API UEWEInventory : public UEWEUserWidgetBase
 {
 	GENERATED_BODY()
-	
+
 public:
 	UFUNCTION(BlueprintImplementableEvent, Category = Inventory, Meta = (DisplayName = "OnInventoryOpened"))
 	void K2_OnInventoryOpened();
@@ -28,36 +30,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Inventory)
 	bool IsInventoryOpen() const { return bIsInventoryOpen; }
 
-	UFUNCTION(BlueprintCallable, Category = Inventory)
-	void SetWeapons(const TArray<class UEWEWeaponData*>& Weapons);
-
-	UFUNCTION(BlueprintCallable, Category = Inventory)
-	void SelectItem(int32 Index);
-
-	UFUNCTION(BlueprintCallable, Category = Inventory)
-	void AssignToQuickSlot(int32 SlotIndex);
-
-	UFUNCTION(BlueprintCallable, Category = Inventory)
-	TArray<class UEWEWeaponData*> GetWeapons() const { return Weapons; }
-
-	UFUNCTION(BlueprintCallable, Category = Inventory)
-	int32 GetSelectedItemIndex() const { return SelectedItemIndex; }
+	/** Injects the view model, binds it to this widget's own view, and subscribes to its
+	 *  GetSlotCount. Entry creation happens when the inventory grid is implemented. */
+	void SetViewModel(UEWEInventoryViewModel *InViewModel);
 
 protected:
 	void SetMouseCursorVisible(bool bShow);
 
 	UEWEInventory(const FObjectInitializer& ObjectInitializer);
-	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Inventory)
-	TArray<TSubclassOf<UUserWidget>> ItemSlotClasses;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory)
-	TArray<TObjectPtr<UUserWidget>> ItemSlots;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Inventory)
-	TArray<TObjectPtr<class UEWEWeaponData>> Weapons;
-
+protected:	
 	bool bIsInventoryOpen = false;
-	int32 SelectedItemIndex = -1;
+
+	/** The injected view model. Weak: the subsystem owns it and may tear it down. Kept to
+	 *  unsubscribe from GetSlotCount, create slot widgets, and clear the selection on close. */
+	TWeakObjectPtr<UEWEInventoryViewModel> ViewModel;
+
+	/** Handle for the view model's GetSlotCount field-change subscription. */
+	FDelegateHandle SlotCountChangedHandle;
+
+private:
+	void OnSlotCountChanged(UObject *InViewModel, UE::FieldNotification::FFieldId InFieldId);
 };

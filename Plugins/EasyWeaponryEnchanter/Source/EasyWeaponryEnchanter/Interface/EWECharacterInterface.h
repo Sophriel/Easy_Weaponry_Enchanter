@@ -21,6 +21,18 @@ class EASYWEAPONRYENCHANTER_API IEWECharacterInterface
 	GENERATED_BODY()
 
 public:
-	virtual void AcquireWeapon(class UEWEWeaponData* Weapon) = 0;
-	virtual void EquipWeapon(class UEWEWeaponData* Weapon) = 0;
+	/**
+	 * Server-only equip gate. Grants the instance's loaded ability classes (SourceObject =
+	 * instance) or, for nullptr, removes the current weapon GAs and clears any pending
+	 * deferred-grant subscription. Called by the inventory's ApplyEquipTransition_ServerOnly.
+	 */
+	virtual void EquipWeapon_ServerOnly(class UEWEWeaponInstance* Instance) = 0;
+
+	/**
+	 * Server-only: sets the equipped instance and refreshes the hand visual. The inventory
+	 * Model is the single writer.
+	 */
+	virtual void SetEquippedWeaponInstance_ServerOnly(class UEWEWeaponInstance* Instance) = 0;
+
+	virtual class UEWEWeaponInstance* GetEquippedWeaponInstance() const = 0;
 };

@@ -15,6 +15,7 @@ class EWE_API UEWEControlData : public UPrimaryDataAsset
 public:
 	UEWEControlData();
 
+public:
 	UPROPERTY(EditAnywhere, Category = Control)
 	uint32 bShowCursor : 1;
 

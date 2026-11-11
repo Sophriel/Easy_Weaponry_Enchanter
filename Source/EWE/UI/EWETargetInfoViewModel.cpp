@@ -10,6 +10,7 @@
 void UEWETargetInfoViewModel::SetTarget(const FText &InTargetName)
 {
     Unbind();
+    UE_MVVM_SET_PROPERTY_VALUE(bHasTarget, true);
     SetTargetName(InTargetName);
     UE_MVVM_SET_PROPERTY_VALUE(bHasHPInfo, false);
     SetCurrentHP(0);
@@ -21,6 +22,7 @@ void UEWETargetInfoViewModel::SetTarget(const FText &InTargetName)
 void UEWETargetInfoViewModel::SetTarget(const FText &InTargetName, UAbilitySystemComponent *InASC)
 {
     Unbind();
+    UE_MVVM_SET_PROPERTY_VALUE(bHasTarget, true);
 
     SetTargetName(InTargetName);
     UE_MVVM_SET_PROPERTY_VALUE(bHasHPInfo, IsValid(InASC));
@@ -45,10 +47,23 @@ void UEWETargetInfoViewModel::SetTarget(const FText &InTargetName, UAbilitySyste
 void UEWETargetInfoViewModel::ClearTarget()
 {
     Unbind();
+    UE_MVVM_SET_PROPERTY_VALUE(bHasTarget, false);
     SetTargetName(FText::GetEmpty());
     UE_MVVM_SET_PROPERTY_VALUE(bHasHPInfo, false);
     SetCurrentHP(0);
     SetMaxHP(0);
+}
+
+FText UEWETargetInfoViewModel::GetHPText() const
+{
+    // No target (or a name-only target) has MaxHP of 0 — show nothing rather than "0/0".
+    if (MaxHP <= 0)
+    {
+        return FText::GetEmpty();
+    }
+
+    return FText::Format(FText::AsCultureInvariant(TEXT("{0}/{1}")), FText::AsNumber(CurrentHP),
+                         FText::AsNumber(MaxHP));
 }
 
 void UEWETargetInfoViewModel::Unbind()
@@ -81,6 +96,18 @@ void UEWETargetInfoViewModel::OnMaxHealthChanged(const FOnAttributeChangeData &D
 
 void UEWETargetInfoViewModel::SetTargetName(const FText &NewName) { UE_MVVM_SET_PROPERTY_VALUE(TargetName, NewName); }
 
-void UEWETargetInfoViewModel::SetCurrentHP(int32 NewValue) { UE_MVVM_SET_PROPERTY_VALUE(CurrentHP, NewValue); }
+void UEWETargetInfoViewModel::SetCurrentHP(int32 NewValue)
+{
+    if (UE_MVVM_SET_PROPERTY_VALUE(CurrentHP, NewValue))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetHPText);
+    }
+}
 
-void UEWETargetInfoViewModel::SetMaxHP(int32 NewValue) { UE_MVVM_SET_PROPERTY_VALUE(MaxHP, NewValue); }
+void UEWETargetInfoViewModel::SetMaxHP(int32 NewValue)
+{
+    if (UE_MVVM_SET_PROPERTY_VALUE(MaxHP, NewValue))
+    {
+        UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetHPText);
+    }
+}

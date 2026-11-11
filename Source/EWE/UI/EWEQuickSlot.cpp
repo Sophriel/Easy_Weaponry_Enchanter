@@ -3,10 +3,9 @@
 #include "EWEQuickSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "Kismet/GameplayStatics.h"
-#include "View/MVVMView.h"
+#include "INotifyFieldValueChanged.h"
 #include "EWE/UI/EWEQuickSlotViewModel.h"
-#include "EWE/UI/EWEQuickSlotItemViewModel.h"
+#include "EWE/UI/EWESlotItem.h"
 #include "EWE/EWELog.h"
 
 UEWEQuickSlot::UEWEQuickSlot(const FObjectInitializer& ObjectInitializer)
@@ -20,63 +19,116 @@ void UEWEQuickSlot::NativeConstruct()
 	// Slot widgets are created in SetViewModel(), not here.
 }
 
+void UEWEQuickSlot::NativeDestruct()
+{
+	// Unsubscribe from the view model's GetSlotCount before it is torn down.
+	UEWEQuickSlotViewModel *VM = ViewModel.Get();
+	if (VM)
+	{
+		VM->RemoveFieldValueChangedDelegate(
+			UEWEQuickSlotViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+			SlotCountChangedHandle);
+	}
+	SlotCountChangedHandle.Reset();
+
+	Super::NativeDestruct();
+}
+
 void UEWEQuickSlot::SetViewModel(UEWEQuickSlotViewModel *InViewModel)
 {
 	if (!InViewModel)
-		return;
-
-	// The widget owns the slot count and sizes the view model to match.
-	InViewModel->InitializeSlots(MaxSlotSize);
-	InitWeaponSlots(MaxSlotSize);
-
-	for (int32 i = 0; i < WeaponSlots.Num(); ++i)
 	{
-		UUserWidget *SlotWidget = WeaponSlots[i];
-		if (!SlotWidget)
-			continue;
-
-		UMVVMView *SlotView = SlotWidget->GetExtension<UMVVMView>();
-		if (!SlotView)
-		{
-			EWE_LOG(LogEWE, Warning,
-					TEXT("Quick slot entry widget has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
-			continue;
-		}
-
-		// The Blueprint-side view model name stays inside this widget. The subsystem
-		// must not need to know it.
-		SlotView->SetViewModel(FName(TEXT("EWEQuickSlotItemViewModel")), InViewModel->GetSlotItem(i));
+		EWE_LOG(LogEWE, Warning, TEXT("SetViewModel: quick slot view model is null"));
+		return;
 	}
+
+	// Same view model — already bound. The subsystem injects once, but guard against a
+	// duplicate subscription if it is called again.
+	if (InViewModel == ViewModel.Get())
+	{
+		return;
+	}
+
+	// Unsubscribe from the previous view model before switching.
+	UEWEQuickSlotViewModel *Previous = ViewModel.Get();
+	if (Previous)
+	{
+		Previous->RemoveFieldValueChangedDelegate(
+			UEWEQuickSlotViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+			SlotCountChangedHandle);
+	}
+	SlotCountChangedHandle.Reset();
+
+	ViewModel = InViewModel;
+
+	// Bind this widget's own view to the view model (name must match the WBP declaration).
+	BindViewModel(InViewModel, TEXT("EWEQuickSlotViewModel"));
+
+	// Subscribe to the slot count so the slots are created when the count becomes known.
+	SlotCountChangedHandle = InViewModel->AddFieldValueChangedDelegate(
+		UEWEQuickSlotViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+		INotifyFieldValueChanged::FFieldValueChangedDelegate::CreateUObject(this, &UEWEQuickSlot::OnSlotCountChanged));
+
+	// The count may already be known — create the slots now.
+	CreateSlotWidgets();
 }
 
-void UEWEQuickSlot::InitWeaponSlots(int32 SlotCount)
+void UEWEQuickSlot::CreateSlotWidgets()
 {
+	UEWEQuickSlotViewModel *VM = ViewModel.Get();
+	if (!VM)
+		return;
+
+	const int32 SlotCount = VM->GetSlotCount();
 	if (SlotCount < 1)
 		return;
 
 	if (!SlotReference)
 	{
-		EWE_LOG(LogEWE, Warning, TEXT("InitWeaponSlots: SlotReference is not set"));
+		EWE_LOG(LogEWE, Warning, TEXT("CreateSlotWidgets: SlotReference is not set"));
 		return;
 	}
 
-	// Clear existing slots if reinitializing
-	Slots->ClearChildren();
-	WeaponSlots.Reset();
-
-	WeaponSlots.SetNum(SlotCount);
-
-	for (int32 i = 0; i < SlotCount; ++i)
+	// If the slots are already sized to this count, keep them — only re-pass the item
+	// view models below. This matters when the view model is replaced: the kept widgets
+	// must not stay bound to the previous view model's items.
+	if (WeaponSlots.Num() != SlotCount)
 	{
-		TObjectPtr<UUserWidget> SlotWidget = CreateWidget<UUserWidget>(GetWorld(), SlotReference);
-		WeaponSlots[i] = SlotWidget;
+		// Clear existing slots if reinitializing
+		Slots->ClearChildren();
+		WeaponSlots.Reset();
 
-		TObjectPtr<UHorizontalBoxSlot> SlotHandle = Slots->AddChildToHorizontalBox(SlotWidget);
+		WeaponSlots.SetNum(SlotCount);
 
-		FSlateChildSize NewSize;
-		NewSize.SizeRule = ESlateSizeRule::Fill;
-		SlotHandle->SetSize(NewSize);
-		SlotHandle->SetHorizontalAlignment(HAlign_Center);
-		SlotHandle->SetVerticalAlignment(VAlign_Center);
+		for (int32 i = 0; i < SlotCount; ++i)
+		{
+			TObjectPtr<UEWESlotItem> SlotWidget = CreateWidget<UEWESlotItem>(GetWorld(), SlotReference);
+			WeaponSlots[i] = SlotWidget;
+
+			TObjectPtr<UHorizontalBoxSlot> SlotHandle = Slots->AddChildToHorizontalBox(SlotWidget);
+
+			FSlateChildSize NewSize;
+			NewSize.SizeRule = ESlateSizeRule::Fill;
+			SlotHandle->SetSize(NewSize);
+			SlotHandle->SetHorizontalAlignment(HAlign_Center);
+			SlotHandle->SetVerticalAlignment(VAlign_Center);
+		}
 	}
+
+	// Pass each slot widget its item view model. Runs on every call — a replaced view
+	// model must rebind the kept widgets to its own items.
+	for (int32 i = 0; i < WeaponSlots.Num(); ++i)
+	{
+		UEWESlotItem *SlotWidget = WeaponSlots[i];
+		if (!SlotWidget)
+			continue;
+
+		SlotWidget->SetViewModel(VM->GetSlotItem(i));
+	}
+}
+
+void UEWEQuickSlot::OnSlotCountChanged(UObject *InViewModel, UE::FieldNotification::FFieldId InFieldId)
+{
+	// The view model broadcast that its slot count changed — (re)create the slots.
+	CreateSlotWidgets();
 }

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "EWEUserWidgetBase.h"
 #include "EWEStatus.generated.h"
 
 /**
@@ -11,7 +11,11 @@
  * Data binding is handled on the BP side via UEWEStatusViewModel.
  */
 UCLASS()
-class EWE_API UEWEStatus : public UUserWidget
+class EWE_API UEWEStatus : public UEWEUserWidgetBase
 {
     GENERATED_BODY()
+
+public:
+    /** Injects the status view model and binds it to this widget's own view. */
+    void SetViewModel(class UEWEStatusViewModel *InViewModel);
 };

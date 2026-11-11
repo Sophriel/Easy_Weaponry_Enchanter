@@ -1,33 +1,13 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "EWEInventory.h"
+#include "EWEInventoryViewModel.h"
+#include "INotifyFieldValueChanged.h"
 #include "EWE/EWELog.h"
-#include "EWE/UI/EWELocalUIManageSubsystem.h"
 
 UEWEInventory::UEWEInventory(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
 {
     bIsInventoryOpen = false;
-    SelectedItemIndex = -1;
-}
-
-void UEWEInventory::NativeConstruct()
-{
-    Super::NativeConstruct();
-
-    const int32 InitialSlotCount = 8;
-
-    if (ItemSlotClasses.IsValidIndex(0))
-    {
-        TObjectPtr<UUserWidget> ItemSlot;
-        for (int32 i = 0; i < InitialSlotCount; ++i)
-        {
-            ItemSlot = CreateWidget<UUserWidget>(GetWorld(), ItemSlotClasses[0]);
-            if (ItemSlot)
-            {
-                ItemSlots.Add(ItemSlot);
-            }
-        }
-    }
 }
 
 void UEWEInventory::OpenInventory()
@@ -39,8 +19,11 @@ void UEWEInventory::OpenInventory()
 
     bIsInventoryOpen = true;
     SetVisibility(ESlateVisibility::Visible);
-    K2_OnInventoryOpened();
     SetMouseCursorVisible(true);
+
+    // The slot display is driven by the inventory view model; the widget only toggles
+    // visibility and the mouse cursor.
+    K2_OnInventoryOpened();
 
     EWE_LOG(LogEWEInventory, Log, TEXT("Inventory Opened"));
 }
@@ -53,10 +36,15 @@ void UEWEInventory::CloseInventory()
     }
 
     bIsInventoryOpen = false;
-    SelectedItemIndex = -1;
     SetVisibility(ESlateVisibility::Hidden);
     K2_OnInventoryClosed();
     SetMouseCursorVisible(false);
+
+    // Clear the view model's selection. The view model may not be injected yet.
+    if (UEWEInventoryViewModel *VM = ViewModel.Get())
+    {
+        VM->ClearSelection();
+    }
 
     EWE_LOG(LogEWEInventory, Log, TEXT("Inventory Closed"));
 }
@@ -70,47 +58,59 @@ void UEWEInventory::SetMouseCursorVisible(bool bShow)
     }
 }
 
-void UEWEInventory::SetWeapons(const TArray<UEWEWeaponData *> &InWeapons)
+void UEWEInventory::SetViewModel(UEWEInventoryViewModel *InViewModel)
 {
-    Weapons = InWeapons;
+    if (!InViewModel)
+    {
+        EWE_LOG(LogEWEInventory, Warning, TEXT("SetViewModel: inventory view model is null"));
+        return;
+    }
 
-    // TODO: Update slot UI (implemented in Blueprint)
+    // Same view model — already bound. The subsystem injects once, but guard against a
+    // duplicate subscription if it is called again.
+    if (InViewModel == ViewModel.Get())
+    {
+        return;
+    }
+
+    // Unsubscribe from the previous view model before switching.
+    UEWEInventoryViewModel *Previous = ViewModel.Get();
+    if (Previous)
+    {
+        Previous->RemoveFieldValueChangedDelegate(
+            UEWEInventoryViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+            SlotCountChangedHandle);
+    }
+    SlotCountChangedHandle.Reset();
+
+    ViewModel = InViewModel;
+
+    // Bind this widget's own view to the view model (name must match the WBP declaration).
+    BindViewModel(InViewModel, TEXT("EWEInventoryViewModel"));
+
+    // Subscribe to the slot count so the grid can be created when the count becomes known.
+    SlotCountChangedHandle = InViewModel->AddFieldValueChangedDelegate(
+        UEWEInventoryViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+        INotifyFieldValueChanged::FFieldValueChangedDelegate::CreateUObject(this, &UEWEInventory::OnSlotCountChanged));
 }
 
-void UEWEInventory::SelectItem(int32 Index)
+void UEWEInventory::NativeDestruct()
 {
-    if (!Weapons.IsValidIndex(Index))
+    // Unsubscribe from the view model's GetSlotCount before it is torn down.
+    UEWEInventoryViewModel *VM = ViewModel.Get();
+    if (VM)
     {
-        return;
+        VM->RemoveFieldValueChangedDelegate(
+            UEWEInventoryViewModel::FFieldNotificationClassDescriptor::GetSlotCount,
+            SlotCountChangedHandle);
     }
+    SlotCountChangedHandle.Reset();
 
-    SelectedItemIndex = Index;
-    EWE_LOG(LogEWEInventory, Log, TEXT("Selected Item: %s"), *Weapons[Index]->GetName());
+    Super::NativeDestruct();
 }
 
-void UEWEInventory::AssignToQuickSlot(int32 SlotIndex)
+void UEWEInventory::OnSlotCountChanged(UObject *InViewModel, UE::FieldNotification::FFieldId InFieldId)
 {
-    if (SelectedItemIndex < 0 || !Weapons.IsValidIndex(SelectedItemIndex))
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("No item selected"));
-        return;
-    }
-
-    UEWEWeaponData *SelectedWeapon = Weapons[SelectedItemIndex];
-
-    APlayerController* PC = GetOwningPlayer();
-    if (!PC)
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Cannot assign quick slot: no owning player"));
-        return;
-    }
-
-    UEWELocalUIManageSubsystem* UIManager = ULocalPlayer::GetSubsystem<UEWELocalUIManageSubsystem>(PC->GetLocalPlayer());
-    if (!UIManager)
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Cannot assign quick slot: UI manage subsystem not found"));
-        return;
-    }
-
-    UIManager->SetQuickSlot(SlotIndex, SelectedWeapon);
+    // TODO: Build the inventory grid here — create one UEWESlotItem per slot and call
+    // SetViewModel(VM->GetSlotItem(i)) on each. Filled in when the grid widget is implemented.
 }
