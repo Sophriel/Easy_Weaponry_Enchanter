@@ -10,10 +10,10 @@ class UEWEWeaponInstance;
 class UEWEWeaponMeshComponent;
 
 /**
- * A weapon actor for the player's quick slots. Kept for the future equipped-weapon drop /
- * pickup feature; it is no longer spawned — the hand is shown by the character's
- * UEWEWeaponMeshComponent instead. The policies below belong to the v11 quick-slot
- * pre-spawn approach and are kept as-is; revisit when drop / pickup is designed.
+ * A weapon actor for the player's quick slots. Currently unused — no spawn or reference;
+ * the hand is shown by the character's UEWEWeaponMeshComponent instead. Base work for the
+ * equipped-weapon drop / pickup feature. The relevancy and visibility settings below
+ * assume a pre-spawned quick-slot actor; revisit them when drop / pickup is designed.
  */
 UCLASS()
 class EWE_API AEWEPlayerWeapon : public AEWEWeaponBase

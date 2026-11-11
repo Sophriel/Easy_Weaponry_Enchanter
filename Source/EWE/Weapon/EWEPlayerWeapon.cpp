@@ -9,22 +9,17 @@
 AEWEPlayerWeapon::AEWEPlayerWeapon(const FObjectInitializer& ObjectInitializer)
 	: AEWEWeaponBase(ObjectInitializer.SetDefaultSubobjectClass<UEWEWeaponMeshComponent>(TEXT("WeaponMesh")))
 {
-	// v11 quick-slot pre-spawn policy — no longer spawned, kept for the future drop /
-	// pickup feature. An empty scene root keeps the actor's origin independent of the mesh
-	// (the base roots at the mesh for projectiles); a hand-attached weapon must not drag
-	// the actor.
+	// An empty scene root keeps the actor's origin independent of the mesh (the base
+	// roots at the mesh for projectiles); a hand-attached weapon must not drag the actor.
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	check(Root);
 	RootComponent = Root;
 	WeaponMesh->SetupAttachment(Root);
 
-	// v11 quick-slot pre-spawn policy — no longer spawned, kept for drop / pickup.
 	WeaponMesh->SetVisibility(false);
 
-	// v11 quick-slot pre-spawn policy — no longer spawned, kept for drop / pickup.
 	bOnlyRelevantToOwner = true;
 
-	// v11 quick-slot pre-spawn policy — no longer spawned, kept for drop / pickup.
 	SetReplicateMovement(false);
 }
 
