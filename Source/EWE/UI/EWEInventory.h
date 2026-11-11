@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "EWEUserWidgetBase.h"
 #include "FieldNotificationId.h"
 #include "EWEInventory.generated.h"
 
 class UEWEInventoryViewModel;
 
 UCLASS()
-class EWE_API UEWEInventory : public UUserWidget
+class EWE_API UEWEInventory : public UEWEUserWidgetBase
 {
 	GENERATED_BODY()
 

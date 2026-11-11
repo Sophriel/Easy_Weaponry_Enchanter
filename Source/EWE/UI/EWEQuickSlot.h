@@ -3,18 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
-#include "EWESlotItem.h"
+#include "EWEUserWidgetBase.h"
 #include "FieldNotificationId.h"
 #include "EWEQuickSlot.generated.h"
 
 class UEWEQuickSlotViewModel;
+class UEWESlotItem;
 
 /**
  * Quick slot bar widget (View only). Data lives in UEWEQuickSlotViewModel.
  */
 UCLASS()
-class EWE_API UEWEQuickSlot : public UUserWidget
+class EWE_API UEWEQuickSlot : public UEWEUserWidgetBase
 {
 	GENERATED_BODY()
 

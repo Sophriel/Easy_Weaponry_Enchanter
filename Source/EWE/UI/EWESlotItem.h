@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "EWEUserWidgetBase.h"
 #include "EWESlotItem.generated.h"
 
 /**
@@ -12,7 +12,7 @@
  * The Blueprint-side view model name stays inside this class.
  */
 UCLASS()
-class EWE_API UEWESlotItem : public UUserWidget
+class EWE_API UEWESlotItem : public UEWEUserWidgetBase
 {
     GENERATED_BODY()
 

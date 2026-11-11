@@ -3,7 +3,6 @@
 #include "EWEQuickSlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
-#include "View/MVVMView.h"
 #include "INotifyFieldValueChanged.h"
 #include "EWE/UI/EWEQuickSlotViewModel.h"
 #include "EWE/UI/EWESlotItem.h"
@@ -62,17 +61,8 @@ void UEWEQuickSlot::SetViewModel(UEWEQuickSlotViewModel *InViewModel)
 
 	ViewModel = InViewModel;
 
-	// Bind this widget's own view to the view model. The name must match the view model
-	// declared in the WBP (BP_QuickSlot), or the binding silently does nothing.
-	UMVVMView *MVVMView = GetExtension<UMVVMView>();
-	if (MVVMView)
-	{
-		MVVMView->SetViewModel(FName(TEXT("EWEQuickSlotViewModel")), InViewModel);
-	}
-	else
-	{
-		EWE_LOG(LogEWE, Warning, TEXT("Quick slot widget has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
-	}
+	// Bind this widget's own view to the view model (name must match the WBP declaration).
+	BindViewModel(InViewModel, TEXT("EWEQuickSlotViewModel"));
 
 	// Subscribe to the slot count so the slots are created when the count becomes known.
 	SlotCountChangedHandle = InViewModel->AddFieldValueChangedDelegate(

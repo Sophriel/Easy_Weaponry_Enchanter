@@ -2,7 +2,6 @@
 
 #include "EWEInventory.h"
 #include "EWEInventoryViewModel.h"
-#include "View/MVVMView.h"
 #include "INotifyFieldValueChanged.h"
 #include "EWE/EWELog.h"
 
@@ -86,17 +85,8 @@ void UEWEInventory::SetViewModel(UEWEInventoryViewModel *InViewModel)
 
     ViewModel = InViewModel;
 
-    // Bind this widget's own view to the view model. The name must match the view model
-    // declared in the WBP (BP_EWEInventory), or the binding silently does nothing.
-    UMVVMView *MVVMView = GetExtension<UMVVMView>();
-    if (MVVMView)
-    {
-        MVVMView->SetViewModel(FName(TEXT("EWEInventoryViewModel")), InViewModel);
-    }
-    else
-    {
-        EWE_LOG(LogEWEInventory, Warning, TEXT("Inventory widget has no MVVMView extension. Enable ViewModel in WBP Class Settings."));
-    }
+    // Bind this widget's own view to the view model (name must match the WBP declaration).
+    BindViewModel(InViewModel, TEXT("EWEInventoryViewModel"));
 
     // Subscribe to the slot count so the grid can be created when the count becomes known.
     SlotCountChangedHandle = InViewModel->AddFieldValueChangedDelegate(

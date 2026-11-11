@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "EWEUserWidgetBase.h"
 #include "EWETargetInfo.generated.h"
 
 /**
@@ -12,7 +12,7 @@
  * driven by the view model's HasTarget binding.
  */
 UCLASS()
-class EWE_API UEWETargetInfo : public UUserWidget
+class EWE_API UEWETargetInfo : public UEWEUserWidgetBase
 {
 	GENERATED_BODY()
 
