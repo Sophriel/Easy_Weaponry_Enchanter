@@ -17,6 +17,9 @@ try {
     if (-not $path) { exit 0 }
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { exit 0 }
 
+    # Leave plan artifacts as-is (AISM parses them; line endings must not be rewritten).
+    if ($path -match '[\\/]\.claude[\\/]plans[\\/]') { exit 0 }
+
     # Text formats only. Never touch Unreal binary assets.
     if ($path -notmatch '\.(cpp|h|hpp|inl|cs|usf|ush|uproject|uplugin|ini|json|xml|md|txt|bat|cmd|ps1)$') {
         exit 0
