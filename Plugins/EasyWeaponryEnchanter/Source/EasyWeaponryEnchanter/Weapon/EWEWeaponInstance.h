@@ -39,8 +39,9 @@ public:
 
     /**
      * Broadcast when the instance's item state changes — distinct from OnLoadFinished, which
-     * fires once when the load pipeline ends. When a replicated state is added, broadcast it
-     * from both the server setter and the matching OnRep. No broadcast site yet.
+     * fires once when the load pipeline ends. Currently unused; no broadcast site yet. Base
+     * work for item data changes (enchant, etc.): broadcast from the server setter and the
+     * matching OnRep.
      */
     FOnWeaponInstanceChanged OnItemChanged;
 
