@@ -44,6 +44,7 @@ protected:
     virtual void NotifyControllerChanged() override;
     virtual void SetupPlayerInputComponent(class UInputComponent *PlayerInputComponent) override;
 
+protected:
     /** Default input mapping context. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UInputMappingContext> DefaultMappingContext;
@@ -52,10 +53,12 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UInputMappingContext> QuickSlotMappingContext;
 
+protected:
     void Move(const FInputActionValue &Value);
 
     void Look(const FInputActionValue &Value);
 
+protected:
     /** Jump Input Action */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class UInputAction> JumpAction;
@@ -99,6 +102,7 @@ protected:
     void SetCharacterControl(ECameraType CameraType);
     void SetCharacterControlData(const class UEWEControlData *ControlData);
 
+protected:
     /** Camera boom positioning the camera behind the character */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
     TObjectPtr<class USpringArmComponent> CameraBoom;
@@ -216,6 +220,7 @@ public:
 
     void RefreshTargetInfo();
 
+public:
     /** Trace range for target acquisition */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Target Info")
     float TargetTraceRange = 5000.f;
@@ -229,6 +234,7 @@ protected:
 
     void NotifyTargetChanged(AActor *NewTarget);
 
+protected:
     /** Weak: the character only observes it. */
     UPROPERTY(Transient)
     TWeakObjectPtr<AActor> FocusedTarget;

@@ -46,8 +46,8 @@ public:
      */
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSelectedItemSlotIndex() const { return SelectedItemSlotIndex; }
 
-#pragma region UEWESlotContainerViewModelBase
 protected:
+#pragma region UEWESlotContainerViewModelBase
     // --- UEWESlotContainerViewModelBase override ---
 
     int32 GetModelSlotCount(const class UEWEInventoryComponent &Model) const override;
@@ -67,6 +67,7 @@ protected:
     /** Applies the current selection to the slot item view models. */
     void ApplySelection();
 
+protected:
     /** INDEX_NONE until a slot is selected. Local UI state — see GetSelectedItemSlotIndex. */
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     int32 SelectedItemSlotIndex = INDEX_NONE;

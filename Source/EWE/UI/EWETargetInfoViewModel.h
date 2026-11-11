@@ -40,6 +40,7 @@ protected:
     void SetCurrentHP(int32 NewValue);
     void SetMaxHP(int32 NewValue);
 
+protected:
     UPROPERTY(BlueprintReadOnly, FieldNotify) FText TargetName;
     UPROPERTY(BlueprintReadOnly, FieldNotify) int32 CurrentHP = 0;
     UPROPERTY(BlueprintReadOnly, FieldNotify) int32 MaxHP = 0;

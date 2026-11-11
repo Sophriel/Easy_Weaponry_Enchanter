@@ -64,6 +64,7 @@ protected:
      *  this to reflect their own display state (selection, etc.) after Super::UpdateFromModel(). */
     virtual void UpdateFromModel();
 
+protected:
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     TArray<TObjectPtr<UEWESlotItemViewModel>> SlotItems;
 

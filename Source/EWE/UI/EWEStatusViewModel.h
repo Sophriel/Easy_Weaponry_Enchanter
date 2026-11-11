@@ -43,6 +43,7 @@ protected:
     void SetCurrentMP(int32 NewValue);
     void SetMaxMP(int32 NewValue);
 
+protected:
     UPROPERTY(Transient)
     TObjectPtr<UAbilitySystemComponent> CachedASC;
 

@@ -95,6 +95,7 @@ protected:
     /** Creates the inventory view model. Called from CreateInventoryWidget(). */
     void CreateInventoryViewModel();
 
+protected:
     UPROPERTY(Transient)
     TObjectPtr<class UEWEInventory> InventoryWidget;
 

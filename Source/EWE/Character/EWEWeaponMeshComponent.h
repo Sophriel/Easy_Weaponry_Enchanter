@@ -42,6 +42,7 @@ protected:
 	/** Drops the load-finished subscription, if any. */
 	void ClearLoadSubscription();
 
+protected:
 	/** The instance currently displayed (weak: owned by the inventory). */
 	TWeakObjectPtr<UEWEWeaponInstance> DisplayedInstance;
 

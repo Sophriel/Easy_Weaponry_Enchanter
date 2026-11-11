@@ -40,6 +40,7 @@ protected:
 	UEWEInventory(const FObjectInitializer& ObjectInitializer);
 	virtual void NativeDestruct() override;
 
+protected:	
 	bool bIsInventoryOpen = false;
 
 	/** The injected view model. Weak: the subsystem owns it and may tear it down. Kept to

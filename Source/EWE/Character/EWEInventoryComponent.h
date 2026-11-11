@@ -52,6 +52,7 @@ public:
     int32 GetSelectedQuickSlotIndex() const { return SelectedQuickSlotIndex; }
     int32 GetQuickSlotCount() const { return QuickSlotCount; }
 
+public:
     // Model broadcasts. The view models subscribe (native, C++ only).
     FOnQuickSlotsChangedEvent OnQuickSlotsChanged;
     FOnSelectedQuickSlotChangedEvent OnSelectedQuickSlotChanged;
@@ -60,6 +61,7 @@ public:
     /** Currently unused. Base work for the inventory-full notification UI, which will subscribe here. */
     FOnAcquireRejectedEvent OnAcquireRejected;
 
+public:
     /**
      * Server single gate for slot content. Assigns the instance to the slot (moving it out of
      * any other slot, D4). Re-equips if the selected slot's content changed.
@@ -182,9 +184,11 @@ protected:
               Category = "Inventory|QuickSlot", meta = (AllowPrivateAccess = "true"))
     int32 SelectedQuickSlotIndex = INDEX_NONE;
 
+protected:
     /** True when the owning actor has authority (server). */
     bool HasOwnerAuthority() const { return GetOwner() && GetOwner()->HasAuthority(); }
 
+protected:
     /** True once the initial instances have been created and the quick slots seeded. */
     bool bInitialSeeded = false;
 

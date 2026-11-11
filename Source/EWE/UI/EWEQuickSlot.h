@@ -29,6 +29,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = QuickSlot, Meta = (AllowPrivateAccess = "true"), Meta = (BindWidget))
 	TObjectPtr<class UHorizontalBox> Slots;
 

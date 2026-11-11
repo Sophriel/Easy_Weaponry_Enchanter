@@ -36,8 +36,8 @@ public:
 
     UFUNCTION(BlueprintPure, FieldNotify) int32 GetSelectedIndex() const { return SelectedIndex; }
 
-#pragma region UEWESlotContainerViewModelBase
 protected:
+#pragma region UEWESlotContainerViewModelBase
     // --- UEWESlotContainerViewModelBase override ---
 
     int32 GetModelSlotCount(const class UEWEInventoryComponent &Model) const override;
@@ -55,6 +55,7 @@ protected:
     /** Model broadcast: the selected index changed. Refreshes the selection highlight. */
     void OnModelSelectedQuickSlotChanged(int32 SlotIndex);
 
+protected:
     /** INDEX_NONE until the Model reports a selection. */
     UPROPERTY(BlueprintReadOnly, FieldNotify)
     int32 SelectedIndex = INDEX_NONE;

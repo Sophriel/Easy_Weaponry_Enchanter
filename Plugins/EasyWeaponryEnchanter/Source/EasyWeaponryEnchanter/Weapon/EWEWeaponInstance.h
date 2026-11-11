@@ -45,6 +45,7 @@ public:
      */
     FOnWeaponInstanceChanged OnItemChanged;
 
+public:
     /**
      * Sets the weapon definition. Called once by the inventory right after creation; a
      * second call is a no-op with a Warning — the definition is immutable afterwards.
@@ -104,6 +105,7 @@ protected:
     UPROPERTY(Transient)
     TArray<TSubclassOf<class UGameplayAbility>> OnEquipAbilities;
 
+protected:
     UFUNCTION()
     void OnRep_WeaponData();
 
@@ -118,6 +120,7 @@ protected:
                        TArray<TSubclassOf<class UGameplayAbility>> &Out,
                        const TCHAR *Category);
 
+protected:
     TSharedPtr<FStreamableHandle> DataLoadHandle;
     TSharedPtr<FStreamableHandle> SubAssetLoadHandle;
 

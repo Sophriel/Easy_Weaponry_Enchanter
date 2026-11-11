@@ -21,6 +21,7 @@ public:
 		const FGameplayAbilityActivationInfo ActivationInfo,
 		const FGameplayEventData*			 TriggerEventData) override;
 
+public:
 	/** GameplayEffect to apply for healing */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Heal", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UGameplayEffect> HealGE;

@@ -32,12 +32,14 @@ public:
     /** The inventory Model of the currently possessed pawn (nullptr if none). */
     class UEWEInventoryComponent *GetInventoryModel() const { return InventoryModel.Get(); }
 
+public:
     /** Fired on the local PC when the possessed pawn's inventory Model changes. */
     FOnInventoryModelChangedEvent OnInventoryModelChanged;
 
 protected:
     virtual void AcknowledgePossession(APawn *P) override;
 
+protected:
     UPROPERTY(Transient)
     TObjectPtr<class UEWELocalUIManageSubsystem> CachedUIManager;
 

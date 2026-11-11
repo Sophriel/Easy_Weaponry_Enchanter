@@ -55,6 +55,7 @@ protected:
     FDelegateHandle LoadFinishedHandle;
     FDelegateHandle ItemChangedHandle;
 
+protected:
     void HandleLoadFinished(class UEWEWeaponInstance *FinishedInstance);
     void HandleItemChanged(class UEWEWeaponInstance *ChangedInstance);
     void UnsubscribeInstance();
