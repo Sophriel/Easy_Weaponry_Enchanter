@@ -253,7 +253,7 @@ ViewModel 생성은 위젯 생성 함수(Create<X>Widget)에서 1회.
   ❌ Bind*() 안에서 생성 — 조기 반환 분기가 많아 0회 또는 2회가 된다
   ✅ Create<X>Widget() 에서 NewObject + 현재 소스 pull · 바인딩
 
-주입은 VM 객체만 넘긴다. 각 위젯이 자기 UMVVMView 에 자기 이름(FName) 으로 바인딩한다.
+주입은 VM 객체만 넘긴다. 각 위젯이 자기 UMVVMView 에 자기 이름(FName) 으로 바인딩한다 (이름을 넣을 수 없으면 클래스 방식).
 
 Bind*() 는 몇 번 불려도 안전해야 한다. 이미 채워졌으면 덮어쓰지 않는다.
 
@@ -395,6 +395,8 @@ UEWETargetInfoViewModel         타겟 ASC 구독
 UEWEQuickSlotViewModel          인벤토리 Model 관찰 (BindModel)
 UEWEInventoryViewModel          인벤토리 Model 관찰 (BindModel), 선택 상태 소유
 UEWESlotItemViewModel           슬롯 1칸 (Instance / bSelected / SlotIndex). 퀵슬롯 · 인벤토리 공유
+UEWESlotContainerViewModelBase  퀵슬롯 · 인벤토리 VM 공통 부모 (슬롯 아이템 배열 · BindModel 흐름 · 내용 미러링 · GetSlotCount 브로드캐스트)
+UEWEUserWidgetBase              공통 위젯 부모 (BindViewModel 헬퍼)
 UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory / UEWESlotItem   View. 데이터 미소유
 ```
 

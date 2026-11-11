@@ -219,7 +219,7 @@ Create the ViewModel once, in the widget-creation function (Create<X>Widget()).
   BAD  creating inside Bind*() -- it has many early returns, so you get 0 or 2
   GOOD NewObject + pull current source + bind in Create<X>Widget()
 
-Injection passes only the VM object. Each widget binds its own UMVVMView by its own name (FName).
+Injection passes only the VM object. Each widget binds its own UMVVMView by its own name (FName), or by class when no name can be given.
 
 Bind*() must be safe to call repeatedly. Never overwrite what is already filled.
 
@@ -395,6 +395,8 @@ UEWETargetInfoViewModel         Subscribes to the target's ASC
 UEWEQuickSlotViewModel          Observes the inventory Model (BindModel)
 UEWEInventoryViewModel          Observes the inventory Model (BindModel), owns selection state
 UEWESlotItemViewModel           One slot (Instance / bSelected / SlotIndex). Shared by quick slot · inventory
+UEWESlotContainerViewModelBase  Common parent of the quick slot · inventory VMs (slot item array · BindModel flow · content mirroring · GetSlotCount broadcast)
+UEWEUserWidgetBase              Common widget parent (BindViewModel helper)
 UEWEQuickSlot / UEWEStatus / UEWETargetInfo / UEWEInventory / UEWESlotItem   Views. They own no data
 ```
 

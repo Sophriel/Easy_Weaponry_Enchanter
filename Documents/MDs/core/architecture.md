@@ -403,15 +403,15 @@ ViewModel 은 View 를 참조하지 않는다. 위젯이 사라져도 ViewModel 
 | 계층 | 클래스 | 책임 |
 |------|--------|------|
 | Model | `UEWEInventoryComponent` (서버 권한, 소유자 전용 복제), `UAbilitySystemComponent` | 진짜 데이터 |
-| ViewModel | `UEWEStatusViewModel`, `UEWETargetInfoViewModel`, `UEWEQuickSlotViewModel`, `UEWEInventoryViewModel`, `UEWESlotItemViewModel` (퀵슬롯 · 인벤토리 공유) | 표시 상태 + 변경 알림 |
-| View | `UEWEStatus`, `UEWETargetInfo`, `UEWEQuickSlot`, `UEWEInventory`, `UEWESlotItem` + 각 WBP | 바인딩만 (자기 `UMVVMView` 에 자기 이름으로 바인딩) |
+| ViewModel | `UEWEStatusViewModel`, `UEWETargetInfoViewModel`, `UEWEQuickSlotViewModel`, `UEWEInventoryViewModel`, `UEWESlotItemViewModel` (퀵슬롯 · 인벤토리 공유), `UEWESlotContainerViewModelBase` (퀵슬롯 · 인벤토리 공통 부모) | 표시 상태 + 변경 알림 |
+| View | `UEWEStatus`, `UEWETargetInfo`, `UEWEQuickSlot`, `UEWEInventory`, `UEWESlotItem` + 각 WBP, `UEWEUserWidgetBase` (공통 부모) | 바인딩만 (`BindViewModel` 로 자기 뷰에 바인딩) |
 | 소유·중재 | `UEWELocalUIManageSubsystem` | VM 생성 · 주입 (VM 객체만 `SetViewModel` 으로 넘김), Model 바인딩 (PC 릴레이, 퀵슬롯 · 인벤토리 VM), UI 명령 중계 (인벤토리 토글 · 타겟 정보) |
 
 ### 핵심 원칙
 
 - **ViewModel 은 서브시스템이 소유하고, 위젯보다 오래 산다.** VM 은 위젯 생성 함수(`Create<X>Widget()`)에서
   함께 만든다. 위젯을 재생성해도 VM 의 Model 바인딩이 유지된다.
-- **주입은 VM 객체만 넘긴다.** 각 위젯이 자기 `UMVVMView` 에 자기 이름으로 바인딩한다.
+- **주입은 VM 객체만 넘긴다.** 각 위젯이 자기 `UMVVMView` 에 자기 이름으로 바인딩한다 (이름을 넣을 수 없으면 클래스 방식).
   서브시스템은 BP 측 ViewModel 이름을 모른다.
 - **표시 상태는 VM 필드로 표현한다.** 서브시스템은 위젯을 직접 조작하지 않는다
   (예: TargetInfo 의 보임 여부는 VM 의 `HasTarget` 바인딩).
@@ -500,22 +500,24 @@ EWERuntime/Public/
 
 ```
 Source/EWE/UI/
-├── EWELocalUIManageSubsystem.h/.cpp   ← VM 소유 · 위젯 생성 · 명령 중계
-├── EWEUIAsset.h/.cpp                  ← 위젯 클래스 참조 (비동기 로드)
+├── EWELocalUIManageSubsystem.h/.cpp     ← VM 소유 · 위젯 생성 · 명령 중계
+├── EWEUIAsset.h/.cpp                    ← 위젯 클래스 참조 (비동기 로드)
+├── EWEUserWidgetBase.h/.cpp             ← 공통 위젯 부모 (BindViewModel 헬퍼)
+├── EWESlotContainerViewModelBase.h/.cpp ← 퀵슬롯 · 인벤토리 VM 공통 부모 (슬롯 아이템 배열 · BindModel 흐름 · 내용 미러링 · GetSlotCount 브로드캐스트)
 │
-├── EWEStatus.h/.cpp                   ← View
-├── EWEStatusViewModel.h/.cpp          ← ASC 구독, HP/MP 노출
+├── EWEStatus.h/.cpp                     ← View
+├── EWEStatusViewModel.h/.cpp            ← ASC 구독, HP/MP 노출
 │
-├── EWETargetInfo.h/.cpp               ← View
-├── EWETargetInfoViewModel.h/.cpp      ← 타겟 ASC 구독
+├── EWETargetInfo.h/.cpp                 ← View
+├── EWETargetInfoViewModel.h/.cpp        ← 타겟 ASC 구독
 │
-├── EWEQuickSlot.h/.cpp                ← View (슬롯 위젯 생성 · 아이템 VM 전달)
-├── EWEQuickSlotViewModel.h/.cpp       ← 인벤토리 Model 관찰 (BindModel)
-├── EWESlotItem.h/.cpp                 ← View (슬롯 1칸, 자기 뷰에 바인딩). 퀵슬롯 · 인벤토리 공유
-├── EWESlotItemViewModel.h/.cpp        ← Instance 1개 표시 (SetInstance, 로드 완료 구독). 퀵슬롯 · 인벤토리 공유
-├── EWEInventoryViewModel.h/.cpp       ← 인벤토리 Model 관찰 (BindModel), 선택 상태 소유
+├── EWEQuickSlot.h/.cpp                  ← View (슬롯 위젯 생성 · 아이템 VM 전달)
+├── EWEQuickSlotViewModel.h/.cpp         ← 인벤토리 Model 관찰 (BindModel)
+├── EWESlotItem.h/.cpp                   ← View (슬롯 1칸, 자기 뷰에 바인딩). 퀵슬롯 · 인벤토리 공유
+├── EWESlotItemViewModel.h/.cpp          ← Instance 1개 표시 (SetInstance, 로드 완료 구독). 퀵슬롯 · 인벤토리 공유
+├── EWEInventoryViewModel.h/.cpp         ← 인벤토리 Model 관찰 (BindModel), 선택 상태 소유
 │
-└── EWEInventory.h/.cpp                ← 인벤토리 위젯 (VM 주입, 슬롯 위젯 생성 미구현)
+└── EWEInventory.h/.cpp                  ← 인벤토리 위젯 (VM 주입, 슬롯 위젯 생성 미구현)
 
 Content/UI/HUD/
 ├── BP_Status / BP_TargetInfo / BP_QuickSlot / BP_ItemSlot

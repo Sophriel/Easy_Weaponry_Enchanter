@@ -75,9 +75,10 @@ CreateQuickSlotViewModel();   // NewObject, 이미 있으면 반환
 - 소스 변경 경로(Model 변경 · 빙의 · 타겟 갱신)는 VM 이 아직 없으면 스킵한다. VM 이 생기면 위젯 생성 함수의 pull 로 현재 소스에 바인딩된다.
 - VM 생성에 실패하면(`ensure` + Error 로그) 위젯 생성 함수는 pull · 바인딩 · 주입을 모두 건너뛴다.
 
-**주입:** 서브시스템은 VM 객체만 `SetViewModel(VM)` 으로 넘긴다. 각 위젯은 자기
-`UMVVMView` 에 자기 이름(`FName`) 으로 바인딩한다. 상위 위젯(`UEWEQuickSlot`) 은 슬롯
-위젯(`UEWESlotItem`) 을 만들고 아이템 VM 을 넘기며, 슬롯 위젯이 스스로 바인딩한다.
+**주입:** 서브시스템은 VM 객체만 `SetViewModel(VM)` 으로 넘긴다. 각 위젯은
+`UEWEUserWidgetBase::BindViewModel` 로 자기 뷰에 바인딩한다 — WBP 에 선언한 이름을
+넘기고, 이름을 넣을 수 없을 때만(`NAME_None`) 클래스로 찾는다. 상위 위젯(`UEWEQuickSlot`)
+은 슬롯 위젯(`UEWESlotItem`) 을 만들고 아이템 VM 을 넘기며, 슬롯 위젯이 스스로 바인딩한다.
 
 **슬롯 위젯 생성:** `UEWEQuickSlot` 은 VM 의 `GetSlotCount` 변경을 구독해 슬롯 위젯을 만든다. `UEWEInventory` 도 같은 구독을 갖지만 인벤토리 그리드의 슬롯 위젯 생성은 미구현이다.
 
@@ -90,7 +91,9 @@ CreateQuickSlotViewModel();   // NewObject, 이미 있으면 반환
 - PC `OnInventoryModelChanged(Old, New)` → `HandleInventoryModelChanged` → `UEWEQuickSlotViewModel::BindModel` · `UEWEInventoryViewModel::BindModel` (빙의 시)
 - `CreateQuickSlotWidget` · `CreateInventoryWidget` — 현재 Model 을 pull 해 **자기 VM 만** `BindModel` 한다. 다른 VM 을 다시 바인딩하면 인벤토리 VM 의 선택이 풀리기 때문이다
 
-퀵슬롯 VM 은 `OnQuickSlotsChanged` · `OnSelectedQuickSlotChanged` 를, 인벤토리 VM 은 `OnItemSlotChanged` 를 구독하고, 각자 `UpdateFromModel` 로 초기 상태를 채운다. 인벤토리 VM 은 새 Model 에 바인딩할 때 선택을 해제한다.
+부모 `BindModel` 이 자식의 `SubscribeModel` 로 구독하고(퀵슬롯 VM 은 `OnQuickSlotsChanged` · `OnSelectedQuickSlotChanged`, 인벤토리 VM 은 `OnItemSlotChanged`) `UpdateFromModel` 로 초기 상태를 채운다. 자식은 `UpdateFromModel` 을 오버라이드해 선택을 반영한다. 인벤토리 VM 은 새 Model 에 바인딩할 때 선택을 해제한다.
+
+두 VM 은 `UEWESlotContainerViewModelBase` 를 상속한다 — 부모가 슬롯 아이템 배열 · `BindModel` 흐름 · 내용 미러링 · `GetSlotCount` 브로드캐스트를 맡고, 자식은 Model 접근자 · 구독 · 선택 처리를 제공한다.
 
 ### create-then-bind 패턴
 
@@ -112,8 +115,9 @@ HUD 위젯(Status / TargetInfo / QuickSlot)과 인벤토리 위젯은 전부 같
 1. UEWE<이름>ViewModel  : UMVVMViewModelBase   생성
      표시할 값을 FieldNotify 로 노출
      소스(ASC · 인벤토리 등)를 구독해 값 갱신
+     슬롯 컨테이너형 VM(슬롯 아이템 VM 배열을 갖는 VM)은 UEWESlotContainerViewModelBase 를 상속한다
 
-2. UEWE<이름>  : UUserWidget                   생성
+2. UEWE<이름>  : UEWEUserWidgetBase            생성
      데이터 멤버를 두지 않는다. 바인딩만 한다
 
 3. UEWELocalUIManageSubsystem 에 Create / Bind 추가
@@ -123,7 +127,7 @@ HUD 위젯(Status / TargetInfo / QuickSlot)과 인벤토리 위젯은 전부 같
      주입 · 표시 상태 규칙은 위 "ViewModel 생성 · 주입" 을 따른다
 
 4. WBP Class Settings 에서 ViewModel 등록
-     Creation Type = Manual, 이름은 C++ SetViewModel() 의 FName 과 일치
+     Creation Type = Manual, 이름은 C++ BindViewModel() 에 넘기는 이름과 일치 (이름을 넘기지 않으면 클래스로 찾는다)
 ```
 
 ### BP 바인딩 규칙
